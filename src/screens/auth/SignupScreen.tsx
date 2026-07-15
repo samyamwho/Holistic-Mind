@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   ImageBackground,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../context/AuthContext";
 
 type SignupScreenProps = {
   navigation: {
@@ -19,6 +21,30 @@ type SignupScreenProps = {
 
 export default function SignupScreen({ navigation }: SignupScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signUp } = useAuth();
+
+  const completeSignup = async () => {
+    if (!name.trim() || !email.trim() || password.length < 8) {
+      setErrorMessage("Enter your name, email, and a password of at least 8 characters.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsSubmitting(true);
+    try {
+      await signUp(name, email, password);
+      navigation.replace("Onboarding");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Account creation failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -42,9 +68,12 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
               <View style={styles.field}>
                 <Text style={styles.label}>Full name</Text>
                 <TextInput
+                  autoComplete="name"
+                  onChangeText={setName}
                   placeholder="Enter your full name"
                   placeholderTextColor="rgba(95, 59, 43, 0.4)"
                   style={styles.input}
+                  value={name}
                 />
               </View>
 
@@ -52,10 +81,14 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
                 <Text style={styles.label}>Email address</Text>
                 <TextInput
                   autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect={false}
                   keyboardType="email-address"
+                  onChangeText={setEmail}
                   placeholder="Enter your email address"
                   placeholderTextColor="rgba(95, 59, 43, 0.4)"
                   style={styles.input}
+                  value={email}
                 />
               </View>
 
@@ -63,10 +96,15 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
                 <Text style={styles.label}>Password</Text>
                 <View style={styles.passwordInputWrap}>
                   <TextInput
+                    autoComplete="new-password"
+                    onChangeText={setPassword}
+                    onSubmitEditing={completeSignup}
                     placeholder="Create a password"
                     placeholderTextColor="rgba(95, 59, 43, 0.4)"
+                    returnKeyType="go"
                     secureTextEntry={!showPassword}
                     style={styles.passwordInput}
+                    value={password}
                   />
                   <Pressable
                     accessibilityRole="button"
@@ -79,21 +117,20 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
                 </View>
               </View>
 
+              {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
               <Pressable
                 accessibilityRole="button"
-                onPress={() => navigation.replace("Onboarding")}
-                style={styles.primaryButton}
+                disabled={isSubmitting}
+                onPress={completeSignup}
+                style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
               >
-                <Text style={styles.primaryButtonText}>Create account</Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#F6E3C5" size="small" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Create account</Text>
+                )}
               </Pressable>
-
-              <View style={styles.dividerRow}>
-                <View style={styles.divider} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.divider} />
-              </View>
-
-              <GoogleButton onPress={() => navigation.replace("Onboarding")} />
             </View>
 
             <Text style={styles.switchText}>
@@ -118,19 +155,6 @@ function LineArt() {
       <View style={styles.lineBase} />
     </View>
   );
-}
-
-function GoogleButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.googleButton}>
-      <GoogleMark />
-      <Text style={styles.googleButtonText}>Continue with Google</Text>
-    </Pressable>
-  );
-}
-
-function GoogleMark() {
-  return <Text style={styles.googleLetter}>G</Text>;
 }
 
 function EyeIcon({ hidden }: { hidden: boolean }) {
@@ -341,6 +365,18 @@ const styles = StyleSheet.create({
     fontFamily: interFont,
     fontSize: 16,
     fontWeight: "600",
+  },
+  primaryButtonDisabled: {
+    opacity: 0.68,
+  },
+  errorText: {
+    marginTop: -3,
+    color: "#874853",
+    fontFamily: interFont,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+    textAlign: "center",
   },
   dividerRow: {
     flexDirection: "row",

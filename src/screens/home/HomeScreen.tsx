@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
   ImageBackground,
   Platform,
@@ -18,16 +20,39 @@ import type {
   DailyCheckIn,
   DailyCheckInAnswers,
 } from "../../types/wellness";
+import { useAuth } from "../../context/AuthContext";
+import { getJournalEntries, getLatestCheckIn, getOnboardingResponses, saveCheckIn } from "../../services/wellness/wellnessApi";
 
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
 export default function HomeScreen() {
+  const navigation = useNavigation<any>();
+  const { runAuthenticated } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Partial<DailyCheckInAnswers>>({});
   const [latestCheckIn, setLatestCheckIn] = useState<DailyCheckIn | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [journalText, setJournalText] = useState("");
+  const [onboardingSupport, setOnboardingSupport] = useState("");
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    runAuthenticated(async (token) => {
+      const [checkIn, entries, onboarding] = await Promise.all([
+        getLatestCheckIn(token),
+        getJournalEntries(token),
+        getOnboardingResponses(token),
+      ]);
+      if (active) {
+        setLatestCheckIn(checkIn);
+        setJournalText(entries.slice(0, 10).map((entry) => entry.text).join(" "));
+        setOnboardingSupport(onboarding?.support ?? "");
+      }
+    }).catch((error) => console.warn("Unable to load wellness data", error));
+    return () => { active = false; };
+  }, [runAuthenticated]));
 
   const todayKey = getTodayKey();
   const isCompleteToday = latestCheckIn?.date === todayKey;
@@ -38,8 +63,8 @@ export default function HomeScreen() {
     [currentIndex]
   );
   const recommendations = useMemo(
-    () => getRecommendations(latestCheckIn?.answers ?? answers),
-    [answers, latestCheckIn]
+    () => getRecommendations(latestCheckIn?.answers ?? answers, journalText, onboardingSupport),
+    [answers, journalText, latestCheckIn, onboardingSupport]
   );
   const visibleTools = isCompleteToday ? recommendations : exerciseLibrary.slice(0, 4);
 
@@ -70,7 +95,7 @@ export default function HomeScreen() {
     setCurrentIndex((index) => index - 1);
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!selectedAnswer) {
       return;
     }
@@ -78,12 +103,13 @@ export default function HomeScreen() {
     if (currentIndex === dailyCheckInQuestions.length - 1) {
       const completedAnswers = answers as DailyCheckInAnswers;
 
-      setLatestCheckIn({
-        id: `${todayKey}-local-preview`,
-        date: todayKey,
-        answers: completedAnswers,
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        const saved = await runAuthenticated((token) => saveCheckIn(token, todayKey, completedAnswers));
+        setLatestCheckIn(saved);
+      } catch (error) {
+        console.warn("Unable to save check-in", error);
+        return;
+      }
       setIsCheckingIn(false);
       return;
     }
@@ -111,77 +137,89 @@ export default function HomeScreen() {
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.questionCard}>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>
-                    Question {currentIndex + 1} of {dailyCheckInQuestions.length}
-                  </Text>
-                  <Text style={styles.progressPercent}>{Math.round(progress * 100)}%</Text>
-                </View>
+              <View style={styles.questionCardShell}>
+                <LinearGradient
+                  colors={[
+                    "rgba(255, 255, 255, 0.68)",
+                    "rgba(255, 250, 243, 0.38)",
+                    "rgba(255, 255, 255, 0.22)",
+                  ]}
+                  start={{ x: 0.08, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.questionCard}
+                >
+                  <View pointerEvents="none" style={styles.glassHighlight} />
+                  <View style={styles.progressHeader}>
+                    <Text style={styles.progressLabel}>
+                      Question {currentIndex + 1} of {dailyCheckInQuestions.length}
+                    </Text>
+                    <Text style={styles.progressPercent}>{Math.round(progress * 100)}%</Text>
+                  </View>
 
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-                </View>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                  </View>
 
-                <Text style={styles.question}>{currentQuestion.question}</Text>
+                  <Text style={styles.question}>{currentQuestion.question}</Text>
 
-                <View style={styles.optionGrid}>
-                  {currentQuestion.options.map((option) => {
-                    const isSelected = selectedAnswer === option;
+                  <View style={styles.optionGrid}>
+                    {currentQuestion.options.map((option) => {
+                      const isSelected = selectedAnswer === option;
 
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: isSelected }}
-                        key={option}
-                        onPress={() => selectAnswer(option)}
-                        style={[
-                          styles.optionChip,
-                          isSelected && styles.optionChipSelected,
-                        ]}
-                      >
-                        <Text
+                      return (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: isSelected }}
+                          key={option}
+                          onPress={() => selectAnswer(option)}
                           style={[
-                            styles.optionText,
-                            isSelected && styles.optionTextSelected,
+                            styles.optionChip,
+                            isSelected && styles.optionChipSelected,
                           ]}
                         >
-                          {option}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                          <Text
+                            style={[
+                              styles.optionText,
+                              isSelected && styles.optionTextSelected,
+                            ]}
+                          >
+                            {option}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
 
-                <View style={styles.navigationRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={goPrevious}
-                    style={styles.roundButton}
-                  >
-                    <Text style={styles.roundButtonText}>‹</Text>
-                  </Pressable>
+                  <View style={styles.navigationRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={goPrevious}
+                      style={styles.roundButton}
+                    >
+                      <Text style={styles.roundButtonText}>‹</Text>
+                    </Pressable>
 
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: !selectedAnswer }}
-                    disabled={!selectedAnswer}
-                    onPress={goNext}
-                    style={[
-                      styles.nextButton,
-                      !selectedAnswer && styles.nextButtonDisabled,
-                    ]}
-                  >
-                    <Text
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !selectedAnswer }}
+                      disabled={!selectedAnswer}
+                      onPress={goNext}
                       style={[
-                        styles.nextButtonText,
-                        !selectedAnswer && styles.nextButtonTextDisabled,
+                        styles.nextButton,
+                        !selectedAnswer && styles.nextButtonDisabled,
                       ]}
                     >
-                      {currentIndex === dailyCheckInQuestions.length - 1 ? "Finish" : "Next"}
-                    </Text>
-                  </Pressable>
-                </View>
+                      <Text
+                        style={[
+                          styles.nextButtonText,
+                          !selectedAnswer && styles.nextButtonTextDisabled,
+                        ]}
+                      >
+                        {currentIndex === dailyCheckInQuestions.length - 1 ? "Finish" : "Next"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </LinearGradient>
               </View>
             </ScrollView>
           </SafeAreaView>
@@ -206,6 +244,7 @@ export default function HomeScreen() {
             <RecommendedTools
               title={isCompleteToday ? "For you right now" : "Tools often recommended"}
               tools={visibleTools}
+              onSelectTool={(exerciseId) => navigation.navigate("Exercise", { exerciseId })}
             />
             <ProgressSummary checkInsToday={isCompleteToday ? 1 : 0} exercisesDone={0} />
 
@@ -258,9 +297,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 122,
+    paddingTop: 36,
+    paddingBottom: 142,
   },
   previewReset: {
     alignSelf: "center",
@@ -274,18 +314,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
-  questionCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.44)",
-    borderWidth: 1,
-    borderColor: "rgba(95, 59, 43, 0.08)",
-    borderRadius: 30,
-    padding: 24,
-    marginTop: 10,
+  questionCardShell: {
+    borderRadius: 32,
     shadowColor: "#5F3B2B",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 22,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    elevation: 7,
+  },
+  questionCard: {
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.56)",
+    borderRadius: 32,
+    overflow: "hidden",
+    padding: 24,
+  },
+  glassHighlight: {
+    position: "absolute",
+    top: 1,
+    left: 1,
+    right: 1,
+    height: 96,
+    borderTopLeftRadius: 31,
+    borderTopRightRadius: 31,
+    backgroundColor: "rgba(255, 255, 255, 0.24)",
   },
   progressHeader: {
     flexDirection: "row",
@@ -310,7 +362,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 9,
     borderRadius: 10,
-    backgroundColor: "rgba(95, 59, 43, 0.12)",
+    backgroundColor: "rgba(95, 59, 43, 0.11)",
     overflow: "hidden",
   },
   progressFill: {
@@ -339,9 +391,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 13,
     borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.48)",
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderWidth: 1,
-    borderColor: "rgba(95, 59, 43, 0.08)",
+    borderColor: "rgba(255, 255, 255, 0.52)",
+    shadowColor: "#5F3B2B",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   optionChipSelected: {
     backgroundColor: "rgba(95, 59, 43, 0.82)",
@@ -370,7 +427,9 @@ const styles = StyleSheet.create({
     borderRadius: 29,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.52)",
+    backgroundColor: "rgba(255, 255, 255, 0.58)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.54)",
   },
   roundButtonText: {
     color: "#5F3B2B",

@@ -1,0 +1,428 @@
+[
+  {
+    "id": "nervous-system-reset-physiological-sigh",
+    "title": "Physiological Sigh",
+    "category": "Nervous System Reset",
+    "guidanceType": "breathing",
+    "sourcePage": 105,
+    "exerciseId": "physiological-sigh"
+  },
+  {
+    "id": "nervous-system-reset-orienting-exercise",
+    "title": "Orienting Exercise",
+    "category": "Nervous System Reset",
+    "guidanceType": "guided",
+    "sourcePage": 105,
+    "exerciseId": "orienting-exercise"
+  },
+  {
+    "id": "nervous-system-reset-shoulder-drop-reset",
+    "title": "Shoulder Drop Reset",
+    "category": "Nervous System Reset",
+    "guidanceType": "video",
+    "sourcePage": 106,
+    "exerciseId": "shoulder-drop-reset"
+  },
+  {
+    "id": "nervous-system-reset-humming-or-vibration",
+    "title": "Humming or Vibration",
+    "category": "Nervous System Reset",
+    "guidanceType": "audio",
+    "sourcePage": 106,
+    "exerciseId": "humming-vibration"
+  },
+  {
+    "id": "nervous-system-reset-self-containment-hold",
+    "title": "Self-Containment Hold",
+    "category": "Nervous System Reset",
+    "guidanceType": "video",
+    "sourcePage": 106,
+    "exerciseId": "self-containment-hold"
+  },
+  {
+    "id": "ancient-practices-morning-body-tapping",
+    "title": "Morning Body Tapping",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 111
+  },
+  {
+    "id": "ancient-practices-arm-swing-qigong",
+    "title": "Arm Swing Qigong",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 111
+  },
+  {
+    "id": "ancient-practices-lymph-collarbone-massage",
+    "title": "Lymph Collarbone Massage",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 111
+  },
+  {
+    "id": "ancient-practices-bamboo-breathing",
+    "title": "Bamboo Breathing",
+    "category": "Ancient Practices",
+    "guidanceType": "breathing",
+    "sourcePage": 111
+  },
+  {
+    "id": "ancient-practices-heart-center-palm-hold",
+    "title": "Heart Center Palm Hold",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 112
+  },
+  {
+    "id": "ancient-practices-soft-eye-gazing",
+    "title": "Soft Eye Gazing",
+    "category": "Ancient Practices",
+    "guidanceType": "guided",
+    "sourcePage": 112
+  },
+  {
+    "id": "ancient-practices-silk-reeling-arms",
+    "title": "Silk Reeling Arms",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 112
+  },
+  {
+    "id": "ancient-practices-wall-palm-stretch",
+    "title": "Wall Palm Stretch",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 113
+  },
+  {
+    "id": "ancient-practices-neck-and-shoulder-melt",
+    "title": "Neck and Shoulder Melt",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 113
+  },
+  {
+    "id": "ancient-practices-spine-rolling-breath",
+    "title": "Spine Rolling Breath",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 113
+  },
+  {
+    "id": "ancient-practices-kidney-warming-rub",
+    "title": "Kidney Warming Rub",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 113
+  },
+  {
+    "id": "ancient-practices-trauma-shake-release",
+    "title": "Trauma Shake Release",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 113
+  },
+  {
+    "id": "ancient-practices-safe-grounding-press",
+    "title": "Safe Grounding Press",
+    "category": "Ancient Practices",
+    "guidanceType": "grounding",
+    "sourcePage": 113
+  },
+  {
+    "id": "ancient-practices-inner-smile-practice",
+    "title": "Inner Smile Practice",
+    "category": "Ancient Practices",
+    "guidanceType": "guided",
+    "sourcePage": 114
+  },
+  {
+    "id": "ancient-practices-eight-direction-stretch",
+    "title": "Eight Direction Stretch",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 114
+  },
+  {
+    "id": "ancient-practices-belly-breathing-with-hand-warmth",
+    "title": "Belly Breathing With Hand Warmth",
+    "category": "Ancient Practices",
+    "guidanceType": "breathing",
+    "sourcePage": 114
+  },
+  {
+    "id": "ancient-practices-third-eye-massage",
+    "title": "Third Eye Massage",
+    "category": "Ancient Practices",
+    "guidanceType": "video",
+    "sourcePage": 115
+  },
+  {
+    "id": "ancient-practices-qi-ball-holding",
+    "title": "Qi Ball Holding",
+    "category": "Ancient Practices",
+    "guidanceType": "guided",
+    "sourcePage": 115
+  },
+  {
+    "id": "kundalini-yoga-shoulder-shrugs",
+    "title": "Shoulder Shrugs",
+    "category": "Kundalini Yoga",
+    "guidanceType": "video",
+    "sourcePage": 118
+  },
+  {
+    "id": "kundalini-yoga-arm-swings-bear-grip",
+    "title": "Arm Swings (Bear Grip)",
+    "category": "Kundalini Yoga",
+    "guidanceType": "video",
+    "sourcePage": 118
+  },
+  {
+    "id": "kundalini-yoga-sufi-grinds",
+    "title": "Sufi Grinds",
+    "category": "Kundalini Yoga",
+    "guidanceType": "video",
+    "sourcePage": 119
+  },
+  {
+    "id": "kundalini-yoga-stretch-pose",
+    "title": "Stretch Pose",
+    "category": "Kundalini Yoga",
+    "guidanceType": "video",
+    "sourcePage": 119
+  },
+  {
+    "id": "kundalini-yoga-archer-pose",
+    "title": "Archer Pose",
+    "category": "Kundalini Yoga",
+    "guidanceType": "video",
+    "sourcePage": 119
+  },
+  {
+    "id": "breathwork-box-breathing",
+    "title": "Box Breathing",
+    "category": "Breathwork",
+    "guidanceType": "breathing",
+    "sourcePage": 144,
+    "exerciseId": "box-breathing"
+  },
+  {
+    "id": "breathwork-lion-s-breath",
+    "title": "Lion's Breath",
+    "category": "Breathwork",
+    "guidanceType": "breathing",
+    "sourcePage": 146
+  },
+  {
+    "id": "breathwork-4-7-8-breathing",
+    "title": "4-7-8 Breathing",
+    "category": "Breathwork",
+    "guidanceType": "breathing",
+    "sourcePage": 148
+  },
+  {
+    "id": "hip-and-pelvic-hip-rocking",
+    "title": "Hip Rocking",
+    "category": "Hip & Pelvic",
+    "guidanceType": "video",
+    "sourcePage": 152
+  },
+  {
+    "id": "hip-and-pelvic-psoas-release",
+    "title": "Psoas Release",
+    "category": "Hip & Pelvic",
+    "guidanceType": "video",
+    "sourcePage": 154
+  },
+  {
+    "id": "hip-and-pelvic-hip-flexibility",
+    "title": "Hip Flexibility",
+    "category": "Hip & Pelvic",
+    "guidanceType": "video",
+    "sourcePage": 156
+  },
+  {
+    "id": "hip-and-pelvic-butterfly-stretch",
+    "title": "Butterfly Stretch",
+    "category": "Hip & Pelvic",
+    "guidanceType": "video",
+    "sourcePage": 158
+  },
+  {
+    "id": "hip-and-pelvic-pigeon-pose",
+    "title": "Pigeon Pose",
+    "category": "Hip & Pelvic",
+    "guidanceType": "video",
+    "sourcePage": 160
+  },
+  {
+    "id": "spine-and-core-cat-cow-stretch",
+    "title": "Cat-Cow Stretch",
+    "category": "Spine & Core",
+    "guidanceType": "video",
+    "sourcePage": 164
+  },
+  {
+    "id": "spine-and-core-spinal-twists",
+    "title": "Spinal Twists",
+    "category": "Spine & Core",
+    "guidanceType": "video",
+    "sourcePage": 166
+  },
+  {
+    "id": "spine-and-core-foam-rolling",
+    "title": "Foam Rolling",
+    "category": "Spine & Core",
+    "guidanceType": "video",
+    "sourcePage": 168
+  },
+  {
+    "id": "spine-and-core-seated-forward-bend",
+    "title": "Seated Forward Bend",
+    "category": "Spine & Core",
+    "guidanceType": "video",
+    "sourcePage": 170
+  },
+  {
+    "id": "upper-body-shoulder-blade-relaxation",
+    "title": "Shoulder Blade Relaxation",
+    "category": "Upper Body",
+    "guidanceType": "video",
+    "sourcePage": 174
+  },
+  {
+    "id": "upper-body-heart-opener",
+    "title": "Heart Opener",
+    "category": "Upper Body",
+    "guidanceType": "video",
+    "sourcePage": 176
+  },
+  {
+    "id": "upper-body-wall-angels",
+    "title": "Wall Angels",
+    "category": "Upper Body",
+    "guidanceType": "video",
+    "sourcePage": 178
+  },
+  {
+    "id": "upper-body-neck-mobility-exercises",
+    "title": "Neck Mobility Exercises",
+    "category": "Upper Body",
+    "guidanceType": "video",
+    "sourcePage": 180
+  },
+  {
+    "id": "sensory-regulation-jaw-relaxation",
+    "title": "Jaw Relaxation",
+    "category": "Sensory Regulation",
+    "guidanceType": "guided",
+    "sourcePage": 184
+  },
+  {
+    "id": "sensory-regulation-tapping-eft",
+    "title": "Tapping (EFT)",
+    "category": "Sensory Regulation",
+    "guidanceType": "video",
+    "sourcePage": 186
+  },
+  {
+    "id": "whole-body-gentle-stretching",
+    "title": "Gentle Stretching",
+    "category": "Whole Body",
+    "guidanceType": "video",
+    "sourcePage": 190
+  },
+  {
+    "id": "whole-body-self-massage",
+    "title": "Self-Massage",
+    "category": "Whole Body",
+    "guidanceType": "video",
+    "sourcePage": 192
+  },
+  {
+    "id": "whole-body-grief-release",
+    "title": "Grief Release",
+    "category": "Whole Body",
+    "guidanceType": "video",
+    "sourcePage": 194
+  },
+  {
+    "id": "whole-body-gentle-shaking",
+    "title": "Gentle Shaking",
+    "category": "Whole Body",
+    "guidanceType": "video",
+    "sourcePage": 196
+  },
+  {
+    "id": "whole-body-swaying-side-to-side",
+    "title": "Swaying Side to Side",
+    "category": "Whole Body",
+    "guidanceType": "video",
+    "sourcePage": 198
+  },
+  {
+    "id": "whole-body-progressive-muscle-relaxation",
+    "title": "Progressive Muscle Relaxation",
+    "category": "Whole Body",
+    "guidanceType": "audio",
+    "sourcePage": 200
+  },
+  {
+    "id": "whole-body-daily-stretch-routine",
+    "title": "Daily Stretch Routine",
+    "category": "Whole Body",
+    "guidanceType": "video",
+    "sourcePage": 202
+  },
+  {
+    "id": "whole-body-walking-meditation",
+    "title": "Walking Meditation",
+    "category": "Whole Body",
+    "guidanceType": "guided",
+    "sourcePage": 204
+  },
+  {
+    "id": "whole-body-rebounding-mini-trampoline",
+    "title": "Rebounding (Mini Trampoline)",
+    "category": "Whole Body",
+    "guidanceType": "video",
+    "sourcePage": 206
+  },
+  {
+    "id": "for-children-cross-crawl",
+    "title": "Cross Crawl",
+    "category": "For Children",
+    "guidanceType": "video",
+    "sourcePage": 210
+  },
+  {
+    "id": "for-children-cat-stretch",
+    "title": "Cat Stretch",
+    "category": "For Children",
+    "guidanceType": "video",
+    "sourcePage": 212
+  },
+  {
+    "id": "headache-relief-suboccipital-release",
+    "title": "Suboccipital Release",
+    "category": "Headache Relief",
+    "guidanceType": "video",
+    "sourcePage": 217
+  },
+  {
+    "id": "headache-relief-gentle-pressure-points",
+    "title": "Gentle Pressure Points",
+    "category": "Headache Relief",
+    "guidanceType": "video",
+    "sourcePage": 217
+  },
+  {
+    "id": "headache-relief-jaw-and-tongue-softening",
+    "title": "Jaw and Tongue Softening",
+    "category": "Headache Relief",
+    "guidanceType": "video",
+    "sourcePage": 217
+  }
+]

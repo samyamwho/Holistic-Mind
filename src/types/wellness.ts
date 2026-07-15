@@ -37,13 +37,34 @@ export type ExerciseSection =
   | "Anxiety Tools"
   | "Journaling";
 
+export type ExerciseGuidanceType =
+  | "breathing"
+  | "video"
+  | "guided"
+  | "grounding"
+  | "audio";
+
+export type ExercisePhase = {
+  label: string;
+  durationSeconds: number;
+  instruction: string;
+  motion: "expand" | "hold" | "contract";
+};
+
 export type Exercise = {
   id: string;
   title: string;
   section: ExerciseSection;
   duration: string;
+  durationSeconds: number;
+  guidanceType: ExerciseGuidanceType;
   bestFor: string[];
   why: string;
+  steps: string[];
+  phases?: ExercisePhase[];
+  videoUrl?: string;
+  safetyNote?: string;
+  sourcePage?: number;
   color: string;
   image: ImageSourcePropType;
 };

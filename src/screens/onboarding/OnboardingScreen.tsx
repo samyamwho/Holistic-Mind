@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   ImageBackground,
   LayoutAnimation,
@@ -12,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../context/AuthContext";
+import { saveOnboardingResponses } from "../../services/wellness/wellnessApi";
 
 type OnboardingScreenProps = {
   navigation: {
@@ -99,8 +102,10 @@ const steps: Step[] = [
 ];
 
 export default function OnboardingScreen({ navigation }: OnboardingScreenProps) {
+  const { runAuthenticated } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
   const step = steps[activeStep];
   const isFirstStep = activeStep === 0;
   const isLastStep = activeStep === steps.length - 1;
@@ -113,13 +118,28 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
     }
   }, []);
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!canContinue) {
       return;
     }
 
     if (isLastStep) {
-      navigation.replace("MainTabs");
+      const support = answers.support;
+      const age = answers.age;
+      const dailyTime = answers.dailyTime;
+      if (!support || !age || !dailyTime) {
+        Alert.alert("Onboarding incomplete", "Please go back and answer each onboarding question.");
+        return;
+      }
+      setIsSaving(true);
+      try {
+        await runAuthenticated((token) => saveOnboardingResponses(token, { support, age, dailyTime }));
+        navigation.replace("MainTabs");
+      } catch {
+        Alert.alert("Unable to save", "Please check your connection and try again.");
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
 
@@ -198,12 +218,12 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
 
             <Pressable
               accessibilityRole="button"
-              disabled={!canContinue}
+              disabled={!canContinue || isSaving}
               onPress={goNext}
-              style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}
+              style={[styles.primaryButton, (!canContinue || isSaving) && styles.primaryButtonDisabled]}
             >
               <Text style={styles.primaryButtonText}>
-                {isFirstStep ? "Begin" : isLastStep ? "Begin the journey" : "Continue"}
+                {isSaving ? "Saving..." : isFirstStep ? "Begin" : isLastStep ? "Begin the journey" : "Continue"}
               </Text>
             </Pressable>
           </View>

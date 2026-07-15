@@ -1,6 +1,6 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { Bird, CalendarCheck2 } from "lucide-react-native";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { CalendarCheck2 } from "lucide-react-native";
 
 type DailyCheckInCardProps = {
   isCompleteToday: boolean;
@@ -23,8 +23,12 @@ export default function DailyCheckInCard({
 
       <View style={styles.checkInCard}>
         <View style={styles.checkInArt}>
-          <View style={styles.softArch} />
-          <Bird color="#5F3B2B" size={82} strokeWidth={1.35} />
+          <Image
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            source={require("../../../../assets/onboarding/dailycheckin.png")}
+            style={styles.checkInImage}
+          />
         </View>
         <Text style={styles.cardKicker}>Daily Check-In</Text>
         <Text style={styles.checkInTitle}>
@@ -34,7 +38,7 @@ export default function DailyCheckInCard({
           <Text style={styles.checkInDoneText}>Your recommendations are ready below.</Text>
         ) : (
           <Pressable accessibilityRole="button" onPress={onBegin} style={styles.continueButton}>
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <Text style={styles.continueButtonText}>Check In</Text>
           </Pressable>
         )}
       </View>
@@ -78,7 +82,7 @@ const styles = StyleSheet.create({
     color: "#5F3B2B",
     fontFamily: interFont,
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   greeting: {
     flex: 1,
@@ -86,7 +90,7 @@ const styles = StyleSheet.create({
     fontFamily: interFont,
     fontSize: 27,
     lineHeight: 52,
-    fontWeight: "800",
+    fontWeight: "600",
     letterSpacing: 0,
     textAlign: "right",
   },
@@ -107,25 +111,21 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   checkInArt: {
-    width: 144,
-    height: 138,
+    width: 196,
+    height: 164,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 26,
   },
-  softArch: {
-    position: "absolute",
-    right: 20,
-    top: 0,
-    width: 64,
-    height: 118,
-    borderRadius: 32,
-    backgroundColor: "rgba(223, 162, 177, 0.32)",
+  checkInImage: {
+    width: 245,
+    height: 232,
   },
+
   cardKicker: {
     color: "rgba(95, 59, 43, 0.54)",
     fontFamily: interFont,
-    fontSize: 17,
+    fontSize: 14,
     lineHeight: 24,
     fontWeight: "700",
     textAlign: "center",
@@ -135,9 +135,9 @@ const styles = StyleSheet.create({
     maxWidth: 280,
     color: "#5F3B2B",
     fontFamily: interFont,
-    fontSize: 34,
+    fontSize: 29,
     lineHeight: 42,
-    fontWeight: "900",
+    fontWeight: "600",
     textAlign: "center",
   },
   checkInDoneText: {

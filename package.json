@@ -6,7 +6,14 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "api:dev": "npm --prefix backend run dev",
+    "api:build": "npm --prefix backend run build",
+    "api:migrate": "npm --prefix backend run migrate",
+    "api:seed:exercises": "npm --prefix backend run seed:exercises",
+    "admin:dev": "npm --prefix admin run dev",
+    "admin:build": "npm --prefix admin run build",
+    "api:upload": "npm --prefix backend run upload --"
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "^1.3.1",
@@ -16,7 +23,9 @@
     "expo": "~54.0.33",
     "expo-build-properties": "~1.0.10",
     "expo-linear-gradient": "~15.0.8",
+    "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.9",
+    "expo-video": "~3.0.16",
     "lucide-react-native": "^1.23.0",
     "nativewind": "^4.2.3",
     "react": "19.1.0",

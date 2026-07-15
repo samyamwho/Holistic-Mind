@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   ImageBackground,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../context/AuthContext";
 
 type LoginScreenProps = {
   navigation: {
@@ -19,6 +21,29 @@ type LoginScreenProps = {
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signIn } = useAuth();
+
+  const completeLogin = async () => {
+    if (!email.trim() || !password) {
+      setErrorMessage("Enter your email and password.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsSubmitting(true);
+    try {
+      await signIn(email, password);
+      navigation.replace("MainTabs");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Login could not be completed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -43,26 +68,30 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 <Text style={styles.label}>Email address</Text>
                 <TextInput
                   autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect={false}
                   keyboardType="email-address"
+                  onChangeText={setEmail}
                   placeholder="Enter your email address"
                   placeholderTextColor="rgba(95, 59, 43, 0.4)"
                   style={styles.input}
+                  value={email}
                 />
               </View>
 
               <View style={styles.field}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>Password</Text>
-                  <Pressable accessibilityRole="button" hitSlop={8}>
-                    <Text style={styles.forgotText}>Forgot password?</Text>
-                  </Pressable>
-                </View>
+                <Text style={styles.label}>Password</Text>
                 <View style={styles.passwordInputWrap}>
                   <TextInput
+                    autoComplete="current-password"
+                    onChangeText={setPassword}
+                    onSubmitEditing={completeLogin}
                     placeholder="Enter your password"
                     placeholderTextColor="rgba(95, 59, 43, 0.4)"
+                    returnKeyType="go"
                     secureTextEntry={!showPassword}
                     style={styles.passwordInput}
+                    value={password}
                   />
                   <Pressable
                     accessibilityRole="button"
@@ -75,21 +104,20 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 </View>
               </View>
 
+              {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
               <Pressable
                 accessibilityRole="button"
-                onPress={() => navigation.replace("MainTabs")}
-                style={styles.primaryButton}
+                disabled={isSubmitting}
+                onPress={completeLogin}
+                style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
               >
-                <Text style={styles.primaryButtonText}>Login</Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#F6E3C5" size="small" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Login</Text>
+                )}
               </Pressable>
-
-              <View style={styles.dividerRow}>
-                <View style={styles.divider} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.divider} />
-              </View>
-
-              <GoogleButton onPress={() => navigation.replace("MainTabs")} />
             </View>
 
             <Text style={styles.switchText}>
@@ -114,22 +142,6 @@ function LineArt() {
       <View style={styles.lineLeafRight} />
     </View>
   );
-}
-
-function GoogleButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.googleButton}>
-      <GoogleMark />
-      <Text style={styles.googleButtonText}>Continue with Google</Text>
-    </Pressable>
-  );
-}
-
-function GoogleMark() {
-  return (
-    
-      <Text style={styles.googleLetter}>G</Text>
-     );
 }
 
 function EyeIcon({ hidden }: { hidden: boolean }) {
@@ -354,6 +366,18 @@ const styles = StyleSheet.create({
     fontFamily: interFont,
     fontSize: 16,
     fontWeight: "600",
+  },
+  primaryButtonDisabled: {
+    opacity: 0.68,
+  },
+  errorText: {
+    marginTop: -3,
+    color: "#874853",
+    fontFamily: interFont,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+    textAlign: "center",
   },
   switchText: {
     marginTop: "auto",

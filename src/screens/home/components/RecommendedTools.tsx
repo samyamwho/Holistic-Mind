@@ -1,14 +1,15 @@
 import React from "react";
-import { Image, Platform, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SlidersHorizontal } from "lucide-react-native";
 import type { Exercise } from "../../../types/wellness";
 
 type RecommendedToolsProps = {
   title: string;
   tools: Exercise[];
+  onSelectTool: (exerciseId: string) => void;
 };
 
-export default function RecommendedTools({ title, tools }: RecommendedToolsProps) {
+export default function RecommendedTools({ title, tools, onSelectTool }: RecommendedToolsProps) {
   return (
     <>
       <View style={styles.sectionHeader}>
@@ -18,8 +19,12 @@ export default function RecommendedTools({ title, tools }: RecommendedToolsProps
 
       <View style={styles.exerciseGrid}>
         {tools.map((exercise) => (
-          <View
-            key={exercise.title}
+          <Pressable
+            accessibilityHint="Opens the guided exercise"
+            accessibilityLabel={exercise.title}
+            accessibilityRole="button"
+            key={exercise.id}
+            onPress={() => onSelectTool(exercise.id)}
             style={[styles.exerciseCard, { backgroundColor: exercise.color }]}
           >
             <Image source={exercise.image} resizeMode="contain" style={styles.exerciseImage} />
@@ -28,7 +33,7 @@ export default function RecommendedTools({ title, tools }: RecommendedToolsProps
             </Text>
             <Text style={styles.exerciseTitle}>{exercise.title}</Text>
             <Text style={styles.exerciseWhy}>{exercise.why}</Text>
-          </View>
+          </Pressable>
         ))}
       </View>
     </>

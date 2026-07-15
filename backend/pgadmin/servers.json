@@ -1,0 +1,16 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Holistic Mind",
+      "Group": "Development",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "holistic_mind",
+      "Username": "postgres",
+      "ConnectionParameters": {
+        "sslmode": "prefer",
+        "connect_timeout": 10
+      }
+    }
+  }
+}
