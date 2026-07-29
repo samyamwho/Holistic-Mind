@@ -7,6 +7,7 @@ import { authRouter } from "./routes/auth.js";
 import { exerciseMediaRouter } from "./routes/exerciseMedia.js";
 import { wellnessRouter } from "./routes/wellness.js";
 import { exercisesRouter } from "./routes/exercises.js";
+import { recommendationsRouter } from "./routes/recommendations.js";
 
 export const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/exercise-media", exerciseMediaRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/wellness", wellnessRouter);
 app.use("/api/exercises", exercisesRouter);
+app.use("/api/recommendations", recommendationsRouter);
 
 app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });

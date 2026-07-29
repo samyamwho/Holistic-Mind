@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
@@ -12,16 +12,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { dailyCheckInQuestions, exerciseLibrary } from "../../data/wellnessContent";
-import { getRecommendations } from "../../services/recommendations/recommendationEngine";
+import { generateRecommendations } from "../../services/recommendations/recommendationApi";
 import DailyCheckInCard from "./components/DailyCheckInCard";
 import ProgressSummary from "./components/ProgressSummary";
 import RecommendedTools from "./components/RecommendedTools";
 import type {
   DailyCheckIn,
   DailyCheckInAnswers,
+  Recommendation,
 } from "../../types/wellness";
 import { useAuth } from "../../context/AuthContext";
-import { getJournalEntries, getLatestCheckIn, getOnboardingResponses, saveCheckIn } from "../../services/wellness/wellnessApi";
+import { getLatestCheckIn, saveCheckIn } from "../../services/wellness/wellnessApi";
 
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -34,21 +35,16 @@ export default function HomeScreen() {
   const [answers, setAnswers] = useState<Partial<DailyCheckInAnswers>>({});
   const [latestCheckIn, setLatestCheckIn] = useState<DailyCheckIn | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [journalText, setJournalText] = useState("");
-  const [onboardingSupport, setOnboardingSupport] = useState("");
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [recommendationRequestId, setRecommendationRequestId] = useState<string | null>(null);
+  const registeredRecommendationKey = useRef("");
 
   useFocusEffect(useCallback(() => {
     let active = true;
     runAuthenticated(async (token) => {
-      const [checkIn, entries, onboarding] = await Promise.all([
-        getLatestCheckIn(token),
-        getJournalEntries(token),
-        getOnboardingResponses(token),
-      ]);
+      const checkIn = await getLatestCheckIn(token);
       if (active) {
         setLatestCheckIn(checkIn);
-        setJournalText(entries.slice(0, 10).map((entry) => entry.text).join(" "));
-        setOnboardingSupport(onboarding?.support ?? "");
       }
     }).catch((error) => console.warn("Unable to load wellness data", error));
     return () => { active = false; };
@@ -62,11 +58,46 @@ export default function HomeScreen() {
     () => (currentIndex + 1) / dailyCheckInQuestions.length,
     [currentIndex]
   );
-  const recommendations = useMemo(
-    () => getRecommendations(latestCheckIn?.answers ?? answers, journalText, onboardingSupport),
-    [answers, journalText, latestCheckIn, onboardingSupport]
-  );
-  const visibleTools = isCompleteToday ? recommendations : exerciseLibrary.slice(0, 4);
+  const visibleTools =
+    isCompleteToday && recommendations.length > 0
+      ? recommendations
+      : exerciseLibrary.slice(0, 4);
+
+  useEffect(() => {
+    if (!isCompleteToday || !latestCheckIn) {
+      setRecommendations([]);
+      setRecommendationRequestId(null);
+      return;
+    }
+
+    const recommendationKey = latestCheckIn.id;
+    if (registeredRecommendationKey.current === recommendationKey) {
+      return;
+    }
+    registeredRecommendationKey.current = recommendationKey;
+
+    runAuthenticated(generateRecommendations)
+      .then((created) => {
+        const generated = created.items.flatMap((item) => {
+          const exercise = exerciseLibrary.find((candidate) => candidate.id === item.exerciseId);
+          return exercise
+            ? [{ ...exercise, why: item.reason, score: item.score }]
+            : [];
+        });
+        setRecommendations(generated);
+        setRecommendationRequestId(created.requestId);
+      })
+      .catch((error) => {
+        registeredRecommendationKey.current = "";
+        setRecommendations([]);
+        setRecommendationRequestId(null);
+        console.warn("Unable to register recommendations", error);
+      });
+  }, [
+    isCompleteToday,
+    latestCheckIn,
+    runAuthenticated,
+  ]);
 
   const selectAnswer = (answer: string) => {
     setAnswers((currentAnswers) => ({
@@ -244,7 +275,12 @@ export default function HomeScreen() {
             <RecommendedTools
               title={isCompleteToday ? "For you right now" : "Tools often recommended"}
               tools={visibleTools}
-              onSelectTool={(exerciseId) => navigation.navigate("Exercise", { exerciseId })}
+              onSelectTool={(exerciseId) =>
+                navigation.navigate("Exercise", {
+                  exerciseId,
+                  recommendationRequestId: recommendationRequestId ?? undefined,
+                })
+              }
             />
             <ProgressSummary checkInsToday={isCompleteToday ? 1 : 0} exercisesDone={0} />
 

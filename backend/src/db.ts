@@ -118,8 +118,106 @@ export async function ensureSchema() {
       status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived')),
       display_order INTEGER NOT NULL DEFAULT 0,
       recommendation_tags TEXT[] NOT NULL DEFAULT '{}',
+      duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds > 0),
+      activation_level TEXT NOT NULL DEFAULT 'neutral'
+        CHECK (activation_level IN ('down_regulating', 'neutral', 'up_regulating')),
+      physical_intensity TEXT NOT NULL DEFAULT 'low'
+        CHECK (physical_intensity IN ('low', 'moderate', 'high')),
+      support_goals TEXT[] NOT NULL DEFAULT '{}',
+      intended_states TEXT[] NOT NULL DEFAULT '{}',
+      contraindication_tags TEXT[] NOT NULL DEFAULT '{}',
+      breath_hold_required BOOLEAN NOT NULL DEFAULT FALSE,
+      position_required TEXT NOT NULL DEFAULT 'any'
+        CHECK (position_required IN ('any', 'seated', 'standing', 'lying')),
+      environment_requirements TEXT[] NOT NULL DEFAULT '{}',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    ALTER TABLE exercises
+      ADD COLUMN IF NOT EXISTS duration_seconds INTEGER,
+      ADD COLUMN IF NOT EXISTS activation_level TEXT NOT NULL DEFAULT 'neutral',
+      ADD COLUMN IF NOT EXISTS physical_intensity TEXT NOT NULL DEFAULT 'low',
+      ADD COLUMN IF NOT EXISTS support_goals TEXT[] NOT NULL DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS intended_states TEXT[] NOT NULL DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS contraindication_tags TEXT[] NOT NULL DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS breath_hold_required BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS position_required TEXT NOT NULL DEFAULT 'any',
+      ADD COLUMN IF NOT EXISTS environment_requirements TEXT[] NOT NULL DEFAULT '{}';
+
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'exercises_duration_seconds_check'
+      ) THEN
+        ALTER TABLE exercises ADD CONSTRAINT exercises_duration_seconds_check
+          CHECK (duration_seconds IS NULL OR duration_seconds > 0);
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'exercises_activation_level_check'
+      ) THEN
+        ALTER TABLE exercises ADD CONSTRAINT exercises_activation_level_check
+          CHECK (activation_level IN ('down_regulating', 'neutral', 'up_regulating'));
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'exercises_physical_intensity_check'
+      ) THEN
+        ALTER TABLE exercises ADD CONSTRAINT exercises_physical_intensity_check
+          CHECK (physical_intensity IN ('low', 'moderate', 'high'));
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'exercises_position_required_check'
+      ) THEN
+        ALTER TABLE exercises ADD CONSTRAINT exercises_position_required_check
+          CHECK (position_required IN ('any', 'seated', 'standing', 'lying'));
+      END IF;
+    END
+    $$;
+
+    CREATE TABLE IF NOT EXISTS recommendation_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      model_version TEXT NOT NULL,
+      context_snapshot JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS recommendation_items (
+      request_id UUID NOT NULL REFERENCES recommendation_requests(id) ON DELETE CASCADE,
+      exercise_id TEXT NOT NULL,
+      position INTEGER NOT NULL CHECK (position > 0),
+      score DOUBLE PRECISION NOT NULL,
+      score_components JSONB NOT NULL DEFAULT '{}',
+      reason TEXT,
+      exploration BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (request_id, exercise_id),
+      UNIQUE (request_id, position)
+    );
+
+    CREATE TABLE IF NOT EXISTS recommendation_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      request_id UUID NOT NULL REFERENCES recommendation_requests(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      exercise_id TEXT NOT NULL,
+      event_type TEXT NOT NULL CHECK (
+        event_type IN ('impression', 'opened', 'started', 'completed', 'abandoned', 'saved', 'repeated')
+      ),
+      metadata JSONB NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS recommendation_feedback (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      request_id UUID NOT NULL REFERENCES recommendation_requests(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      exercise_id TEXT NOT NULL,
+      helpfulness INTEGER CHECK (helpfulness IS NULL OR helpfulness BETWEEN 0 AND 3),
+      state_change TEXT CHECK (state_change IS NULL OR state_change IN ('better', 'same', 'worse')),
+      uncomfortable BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (request_id, exercise_id)
     );
 
     CREATE INDEX IF NOT EXISTS auth_sessions_user_id_idx ON auth_sessions(user_id);
@@ -128,6 +226,14 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS daily_check_ins_user_date_idx ON daily_check_ins(user_id, check_in_date DESC);
     CREATE INDEX IF NOT EXISTS journal_entries_user_created_idx ON journal_entries(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS exercises_status_order_idx ON exercises(status, display_order, title);
+    CREATE INDEX IF NOT EXISTS recommendation_requests_user_created_idx
+      ON recommendation_requests(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS recommendation_events_user_created_idx
+      ON recommendation_events(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS recommendation_events_request_idx
+      ON recommendation_events(request_id, exercise_id, created_at);
+    CREATE INDEX IF NOT EXISTS recommendation_feedback_user_created_idx
+      ON recommendation_feedback(user_id, created_at DESC);
   `);
 }
 

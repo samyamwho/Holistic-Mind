@@ -28,6 +28,8 @@ const environmentSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().min(1),
   S3_FORCE_PATH_STYLE: booleanString,
   S3_PUBLIC_BASE_URL: z.url(),
+  RECOMMENDER_URL: z.url().default("http://localhost:8000"),
+  RECOMMENDER_TIMEOUT_MS: z.coerce.number().int().positive().max(30000).default(10000),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

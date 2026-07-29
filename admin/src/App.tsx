@@ -67,6 +67,13 @@ export default function App() {
         sourcePage: Number(draft.sourcePage), exerciseId: draft.exerciseId || null,
         description: draft.description || null, status: draft.status,
         displayOrder: Number(draft.displayOrder), recommendationTags: draft.recommendationTags,
+        durationSeconds: draft.durationSeconds ? Number(draft.durationSeconds) : null,
+        activationLevel: draft.activationLevel, physicalIntensity: draft.physicalIntensity,
+        supportGoals: draft.supportGoals, intendedStates: draft.intendedStates,
+        contraindicationTags: draft.contraindicationTags,
+        breathHoldRequired: draft.breathHoldRequired,
+        positionRequired: draft.positionRequired,
+        environmentRequirements: draft.environmentRequirements,
       });
       if (imageFile) saved = await uploadExerciseImage(adminKey, draft.id, imageFile);
       if (videoFile && saved.guidanceType === "video" && saved.exerciseId) {
@@ -130,6 +137,15 @@ export default function App() {
               <label>Linked practice ID<input value={draft.exerciseId || ""} onChange={(e) => setDraft({ ...draft, exerciseId: e.target.value })} placeholder="Optional" /></label>
               <label className="wide">Description<textarea rows={4} value={draft.description || ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Add a short description…" /></label>
               <label className="wide">Recommendation tags<input value={draft.recommendationTags.join(", ")} onChange={(e) => setDraft({ ...draft, recommendationTags: e.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) })} placeholder="Anxious, Overwhelmed, Sleep" /></label>
+              <label>Duration (seconds)<input type="number" min="1" value={draft.durationSeconds ?? ""} onChange={(e) => setDraft({ ...draft, durationSeconds: e.target.value ? Number(e.target.value) : null })} placeholder="180" /></label>
+              <label>Activation<select value={draft.activationLevel} onChange={(e) => setDraft({ ...draft, activationLevel: e.target.value as Exercise["activationLevel"] })}><option value="down_regulating">Down regulating</option><option value="neutral">Neutral</option><option value="up_regulating">Up regulating</option></select></label>
+              <label>Physical intensity<select value={draft.physicalIntensity} onChange={(e) => setDraft({ ...draft, physicalIntensity: e.target.value as Exercise["physicalIntensity"] })}><option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option></select></label>
+              <label>Required position<select value={draft.positionRequired} onChange={(e) => setDraft({ ...draft, positionRequired: e.target.value as Exercise["positionRequired"] })}><option value="any">Any</option><option value="seated">Seated</option><option value="standing">Standing</option><option value="lying">Lying down</option></select></label>
+              <label className="checkbox-row"><input type="checkbox" checked={draft.breathHoldRequired} onChange={(e) => setDraft({ ...draft, breathHoldRequired: e.target.checked })} />Requires breath holds</label>
+              <label className="wide">Support goals<input value={draft.supportGoals.join(", ")} onChange={(e) => setDraft({ ...draft, supportGoals: e.target.value.split(",").map((value) => value.trim()).filter(Boolean) })} placeholder="calm_down, feel_grounded, focus" /></label>
+              <label className="wide">Intended states<input value={draft.intendedStates.join(", ")} onChange={(e) => setDraft({ ...draft, intendedStates: e.target.value.split(",").map((value) => value.trim()).filter(Boolean) })} placeholder="anxious, overwhelmed, tense" /></label>
+              <label className="wide">Contraindication tags<input value={draft.contraindicationTags.join(", ")} onChange={(e) => setDraft({ ...draft, contraindicationTags: e.target.value.split(",").map((value) => value.trim()).filter(Boolean) })} placeholder="breathing_discomfort, limited_mobility" /></label>
+              <label className="wide">Environment requirements<input value={draft.environmentRequirements.join(", ")} onChange={(e) => setDraft({ ...draft, environmentRequirements: e.target.value.split(",").map((value) => value.trim()).filter(Boolean) })} placeholder="quiet_space, wall, floor_space" /></label>
             </section>
           </> : <div className="empty">Select an exercise to begin.</div>}
         </main>

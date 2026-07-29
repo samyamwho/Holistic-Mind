@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -32,7 +32,13 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { exerciseLibrary } from "../../data/wellnessContent";
 import { getExerciseMedia } from "../../services/exercises/exerciseMediaApi";
+import { getExerciseCatalogItem, type BackendExerciseCatalogItem } from "../../services/exercises/exerciseCatalogApi";
+import {
+  recordRecommendationEvent,
+  saveRecommendationFeedback,
+} from "../../services/recommendations/recommendationApi";
 import type { Exercise, ExercisePhase } from "../../types/wellness";
+import { useAuth } from "../../context/AuthContext";
 
 type ExerciseScreenProps = {
   navigation: {
@@ -41,6 +47,8 @@ type ExerciseScreenProps = {
   route: {
     params?: {
       exerciseId?: string;
+      catalogId?: string;
+      recommendationRequestId?: string;
     };
   };
 };
@@ -183,23 +191,83 @@ function VisualGuide({ exercise, isLoadingVideo, hasVideo }: { exercise: Exercis
 }
 
 export default function ExerciseScreen({ navigation, route }: ExerciseScreenProps) {
+  const { runAuthenticated } = useAuth();
   const libraryExercise = useMemo(
     () => exerciseLibrary.find((item) => item.id === route.params?.exerciseId),
     [route.params?.exerciseId]
   );
   const [remoteVideoUrl, setRemoteVideoUrl] = useState<string | null>(null);
+  const [catalogExercise, setCatalogExercise] = useState<BackendExerciseCatalogItem | null>(null);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [hasStartedVideo, setHasStartedVideo] = useState(false);
   const exercise = useMemo(
     () =>
-      libraryExercise && remoteVideoUrl
-        ? { ...libraryExercise, videoUrl: remoteVideoUrl }
+      libraryExercise
+        ? {
+            ...libraryExercise,
+            title: catalogExercise?.title ?? libraryExercise.title,
+            why: catalogExercise?.description || libraryExercise.why,
+            image: catalogExercise?.imageUrl ? { uri: catalogExercise.imageUrl } : libraryExercise.image,
+            ...(remoteVideoUrl ? { videoUrl: remoteVideoUrl } : {}),
+          }
         : libraryExercise,
-    [libraryExercise, remoteVideoUrl]
+    [catalogExercise, libraryExercise, remoteVideoUrl]
   );
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(exercise?.durationSeconds ?? 0);
+  const [submittedStateChange, setSubmittedStateChange] = useState<
+    "better" | "same" | "worse" | null
+  >(null);
+  const openedRecorded = useRef(false);
+  const startedRecorded = useRef(false);
+  const completedRecorded = useRef(false);
+
+  const recordEvent = useCallback(
+    (eventType: "opened" | "started" | "completed" | "repeated") => {
+      const requestId = route.params?.recommendationRequestId;
+      const exerciseId = route.params?.exerciseId;
+      if (!requestId || !exerciseId) {
+        return;
+      }
+      runAuthenticated((token) =>
+        recordRecommendationEvent(token, requestId, { exerciseId, eventType })
+      ).catch((error) => console.warn(`Unable to record ${eventType} event`, error));
+    },
+    [
+      route.params?.exerciseId,
+      route.params?.recommendationRequestId,
+      runAuthenticated,
+    ]
+  );
+
+  useEffect(() => {
+    if (openedRecorded.current || !exercise) {
+      return;
+    }
+    openedRecorded.current = true;
+    recordEvent("opened");
+  }, [exercise, recordEvent]);
+
+  useEffect(() => {
+    if (!isComplete || completedRecorded.current) {
+      return;
+    }
+    completedRecorded.current = true;
+    recordEvent("completed");
+  }, [isComplete, recordEvent]);
+
+  useEffect(() => {
+    const catalogId = route.params?.catalogId;
+    if (!catalogId) { setCatalogExercise(null); return; }
+    const controller = new AbortController();
+    getExerciseCatalogItem(catalogId, controller.signal)
+      .then(setCatalogExercise)
+      .catch((error) => {
+        if ((error as Error).name !== "AbortError") console.warn("Unable to refresh exercise details", error);
+      });
+    return () => controller.abort();
+  }, [route.params?.catalogId]);
 
   useEffect(() => {
     setRemoteVideoUrl(null);
@@ -291,21 +359,52 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
 
   const togglePractice = () => {
     if (isComplete) {
+      recordEvent("repeated");
       setRemainingSeconds(exercise.durationSeconds);
       setIsComplete(false);
+      completedRecorded.current = false;
+      setSubmittedStateChange(null);
       setIsRunning(true);
       if (exercise.guidanceType === "video" && exercise.videoUrl) setHasStartedVideo(true);
       return;
     }
 
+    if (!isRunning && !startedRecorded.current) {
+      startedRecorded.current = true;
+      recordEvent("started");
+    }
     if (!isRunning && exercise.guidanceType === "video" && exercise.videoUrl) setHasStartedVideo(true);
     setIsRunning((running) => !running);
   };
 
   const finishPractice = () => {
+    if (!startedRecorded.current) {
+      startedRecorded.current = true;
+      recordEvent("started");
+    }
     setIsRunning(false);
     setRemainingSeconds(0);
     setIsComplete(true);
+  };
+
+  const submitStateChange = (stateChange: "better" | "same" | "worse") => {
+    const requestId = route.params?.recommendationRequestId;
+    const exerciseId = route.params?.exerciseId;
+    if (!requestId || !exerciseId) {
+      return;
+    }
+    setSubmittedStateChange(stateChange);
+    runAuthenticated((token) =>
+      saveRecommendationFeedback(token, requestId, {
+        exerciseId,
+        stateChange,
+        helpfulness: stateChange === "better" ? 3 : stateChange === "same" ? 1 : 0,
+        uncomfortable: false,
+      })
+    ).catch((error) => {
+      setSubmittedStateChange(null);
+      console.warn("Unable to save recommendation feedback", error);
+    });
   };
 
   return (
@@ -392,6 +491,42 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
                 </Pressable>
               ) : null}
             </View>
+
+            {isComplete && route.params?.recommendationRequestId ? (
+              <View style={styles.feedbackCard}>
+                <Text style={styles.feedbackTitle}>How do you feel now?</Text>
+                <Text style={styles.feedbackSubtitle}>
+                  Your answer helps future recommendations learn what supports you.
+                </Text>
+                <View style={styles.feedbackOptions}>
+                  {([
+                    ["better", "Better"],
+                    ["same", "About the same"],
+                    ["worse", "Worse"],
+                  ] as const).map(([value, label]) => (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: submittedStateChange === value }}
+                      key={value}
+                      onPress={() => submitStateChange(value)}
+                      style={[
+                        styles.feedbackOption,
+                        submittedStateChange === value && styles.feedbackOptionSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.feedbackOptionText,
+                          submittedStateChange === value && styles.feedbackOptionTextSelected,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.instructionsSection}>
               <Text style={styles.sectionTitle}>How to practice</Text>
@@ -656,6 +791,54 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     backgroundColor: "#6F7F62",
+  },
+  feedbackCard: {
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.66)",
+  },
+  feedbackTitle: {
+    color: "#5F3B2B",
+    fontFamily: sansFont,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  feedbackSubtitle: {
+    marginTop: 5,
+    color: "rgba(95, 59, 43, 0.7)",
+    fontFamily: sansFont,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  feedbackOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 14,
+  },
+  feedbackOption: {
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(255, 248, 238, 0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(103, 63, 63, 0.18)",
+  },
+  feedbackOptionSelected: {
+    backgroundColor: "#673F3F",
+    borderColor: "#673F3F",
+  },
+  feedbackOptionText: {
+    color: "#673F3F",
+    fontFamily: sansFont,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  feedbackOptionTextSelected: {
+    color: "#FFF8EE",
   },
   primaryButtonText: {
     color: "#FFF8EE",

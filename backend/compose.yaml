@@ -1,4 +1,24 @@
 services:
+  recommender:
+    build:
+      context: ../recommender
+    environment:
+      SENTENCE_TRANSFORMER_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      SENTENCE_TRANSFORMER_PATH: /models/all-MiniLM-L6-v2
+      ALLOW_LEXICAL_FALLBACK: "true"
+      MIN_COLLABORATIVE_NEIGHBORS: "2"
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   postgres:
     image: postgres:16-alpine
     environment:

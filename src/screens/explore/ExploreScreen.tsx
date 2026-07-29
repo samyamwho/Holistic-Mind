@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
   Activity,
   Baby,
@@ -20,6 +20,7 @@ import {
   Image,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   SectionList,
   StyleSheet,
@@ -92,22 +93,26 @@ export default function ExploreScreen() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<"All" | ExerciseCategory>("All");
   const [catalog, setCatalog] = useState<Array<ExerciseCatalogItem & { imageUrl?: string | null }>>(exerciseCatalog);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
+  const refreshCatalog = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setIsRefreshing(true);
     const controller = new AbortController();
-    getExerciseCatalog(controller.signal)
-      .then((items: BackendExerciseCatalogItem[]) => {
-        if (items.length > 0) {
-          setCatalog(items);
-        }
-      })
-      .catch((error) => {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.warn("Using bundled exercise catalog fallback", error);
-        }
-      });
-    return () => controller.abort();
+    try {
+      const items: BackendExerciseCatalogItem[] = await getExerciseCatalog(controller.signal);
+      if (items.length > 0) setCatalog(items);
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") console.warn("Using bundled exercise catalog fallback", error);
+    } finally {
+      if (showSpinner) setIsRefreshing(false);
+    }
   }, []);
+
+  useFocusEffect(useCallback(() => {
+    refreshCatalog();
+    const interval = setInterval(() => refreshCatalog(), 15_000);
+    return () => clearInterval(interval);
+  }, [refreshCatalog]));
 
   const filteredExercises = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -141,7 +146,7 @@ export default function ExploreScreen() {
       return;
     }
 
-    navigation.navigate("Exercise", { exerciseId: exercise.exerciseId });
+    navigation.navigate("Exercise", { exerciseId: exercise.exerciseId, catalogId: exercise.id });
   };
 
   return (
@@ -157,6 +162,7 @@ export default function ExploreScreen() {
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             keyExtractor={(item) => item.id}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => refreshCatalog(true)} tintColor="#673F3F" />}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Search color="rgba(95,59,43,0.42)" size={27} strokeWidth={1.8} />

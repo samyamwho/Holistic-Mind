@@ -2,7 +2,7 @@
 
 Holistic Mind is an Expo React Native wellness app with a Node.js backend.
 
-The app currently includes backend authentication, onboarding, daily check-ins, a journal, an exercise library, guided breathing, hosted exercise videos, and a profile screen.
+The app currently includes backend authentication, per-user onboarding, daily check-ins, persistent journals, personalized recommendations, a backend-managed exercise library, guided breathing, hosted exercise images and videos, an exercise admin dashboard, and a profile screen.
 
 ## How It Works
 
@@ -12,12 +12,19 @@ Mobile app
     v
 Node backend (port 4000)
     |
-    +-- PostgreSQL (port 5433) stores video information
+    +-- PostgreSQL (port 5433) stores users, wellness data, and exercise metadata
     |
-    +-- MinIO (port 9000) stores the actual video files
+    +-- MinIO (port 9000) stores exercise images and videos
 ```
 
 PostgreSQL and MinIO run inside Docker during local development.
+
+```text
+Admin dashboard (port 5173)
+    |
+    +-- edits exercise records through protected backend APIs
+    +-- uploads images and videos directly to MinIO using temporary URLs
+```
 
 ## Accounts And Login
 
@@ -30,6 +37,7 @@ When someone creates an account:
 3. A profile is created for that user.
 4. The app stores the session in iOS Keychain or Android encrypted storage.
 5. Profile names and reminder preferences are saved under that user ID.
+6. Onboarding answers, check-ins, and journal entries are stored under the same user ID.
 
 Returning users stay logged in after restarting the app. Logout revokes the backend session and removes the encrypted session from the device.
 
@@ -66,7 +74,13 @@ npm install
 npm --prefix backend install
 ```
 
-### 4. Create the environment files
+### 4. Install the admin dashboard packages
+
+```bash
+npm --prefix admin install
+```
+
+### 5. Create the environment files
 
 ```bash
 cp -n .env.example .env.local
@@ -75,11 +89,11 @@ cp -n backend/.env.example backend/.env
 
 The `-n` option keeps an existing environment file unchanged.
 
-### 5. Start Docker Desktop
+### 6. Start Docker Desktop
 
 Open Docker Desktop and wait until it says the Docker engine is running.
 
-### 6. Start PostgreSQL, MinIO, and pgAdmin
+### 7. Start PostgreSQL, MinIO, and pgAdmin
 
 ```bash
 docker compose -f backend/compose.yaml up -d
@@ -87,16 +101,18 @@ docker compose -f backend/compose.yaml up -d
 
 The first run downloads the required Docker images and may take a few minutes.
 
-### 7. Prepare the database
+### 8. Prepare and seed the database
 
 ```bash
 npm run api:migrate
+npm run api:seed:exercises
 ```
 
 You should see:
 
 ```text
 Database schema is ready.
+Seeded 60 exercises.
 ```
 
 ## What To Run Each Day
@@ -127,6 +143,17 @@ npm start
 ```
 
 Press `i` in the Expo terminal to open the iOS Simulator.
+
+### Terminal 3: Admin dashboard
+
+Open another terminal and run:
+
+```bash
+cd /Users/samyamshrestha/Holistic-Mind
+npm run admin:dev -- --host 127.0.0.1
+```
+
+Keep this terminal open and visit `http://127.0.0.1:5173`. Copy the `ADMIN_API_KEY` value from `backend/.env` into the login form. The key stays in the current browser session; do not put it in the mobile app or commit it to Git.
 
 ## Check That Everything Is Working
 
@@ -169,8 +196,9 @@ PostgreSQL and MinIO should show as healthy. pgAdmin should show as running.
 | Mobile API | `http://localhost:4000` | Backend requests |
 | PostgreSQL | `localhost:5433` | Database |
 | pgAdmin | `http://localhost:5050` | View and edit database records |
-| MinIO storage | `http://localhost:9000` | Video files |
-| MinIO console | `http://localhost:9001` | View stored videos |
+| MinIO storage | `http://localhost:9000` | Exercise images and videos |
+| MinIO console | `http://localhost:9001` | View stored media |
+| Admin dashboard | `http://127.0.0.1:5173` | Manage exercises and media |
 
 Local MinIO console credentials:
 
@@ -214,13 +242,56 @@ To see the app's tables, open:
 Databases > holistic_mind > Schemas > public > Tables
 ```
 
-Right-click `users`, choose **View/Edit Data > All Rows**, and you can view or edit users in a grid. The same works for `user_profiles`, `auth_sessions`, and `exercise_media`.
+Right-click a table, choose **View/Edit Data > All Rows**, and pgAdmin displays its records.
+
+| Table | Stored data |
+| --- | --- |
+| `users` | Account email, password hash, and account status |
+| `user_profiles` | Name and notification preferences |
+| `auth_sessions` | Refresh sessions and expiration times |
+| `onboarding_responses` | Support goal, age range, and preferred daily time per user |
+| `daily_check_ins` | Dated check-in answers per user |
+| `journal_entries` | Journal prompt, content, and timestamps per user |
+| `exercises` | Backend-managed Explore catalog, images, visibility, order, and tags |
+| `exercise_media` | Uploaded video location and media metadata |
 
 These are local development credentials. pgAdmin is bound to `127.0.0.1`, so other devices on the network cannot open it. Changes made in pgAdmin directly affect the app's local database.
+
+## User Data And Recommendations
+
+All private wellness records use the authenticated user's server-verified `user_id`. The mobile app does not submit an arbitrary owner ID.
+
+- Onboarding creates or updates one `onboarding_responses` row per user.
+- A daily check-in creates or updates the user's record for that date.
+- Journal entries create separate `journal_entries` rows owned by that user.
+- The mobile API only returns journal entries and check-ins belonging to the logged-in user.
+- Recommendations combine the support goal, latest check-in answers, and themes detected from up to ten recent journal entries.
+
+Journal text is currently stored as readable PostgreSQL text. Do not log journal request bodies or expose direct database access to app users.
+
+## Managing Exercises In The Admin Dashboard
+
+Start the backend and admin dashboard, open `http://127.0.0.1:5173`, and enter the `ADMIN_API_KEY` from `backend/.env`.
+
+The dashboard can:
+
+- Search all exercises, including draft and archived records.
+- Edit the name, category, guidance type, source page, linked practice ID, description, display order, and recommendation tags.
+- Change status between `published`, `draft`, and `archived`.
+- Upload or replace JPEG, PNG, and WebP images.
+- Upload or replace MP4, MOV, and WebM demonstration videos.
+- Preview current images and videos.
+- Permanently delete a demonstration video after confirmation.
+
+Only `published` exercises are returned to Explore. An uploaded image replaces the category icon. Explore refreshes whenever the tab gains focus, supports pull-to-refresh, and checks for updates every 15 seconds while open. Backend-edited names, descriptions, and images also appear on the exercise detail screen. For video exercises, the exercise illustration remains visible until the user presses **Start practice**; then the video player appears.
+
+Image and video uploads use short-lived signed MinIO URLs. PostgreSQL stores the final public URL and metadata, not the media bytes.
 
 ## Uploading An Exercise Video
 
 Do not add exercise videos to the React Native `assets` folder.
+
+The recommended method is the admin dashboard: select a video exercise, choose the file, and press **Save changes**. The command-line method below remains useful for development and automation.
 
 The video can stay anywhere on your Mac, such as:
 
@@ -286,7 +357,41 @@ You can also open `http://localhost:9001`, sign in, and look inside:
 holistic-mind-videos/exercises/shoulder-drop-reset/
 ```
 
-In the app, open **Explore**, select **Shoulder Drop Reset**, and the video will load automatically.
+In the app, open **Explore** and select **Shoulder Drop Reset**. Its illustration appears first; press **Start practice** to open and play the uploaded video.
+
+## API Reference
+
+Public endpoints:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Process health check |
+| `GET` | `/ready` | PostgreSQL readiness check |
+| `GET` | `/api/exercises` | Published Explore catalog |
+| `GET` | `/api/exercises/:id` | One published catalog record |
+| `GET` | `/api/exercise-media/:exerciseId` | Ready video metadata |
+
+Authenticated user endpoints require `Authorization: Bearer <access-token>`:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` / `PUT` | `/api/wellness/onboarding` | Read or save onboarding answers |
+| `GET` | `/api/wellness/check-ins/latest` | Latest user check-in |
+| `PUT` | `/api/wellness/check-ins` | Save the user's dated check-in |
+| `GET` / `POST` | `/api/wellness/journal` | List or create the user's journal entries |
+
+Administrator endpoints require the `x-admin-key` header:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/exercises/admin/all` | All exercises, including drafts and archived records |
+| `POST` | `/api/exercises` | Create an exercise |
+| `PATCH` | `/api/exercises/:id` | Update catalog fields and status |
+| `POST` | `/api/exercises/:id/image-upload-url` | Prepare an image upload |
+| `POST` | `/api/exercises/:id/image-complete` | Verify image upload and save its URL |
+| `POST` | `/api/exercise-media/:exerciseId/upload-url` | Prepare a video upload |
+| `POST` | `/api/exercise-media/:exerciseId/complete` | Verify video upload and save metadata |
+| `DELETE` | `/api/exercise-media/:exerciseId` | Delete the video object and media record |
 
 ## Stopping The Project
 
@@ -317,6 +422,15 @@ npm run api:dev
 
 # Prepare or update the database schema
 npm run api:migrate
+
+# Import the 60 starter Explore exercises (normally only needed once)
+npm run api:seed:exercises
+
+# Start the exercise admin dashboard
+npm run admin:dev -- --host 127.0.0.1
+
+# Build the exercise admin dashboard
+npm run admin:build
 
 # Check the mobile TypeScript code
 npx tsc --noEmit
@@ -391,24 +505,106 @@ Confirm all of these:
 - The exercise ID is correct.
 - The media endpoint returns `"status":"ready"`.
 - The video URL opens from the simulator or phone.
+- The exercise Guidance type is `video`.
+- The exercise has the correct Linked practice ID.
+- You pressed **Start practice**; the illustration intentionally appears first.
+
+### Admin dashboard does not open
+
+Confirm it is running:
+
+```bash
+npm run admin:dev -- --host 127.0.0.1
+```
+
+Then open `http://127.0.0.1:5173`, not port `4000`. If login says `Unauthorized`, copy the exact `ADMIN_API_KEY` value from `backend/.env` and restart the backend after changing it.
+
+### Image or video upload fails
+
+Confirm Docker Desktop, MinIO, PostgreSQL, and the backend are running. The MinIO bucket must exist and be publicly readable. Also confirm the file type is supported:
+
+- Images: JPEG, PNG, or WebP.
+- Videos: MP4, MOV, or WebM.
+
+For a physical iPhone, `S3_PUBLIC_BASE_URL` must use the Mac's local network IP rather than `localhost`.
+
+### Explore shows zero exercises
+
+Run:
+
+```bash
+npm run api:migrate
+npm run api:seed:exercises
+```
+
+Restart the backend and mobile app. Explore keeps a bundled fallback catalog, but the normal source is `GET /api/exercises`.
 
 ## Important Files
 
 | File | Purpose |
 | --- | --- |
 | `src/data/wellnessContent.ts` | Playable exercise content and IDs |
-| `src/data/exerciseCatalog.ts` | Full Explore library |
+| `src/data/exerciseCatalog.ts` | Bundled Explore fallback catalog |
 | `src/screens/exercise/ExerciseScreen.tsx` | Exercise and video player |
+| `src/services/exercises/exerciseCatalogApi.ts` | Fetches the backend exercise catalog |
 | `src/services/exercises/exerciseMediaApi.ts` | Fetches video information |
+| `src/services/wellness/wellnessApi.ts` | Onboarding, check-in, and journal APIs |
+| `src/services/recommendations/recommendationEngine.ts` | Combines wellness signals into recommendations |
+| `admin/src/App.tsx` | Exercise administrator interface |
+| `admin/src/api.ts` | Admin catalog and media requests |
 | `backend/src/routes/auth.ts` | Signup, login, session, and profile API |
 | `backend/src/auth/` | Password hashing and token management |
+| `backend/src/routes/wellness.ts` | Per-user onboarding, check-in, and journal API |
+| `backend/src/routes/exercises.ts` | Public exercise catalog and protected admin API |
 | `backend/src/routes/exerciseMedia.ts` | Video upload and media API |
+| `backend/src/scripts/seedExercises.ts` | Imports the starter catalog into PostgreSQL |
 | `backend/src/storage.ts` | MinIO/S3 connection |
 | `backend/src/db.ts` | PostgreSQL connection and schema |
 | `backend/compose.yaml` | Local PostgreSQL and MinIO services |
 
 ## Current Development Status
 
-Video storage and multi-user authentication are working locally. Signup, login, encrypted session restoration, logout, names, and profile preferences are connected to PostgreSQL.
+Multi-user authentication and wellness persistence are working locally. Signup, login, encrypted session restoration, logout, onboarding, daily check-ins, journal entries, names, and profile preferences are connected to PostgreSQL. Each user's recommendation inputs are isolated by authenticated `user_id`.
+
+The 60-item Explore starter catalog is managed through PostgreSQL. The admin dashboard can edit records and upload or delete exercise media through MinIO. Explore loads published records from the backend and falls back to its bundled catalog during temporary connection failures.
 
 The next account milestones are password reset, email verification, and Google/Apple login. For production, PostgreSQL and MinIO will be replaced by hosted services, local development credentials will be changed, and all public connections will use HTTPS.
+# Local recommendation engine
+
+Holistic Mind uses a local Python recommendation service rather than an external
+AI API. The service combines:
+
+- semantic content similarity from `sentence-transformers/all-MiniLM-L6-v2`;
+- onboarding goals, the latest check-in, and up to ten recent journal entries;
+- rule-based suitability signals from exercise metadata; and
+- pseudonymised completion and helpfulness data for collaborative filtering.
+
+Collaborative filtering activates after the current user has overlapping exercise
+history with at least two other users. Before that threshold, the service reports
+`content-based-cold-start` and uses semantic content plus suitability rules.
+Exercises marked uncomfortable by the current user are excluded.
+
+Journal text is sent only from the Node backend to the locally hosted Python
+container. It is not sent to an external API and is not stored in recommendation
+request history. User identifiers are HMAC-pseudonymised before reaching the
+Python service.
+
+Start the local infrastructure:
+
+```bash
+docker compose -f backend/compose.yaml up -d --build
+```
+
+The first recommender build downloads the pretrained model into the Docker image.
+The service is available locally at `http://127.0.0.1:8000`, and its health endpoint
+is `GET /health`. Configure the Node backend with:
+
+```env
+RECOMMENDER_URL=http://localhost:8000
+RECOMMENDER_TIMEOUT_MS=10000
+```
+
+The authenticated mobile flow calls `POST /api/recommendations/generate`. The
+backend collects the user's context, requests a local ranking, stores the ranked
+items and score components, and returns the recommendation request ID used for
+interaction and helpfulness feedback.

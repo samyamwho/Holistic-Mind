@@ -11,6 +11,15 @@ export type Exercise = {
   status: ExerciseStatus;
   displayOrder: number;
   recommendationTags: string[];
+  durationSeconds: number | null;
+  activationLevel: "down_regulating" | "neutral" | "up_regulating";
+  physicalIntensity: "low" | "moderate" | "high";
+  supportGoals: string[];
+  intendedStates: string[];
+  contraindicationTags: string[];
+  breathHoldRequired: boolean;
+  positionRequired: "any" | "seated" | "standing" | "lying";
+  environmentRequirements: string[];
 };
 export type ExerciseMedia = {
   exerciseId: string;

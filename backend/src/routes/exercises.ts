@@ -18,6 +18,15 @@ const exerciseSchema = z.object({
   status: z.enum(["draft", "published", "archived"]).default("published"),
   displayOrder: z.number().int().min(0).default(0),
   recommendationTags: z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+  durationSeconds: z.number().int().positive().nullable().default(null),
+  activationLevel: z.enum(["down_regulating", "neutral", "up_regulating"]).default("neutral"),
+  physicalIntensity: z.enum(["low", "moderate", "high"]).default("low"),
+  supportGoals: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  intendedStates: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  contraindicationTags: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  breathHoldRequired: z.boolean().default(false),
+  positionRequired: z.enum(["any", "seated", "standing", "lying"]).default("any"),
+  environmentRequirements: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
 });
 const updateSchema = exerciseSchema.omit({ id: true }).partial().refine((value) => Object.keys(value).length > 0);
 const imageUploadSchema = z.object({
@@ -33,6 +42,15 @@ function serialize(row: Record<string, unknown>) {
     exerciseId: row.linked_exercise_id, description: row.description,
     imageUrl: row.image_url, status: row.status, displayOrder: row.display_order,
     recommendationTags: row.recommendation_tags,
+    durationSeconds: row.duration_seconds,
+    activationLevel: row.activation_level,
+    physicalIntensity: row.physical_intensity,
+    supportGoals: row.support_goals,
+    intendedStates: row.intended_states,
+    contraindicationTags: row.contraindication_tags,
+    breathHoldRequired: row.breath_hold_required,
+    positionRequired: row.position_required,
+    environmentRequirements: row.environment_requirements,
   };
 }
 
@@ -70,10 +88,21 @@ exercisesRouter.post("/", requireAdmin, async (request, response, next) => {
   const value = parsed.data;
   try {
     const result = await pool.query(
-      `INSERT INTO exercises (id, title, category, guidance_type, source_page, linked_exercise_id, description, image_url, status, display_order, recommendation_tags)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      `INSERT INTO exercises (
+         id, title, category, guidance_type, source_page, linked_exercise_id,
+         description, image_url, status, display_order, recommendation_tags,
+         duration_seconds, activation_level, physical_intensity, support_goals,
+         intended_states, contraindication_tags, breath_hold_required,
+         position_required, environment_requirements
+       )
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+       RETURNING *`,
       [value.id, value.title, value.category, value.guidanceType, value.sourcePage, value.exerciseId ?? null,
-       value.description ?? null, value.imageUrl ?? null, value.status, value.displayOrder, value.recommendationTags]
+       value.description ?? null, value.imageUrl ?? null, value.status, value.displayOrder,
+       value.recommendationTags, value.durationSeconds, value.activationLevel,
+       value.physicalIntensity, value.supportGoals, value.intendedStates,
+       value.contraindicationTags, value.breathHoldRequired, value.positionRequired,
+       value.environmentRequirements]
     );
     response.status(201).json({ data: serialize(result.rows[0]) });
   } catch (error) {
@@ -94,9 +123,16 @@ exercisesRouter.patch("/:id", requireAdmin, async (request, response, next) => {
     const result = await pool.query(
       `UPDATE exercises SET title=$2, category=$3, guidance_type=$4, source_page=$5,
        linked_exercise_id=$6, description=$7, image_url=$8, status=$9, display_order=$10,
-       recommendation_tags=$11, updated_at=NOW() WHERE id=$1 RETURNING *`,
+       recommendation_tags=$11, duration_seconds=$12, activation_level=$13,
+       physical_intensity=$14, support_goals=$15, intended_states=$16,
+       contraindication_tags=$17, breath_hold_required=$18, position_required=$19,
+       environment_requirements=$20, updated_at=NOW() WHERE id=$1 RETURNING *`,
       [id.data, value.title, value.category, value.guidanceType, value.sourcePage, value.exerciseId ?? null,
-       value.description ?? null, value.imageUrl ?? null, value.status, value.displayOrder, value.recommendationTags]
+       value.description ?? null, value.imageUrl ?? null, value.status, value.displayOrder,
+       value.recommendationTags, value.durationSeconds, value.activationLevel,
+       value.physicalIntensity, value.supportGoals, value.intendedStates,
+       value.contraindicationTags, value.breathHoldRequired, value.positionRequired,
+       value.environmentRequirements]
     );
     response.json({ data: serialize(result.rows[0]) });
   } catch (error) { next(error); }
