@@ -4,13 +4,19 @@ import {
   Activity,
   Baby,
   Brain,
+  Check,
   ChevronRight,
   CircleEllipsis,
   Clock3,
   Flower2,
   Footprints,
   HeartPulse,
+  Headphones,
+  Music2,
+  Pause,
+  Play,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Wind,
   X,
@@ -18,6 +24,7 @@ import {
 import {
   ImageBackground,
   Image,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -29,6 +36,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GlassContainer, GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   exerciseCatalog,
   exerciseCategories,
@@ -36,6 +44,7 @@ import {
   type ExerciseCategory,
 } from "../../data/exerciseCatalog";
 import { getExerciseCatalog, type BackendExerciseCatalogItem } from "../../services/exercises/exerciseCatalogApi";
+import { useAudioPlayerController } from "../../context/AudioPlayerContext";
 
 const categoryColors: Record<ExerciseCategory, { background: string; foreground: string }> = {
   "Nervous System Reset": { background: "rgba(223,162,177,0.28)", foreground: "#7A4652" },
@@ -90,10 +99,15 @@ function CategoryIcon({ category, color }: { category: ExerciseCategory; color: 
 
 export default function ExploreScreen() {
   const navigation = useNavigation<any>();
+  const audioPlayer = useAudioPlayerController();
+  const [library, setLibrary] = useState<"somatic" | "audio">("somatic");
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<"All" | ExerciseCategory>("All");
-  const [catalog, setCatalog] = useState<Array<ExerciseCatalogItem & { imageUrl?: string | null }>>(exerciseCatalog);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [catalog, setCatalog] = useState<Array<ExerciseCatalogItem & { imageUrl?: string | null; audioUrl?: string | null; audioDurationSeconds?: number | null }>>(exerciseCatalog);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const supportsLiquidGlass = Platform.OS === "ios" && isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
+  const selectedLibraryColor = supportsLiquidGlass ? "#5F3B2B" : "#FFF8EE";
 
   const refreshCatalog = useCallback(async (showSpinner = false) => {
     if (showSpinner) setIsRefreshing(true);
@@ -110,7 +124,7 @@ export default function ExploreScreen() {
 
   useFocusEffect(useCallback(() => {
     refreshCatalog();
-    const interval = setInterval(() => refreshCatalog(), 15_000);
+    const interval = setInterval(() => refreshCatalog(), 3_000);
     return () => clearInterval(interval);
   }, [refreshCatalog]));
 
@@ -118,6 +132,7 @@ export default function ExploreScreen() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return catalog.filter((exercise) => {
+      const matchesLibrary = library === "audio" ? exercise.guidanceType === "audio" : exercise.guidanceType !== "audio";
       const matchesCategory =
         selectedCategory === "All" || exercise.category === selectedCategory;
       const matchesQuery =
@@ -125,9 +140,9 @@ export default function ExploreScreen() {
         exercise.title.toLowerCase().includes(normalizedQuery) ||
         exercise.category.toLowerCase().includes(normalizedQuery);
 
-      return matchesCategory && matchesQuery;
+      return matchesLibrary && matchesCategory && matchesQuery;
     });
-  }, [catalog, query, selectedCategory]);
+  }, [catalog, library, query, selectedCategory]);
 
   const sections = useMemo(
     () =>
@@ -141,7 +156,15 @@ export default function ExploreScreen() {
     [filteredExercises]
   );
 
-  const openExercise = (exercise: ExerciseCatalogItem) => {
+  const openExercise = (exercise: ExerciseCatalogItem & { imageUrl?: string | null; audioUrl?: string | null; audioDurationSeconds?: number | null }) => {
+    if (exercise.guidanceType === "audio") {
+      if (!exercise.audioUrl) return;
+      if (audioPlayer.track?.id !== exercise.id) {
+        audioPlayer.playTrack({ id: exercise.id, title: exercise.title, category: exercise.category, audioUrl: exercise.audioUrl, imageUrl: exercise.imageUrl, durationSeconds: exercise.audioDurationSeconds }).catch((error) => console.warn("Unable to play audio", error));
+      }
+      navigation.navigate("AudioPlayer");
+      return;
+    }
     if (!exercise.exerciseId) {
       return;
     }
@@ -166,19 +189,40 @@ export default function ExploreScreen() {
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Search color="rgba(95,59,43,0.42)" size={27} strokeWidth={1.8} />
-                <Text style={styles.emptyTitle}>No exercises found</Text>
-                <Text style={styles.emptyText}>Try another name or category.</Text>
+                <Text style={styles.emptyTitle}>{library === "audio" ? "No audio found" : "No exercises found"}</Text>
+                <Text style={styles.emptyText}>{library === "audio" ? "Upload and publish audio from the admin dashboard." : "Try another name or category."}</Text>
               </View>
             }
             ListHeaderComponent={
               <View style={styles.header}>
                 <View style={styles.titleRow}>
                   <View>
-                    <Text style={styles.kicker}>Practice library</Text>
+                    <Text style={styles.kicker}>Wellness library</Text>
                     <Text style={styles.title}>Explore</Text>
                   </View>
-                  <Text style={styles.count}>{filteredExercises.length} exercises</Text>
+                  <Text style={styles.count}>{filteredExercises.length} {library === "audio" ? "recordings" : "exercises"}</Text>
                 </View>
+
+                <GlassContainer spacing={8} style={[styles.libraryTabs, supportsLiquidGlass && styles.libraryTabsLiquid]}>
+                  <Pressable onPress={() => { setLibrary("somatic"); setSelectedCategory("All"); }} style={[styles.libraryTab, library === "somatic" && !supportsLiquidGlass && styles.libraryTabSelected]}>
+                    {supportsLiquidGlass ? <GlassView glassEffectStyle={library === "somatic" ? "regular" : "clear"} isInteractive style={styles.libraryTabSurface} tintColor={library === "somatic" ? "#EABFC2" : undefined}>
+                      <Activity color={library === "somatic" ? selectedLibraryColor : "#673F3F"} size={18} />
+                      <Text style={styles.libraryTabText}>Somatic exercises</Text>
+                    </GlassView> : <View style={styles.libraryTabSurface}>
+                      <Activity color={library === "somatic" ? selectedLibraryColor : "#673F3F"} size={18} />
+                      <Text style={[styles.libraryTabText, library === "somatic" && styles.libraryTabTextSelected]}>Somatic exercises</Text>
+                    </View>}
+                  </Pressable>
+                  <Pressable onPress={() => { setLibrary("audio"); setSelectedCategory("All"); refreshCatalog(); }} style={[styles.libraryTab, library === "audio" && !supportsLiquidGlass && styles.libraryTabSelected]}>
+                    {supportsLiquidGlass ? <GlassView glassEffectStyle={library === "audio" ? "regular" : "clear"} isInteractive style={styles.libraryTabSurface} tintColor={library === "audio" ? "#EABFC2" : undefined}>
+                      <Headphones color={library === "audio" ? selectedLibraryColor : "#673F3F"} size={18} />
+                      <Text style={styles.libraryTabText}>Audio library</Text>
+                    </GlassView> : <View style={styles.libraryTabSurface}>
+                      <Headphones color={library === "audio" ? selectedLibraryColor : "#673F3F"} size={18} />
+                      <Text style={[styles.libraryTabText, library === "audio" && styles.libraryTabTextSelected]}>Audio library</Text>
+                    </View>}
+                  </Pressable>
+                </GlassContainer>
 
                 <View style={styles.searchField}>
                   <Search color="rgba(95,59,43,0.5)" size={20} strokeWidth={2} />
@@ -186,7 +230,7 @@ export default function ExploreScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     onChangeText={setQuery}
-                    placeholder="Search exercises"
+                    placeholder={library === "audio" ? "Search audio" : "Search exercises"}
                     placeholderTextColor="rgba(95,59,43,0.4)"
                     returnKeyType="search"
                     style={styles.searchInput}
@@ -205,38 +249,22 @@ export default function ExploreScreen() {
                   ) : null}
                 </View>
 
-                <ScrollView
-                  contentContainerStyle={styles.filterContent}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.filters}
-                >
-                  {exerciseCategories.map((category) => {
-                    const isSelected = selectedCategory === category;
-
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: isSelected }}
-                        key={category}
-                        onPress={() => setSelectedCategory(category)}
-                        style={[styles.filterChip, isSelected && styles.filterChipSelected]}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          style={[styles.filterText, isSelected && styles.filterTextSelected]}
-                        >
-                          {category}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                <View style={styles.filterBar}>
+                  <View style={styles.filterCopy}>
+                    <Text style={styles.filterLabel}>Showing</Text>
+                    <Text numberOfLines={1} style={styles.filterValue}>{selectedCategory === "All" ? "All categories" : selectedCategory}</Text>
+                  </View>
+                  <Pressable accessibilityLabel="Filter by category" accessibilityRole="button" onPress={() => setFilterOpen(true)} style={[styles.filterButton, selectedCategory !== "All" && styles.filterButtonActive]}>
+                    <SlidersHorizontal color={selectedCategory === "All" ? "#673F3F" : "#FFF8EE"} size={20} strokeWidth={2} />
+                  </Pressable>
+                </View>
               </View>
             }
             renderItem={({ item }) => {
-              const colors = categoryColors[item.category];
-              const isAvailable = Boolean(item.exerciseId);
+              const colors = categoryColors[item.category] ?? { background: "rgba(223,162,177,.24)", foreground: "#673F3F" };
+              const isAudio = item.guidanceType === "audio";
+              const isAvailable = isAudio ? Boolean(item.audioUrl) : Boolean(item.exerciseId);
+              const isCurrentAudio = isAudio && audioPlayer.track?.id === item.id;
 
               return (
                 <Pressable
@@ -250,6 +278,8 @@ export default function ExploreScreen() {
                   <View style={[styles.exerciseIcon, { backgroundColor: colors.background }]}>
                     {item.imageUrl ? (
                       <Image source={{ uri: item.imageUrl }} style={styles.exerciseImage} />
+                    ) : isAudio ? (
+                      <Music2 color={colors.foreground} size={23} />
                     ) : (
                       <CategoryIcon category={item.category} color={colors.foreground} />
                     )}
@@ -260,11 +290,13 @@ export default function ExploreScreen() {
                       {item.title}
                     </Text>
                     <Text numberOfLines={1} style={styles.exerciseMeta}>
-                      {guidanceLabels[item.guidanceType]} · p. {item.sourcePage}
+                      {isAudio ? `${item.audioDurationSeconds ? `${Math.max(1, Math.round(item.audioDurationSeconds / 60))} min` : "Audio practice"} · Holistic Mind` : `${guidanceLabels[item.guidanceType]} · p. ${item.sourcePage}`}
                     </Text>
                   </View>
 
-                  {isAvailable ? (
+                  {isAvailable ? isAudio ? (
+                    <View style={[styles.audioPlayIcon, isCurrentAudio && styles.audioPlayIconActive]}>{isCurrentAudio && audioPlayer.playing ? <Pause color={isCurrentAudio ? "#FFF8EE" : "#673F3F"} fill={isCurrentAudio ? "#FFF8EE" : "#673F3F"} size={15} /> : <Play color={isCurrentAudio ? "#FFF8EE" : "#673F3F"} fill={isCurrentAudio ? "#FFF8EE" : "#673F3F"} size={15} />}</View>
+                  ) : (
                     <ChevronRight color="rgba(95,59,43,0.44)" size={21} strokeWidth={2} />
                   ) : (
                     <View style={styles.soonBadge}>
@@ -287,6 +319,36 @@ export default function ExploreScreen() {
           />
         </SafeAreaView>
       </ImageBackground>
+      <Modal animationType="fade" onRequestClose={() => setFilterOpen(false)} transparent visible={filterOpen}>
+        <Pressable onPress={() => setFilterOpen(false)} style={styles.filterBackdrop}>
+          <Pressable onPress={(event) => event.stopPropagation()} style={styles.filterSheet}>
+            <View style={styles.filterSheetHeader}>
+              <View>
+                <Text style={styles.filterSheetKicker}>Filter library</Text>
+                <Text style={styles.filterSheetTitle}>Choose a category</Text>
+              </View>
+              <Pressable accessibilityLabel="Close filters" hitSlop={8} onPress={() => setFilterOpen(false)} style={styles.filterCloseButton}>
+                <X color="#673F3F" size={20} />
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.filterOptions} showsVerticalScrollIndicator={false}>
+              {exerciseCategories.map((category) => {
+                const isSelected = selectedCategory === category;
+                return <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  key={category}
+                  onPress={() => { setSelectedCategory(category); setFilterOpen(false); }}
+                  style={[styles.filterOption, isSelected && styles.filterOptionSelected]}
+                >
+                  <Text style={[styles.filterOptionText, isSelected && styles.filterOptionTextSelected]}>{category === "All" ? "All categories" : category}</Text>
+                  {isSelected ? <Check color="#FFF8EE" size={18} strokeWidth={2.4} /> : null}
+                </Pressable>;
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -344,6 +406,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  libraryTabs: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 20,
+    padding: 4,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,.46)",
+  },
+  libraryTabsLiquid: {
+    padding: 0,
+    backgroundColor: "transparent",
+  },
+  libraryTab: {
+    minHeight: 46,
+    flex: 1,
+    borderRadius: 18,
+  },
+  libraryTabSurface: {
+    width: "100%",
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 18,
+  },
+  libraryTabSelected: {
+    backgroundColor: "#673F3F",
+  },
+  libraryTabText: {
+    color: "#673F3F",
+    fontFamily: sansFont,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  libraryTabTextSelected: {
+    color: "#FFF8EE",
+  },
   searchField: {
     minHeight: 48,
     marginTop: 20,
@@ -351,10 +451,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.62)",
-    backgroundColor: "rgba(255,255,255,0.52)",
+    backgroundColor: "rgba(255,255,255,0.42)",
+    shadowColor: "#5F3B2B",
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
   },
   searchInput: {
     minWidth: 0,
@@ -371,36 +475,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  filters: {
-    marginHorizontal: -22,
-    marginTop: 13,
+  filterBar: {
+    minHeight: 54,
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  filterContent: {
-    gap: 8,
-    paddingHorizontal: 22,
-    paddingBottom: 5,
+  filterCopy: {
+    minWidth: 0,
+    flex: 1,
   },
-  filterChip: {
-    minHeight: 38,
+  filterLabel: {
+    color: "rgba(95,59,43,.46)",
+    fontFamily: sansFont,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: .8,
+    textTransform: "uppercase",
+  },
+  filterValue: {
+    marginTop: 3,
+    color: "#5F3B2B",
+    fontFamily: sansFont,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 15,
-    borderRadius: 19,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(95,59,43,0.09)",
-    backgroundColor: "rgba(255,255,255,0.44)",
+    borderColor: "rgba(95,59,43,.1)",
+    backgroundColor: "rgba(255,255,255,.55)",
   },
-  filterChipSelected: {
+  filterButtonActive: {
     borderColor: "#673F3F",
     backgroundColor: "#673F3F",
-  },
-  filterText: {
-    color: "rgba(95,59,43,0.7)",
-    fontFamily: sansFont,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  filterTextSelected: {
-    color: "#FFF8EE",
   },
   sectionHeader: {
     minHeight: 46,
@@ -473,6 +587,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
+  audioPlayIcon: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: "rgba(103,63,63,.10)",
+  },
+  audioPlayIconActive: {
+    backgroundColor: "#673F3F",
+  },
   emptyState: {
     alignItems: "center",
     paddingHorizontal: 30,
@@ -491,5 +616,81 @@ const styles = StyleSheet.create({
     fontFamily: sansFont,
     fontSize: 13,
     fontWeight: "500",
+  },
+  filterBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: 12,
+    backgroundColor: "rgba(39,25,21,.28)",
+  },
+  filterSheet: {
+    maxHeight: "72%",
+    overflow: "hidden",
+    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 12,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,.82)",
+    backgroundColor: "#FFF9F0",
+    shadowColor: "#2F211C",
+    shadowOpacity: .22,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: -6 },
+  },
+  filterSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingBottom: 14,
+  },
+  filterSheetKicker: {
+    color: "rgba(95,59,43,.5)",
+    fontFamily: sansFont,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  filterSheetTitle: {
+    marginTop: 3,
+    color: "#5F3B2B",
+    fontFamily: sansFont,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  filterCloseButton: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
+    backgroundColor: "rgba(103,63,63,.08)",
+  },
+  filterOptions: {
+    gap: 7,
+    paddingBottom: 16,
+  },
+  filterOption: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    backgroundColor: "rgba(103,63,63,.055)",
+  },
+  filterOptionSelected: {
+    backgroundColor: "#673F3F",
+  },
+  filterOptionText: {
+    color: "#5F3B2B",
+    fontFamily: sansFont,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  filterOptionTextSelected: {
+    color: "#FFF8EE",
   },
 });

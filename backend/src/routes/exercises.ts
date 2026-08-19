@@ -51,6 +51,8 @@ function serialize(row: Record<string, unknown>) {
     breathHoldRequired: row.breath_hold_required,
     positionRequired: row.position_required,
     environmentRequirements: row.environment_requirements,
+    audioUrl: row.audio_url ?? null,
+    audioDurationSeconds: row.audio_duration_seconds ?? null,
   };
 }
 
@@ -58,6 +60,7 @@ export const exercisesRouter = Router();
 
 exercisesRouter.get("/admin/all", requireAdmin, async (_request, response, next) => {
   try {
+    response.set("Cache-Control", "no-store");
     const result = await pool.query("SELECT * FROM exercises ORDER BY display_order, title");
     response.json({ data: result.rows.map(serialize) });
   } catch (error) { next(error); }
@@ -65,8 +68,12 @@ exercisesRouter.get("/admin/all", requireAdmin, async (_request, response, next)
 
 exercisesRouter.get("/", async (_request, response, next) => {
   try {
+    response.set("Cache-Control", "no-store");
     const result = await pool.query(
-      `SELECT * FROM exercises WHERE status = 'published' ORDER BY display_order, title`
+      `SELECT exercises.*, audio.audio_url, audio.duration_seconds AS audio_duration_seconds
+       FROM exercises
+       LEFT JOIN exercise_audio audio ON audio.exercise_id = exercises.linked_exercise_id AND audio.status = 'ready'
+       WHERE exercises.status = 'published' ORDER BY exercises.display_order, exercises.title`
     );
     response.json({ data: result.rows.map(serialize) });
   } catch (error) { next(error); }
@@ -76,7 +83,12 @@ exercisesRouter.get("/:id", async (request, response, next) => {
   const id = idSchema.safeParse(request.params.id);
   if (!id.success) { response.status(400).json({ error: "Invalid exercise id" }); return; }
   try {
-    const result = await pool.query("SELECT * FROM exercises WHERE id = $1 AND status = 'published'", [id.data]);
+    response.set("Cache-Control", "no-store");
+    const result = await pool.query(
+      `SELECT exercises.*, audio.audio_url, audio.duration_seconds AS audio_duration_seconds
+       FROM exercises LEFT JOIN exercise_audio audio
+       ON audio.exercise_id = exercises.linked_exercise_id AND audio.status = 'ready'
+       WHERE exercises.id = $1 AND exercises.status = 'published'`, [id.data]);
     if (!result.rows[0]) { response.status(404).json({ error: "Exercise not found" }); return; }
     response.json({ data: serialize(result.rows[0]) });
   } catch (error) { next(error); }

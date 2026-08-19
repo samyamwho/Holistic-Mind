@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { getGoogleIdToken } from "../../services/auth/googleAuth";
 
 type LoginScreenProps = {
   navigation: {
@@ -25,7 +26,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
 
   const completeLogin = async () => {
     if (!email.trim() || !password) {
@@ -36,13 +37,25 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     setErrorMessage("");
     setIsSubmitting(true);
     try {
-      await signIn(email, password);
-      navigation.replace("MainTabs");
+      const emailVerified = await signIn(email, password);
+      navigation.replace(emailVerified ? "MainTabs" : "VerifyEmail");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Login could not be completed.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const completeGoogleLogin = async () => {
+    setErrorMessage(""); setIsSubmitting(true);
+    try {
+      const idToken = await getGoogleIdToken();
+      if (!idToken) return;
+      const result = await signInWithGoogle(idToken);
+      navigation.replace(result.isNewUser ? "Onboarding" : "MainTabs");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Google sign-in could not be completed.");
+    } finally { setIsSubmitting(false); }
   };
 
   return (
@@ -78,6 +91,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                   value={email}
                 />
               </View>
+
+              <Pressable onPress={() => navigation.navigate("ForgotPassword")} accessibilityRole="button">
+                <Text style={styles.forgotLink}>Forgot password?</Text>
+              </Pressable>
 
               <View style={styles.field}>
                 <Text style={styles.label}>Password</Text>
@@ -117,6 +134,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 ) : (
                   <Text style={styles.primaryButtonText}>Login</Text>
                 )}
+              </Pressable>
+
+              <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>OR</Text><View style={styles.divider} /></View>
+              <Pressable accessibilityRole="button" disabled={isSubmitting} onPress={completeGoogleLogin} style={styles.googleButton}>
+                <Text style={styles.googleLetter}>G</Text><Text style={styles.googleButtonText}>Continue with Google</Text>
               </Pressable>
             </View>
 
@@ -378,6 +400,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "500",
     textAlign: "center",
+  },
+  forgotLink: {
+    color: "#673F3F",
+    fontFamily: interFont,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "right",
   },
   switchText: {
     marginTop: "auto",

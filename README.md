@@ -41,7 +41,59 @@ When someone creates an account:
 
 Returning users stay logged in after restarting the app. Logout revokes the backend session and removes the encrypted session from the device.
 
-Email changes, password reset, email verification, and Google/Apple login are not implemented yet.
+In local development, email delivery uses `EMAIL_DELIVERY_MODE=log`. Verification and password-reset
+codes appear in the backend terminal. For production delivery, set the mode to `resend`, configure a
+verified `EMAIL_FROM` address, and add `RESEND_API_KEY` in `backend/.env`.
+
+### Real email delivery
+
+Create a Resend API key and add the following to `backend/.env`:
+
+```text
+EMAIL_DELIVERY_MODE=resend
+EMAIL_FROM=Holistic Mind <hello@your-verified-domain.com>
+RESEND_API_KEY=re_your_key
+```
+
+The sender domain must be verified in Resend before it can send to arbitrary addresses. Restart the
+backend after changing these values. Keep the API key out of `.env.example` and Git.
+
+### Google sign-in
+
+Google sign-in uses native iOS and Android authentication and therefore requires a development build;
+it does not run in Expo Go. In Google Cloud Console, configure the OAuth consent screen and create:
+
+- A Web application OAuth client for backend ID-token verification.
+- An iOS OAuth client for bundle ID `com.anonymous.holistic-mind`.
+- An Android OAuth client for package `com.anonymous.holisticmind` and the signing certificate SHA-1.
+
+Add the Web client ID to both environment files:
+
+```text
+# .env.local
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com
+GOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.your-reversed-ios-client-id
+
+# backend/.env
+GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+```
+
+Then rebuild the native app so the Google URL scheme and native module are included:
+
+```bash
+npx expo run:ios
+# or
+npx expo run:android
+```
+
+The mobile app sends Google's ID token to the backend. The backend verifies its signature, issuer,
+expiry, and audience before creating a Holistic Mind session.
+
+New accounts verify their email with a six-digit code. Users can request a forgotten-password code,
+change their password from Profile, and permanently delete their account in the app. Google login
+is supported on iOS and Android when OAuth client IDs are configured. Apple login and email-address
+changes are not implemented yet.
 
 ## What You Need
 
@@ -196,7 +248,7 @@ PostgreSQL and MinIO should show as healthy. pgAdmin should show as running.
 | Mobile API | `http://localhost:4000` | Backend requests |
 | PostgreSQL | `localhost:5433` | Database |
 | pgAdmin | `http://localhost:5050` | View and edit database records |
-| MinIO storage | `http://localhost:9000` | Exercise images and videos |
+| MinIO storage | `http://localhost:9000` | Exercise images, videos, and audio |
 | MinIO console | `http://localhost:9001` | View stored media |
 | Admin dashboard | `http://127.0.0.1:5173` | Manage exercises and media |
 
@@ -254,6 +306,7 @@ Right-click a table, choose **View/Edit Data > All Rows**, and pgAdmin displays 
 | `journal_entries` | Journal prompt, content, and timestamps per user |
 | `exercises` | Backend-managed Explore catalog, images, visibility, order, and tags |
 | `exercise_media` | Uploaded video location and media metadata |
+| `exercise_audio` | Uploaded audio location, format, duration, and readiness |
 
 These are local development credentials. pgAdmin is bound to `127.0.0.1`, so other devices on the network cannot open it. Changes made in pgAdmin directly affect the app's local database.
 
@@ -280,12 +333,34 @@ The dashboard can:
 - Change status between `published`, `draft`, and `archived`.
 - Upload or replace JPEG, PNG, and WebP images.
 - Upload or replace MP4, MOV, and WebM demonstration videos.
-- Preview current images and videos.
+- Create audio-library entries and upload or replace MP3, M4A, AAC, WAV, WebM, and OGG recordings.
+- Preview current images, videos, and audio.
 - Permanently delete a demonstration video after confirmation.
+- Permanently delete an audio recording after confirmation.
 
 Only `published` exercises are returned to Explore. An uploaded image replaces the category icon. Explore refreshes whenever the tab gains focus, supports pull-to-refresh, and checks for updates every 15 seconds while open. Backend-edited names, descriptions, and images also appear on the exercise detail screen. For video exercises, the exercise illustration remains visible until the user presses **Start practice**; then the video player appears.
 
-Image and video uploads use short-lived signed MinIO URLs. PostgreSQL stores the final public URL and metadata, not the media bytes.
+Image, video, and audio uploads use short-lived signed MinIO URLs. PostgreSQL stores the final public URL and metadata, not the media bytes.
+
+## Adding Audio To The Explore Library
+
+1. Start the backend and admin dashboard, then unlock the dashboard with `ADMIN_API_KEY`.
+2. Press **+ New audio**.
+3. Enter the title, category, description, duration, and optional cover image. Keep **Guidance type** set to `audio` and keep the linked practice ID unique.
+4. Choose an audio file in the **Audio recording** panel.
+5. Change **Status** to `published` when the recording is ready for users, then press **Save changes**.
+
+Explore has separate **Somatic exercises** and **Audio library** tabs. Published audio records appear in the audio tab; records without an uploaded file show as **Soon**. Playback continues through the Explore mini-player, the full player, and supported iOS/Android lock-screen controls. Audio uploads are limited to 250 MB.
+
+Because `expo-audio` adds native iOS and Android configuration, rebuild the development app after pulling this change:
+
+```bash
+npx expo run:ios
+# or
+npx expo run:android
+```
+
+Metro reloads alone cannot add the native audio module to an already-installed development build.
 
 ## Uploading An Exercise Video
 
@@ -370,6 +445,8 @@ Public endpoints:
 | `GET` | `/api/exercises` | Published Explore catalog |
 | `GET` | `/api/exercises/:id` | One published catalog record |
 | `GET` | `/api/exercise-media/:exerciseId` | Ready video metadata |
+| `GET` | `/api/exercise-audio` | All ready audio metadata |
+| `GET` | `/api/exercise-audio/:exerciseId` | Ready audio metadata for one library item |
 
 Authenticated user endpoints require `Authorization: Bearer <access-token>`:
 
@@ -392,6 +469,9 @@ Administrator endpoints require the `x-admin-key` header:
 | `POST` | `/api/exercise-media/:exerciseId/upload-url` | Prepare a video upload |
 | `POST` | `/api/exercise-media/:exerciseId/complete` | Verify video upload and save metadata |
 | `DELETE` | `/api/exercise-media/:exerciseId` | Delete the video object and media record |
+| `POST` | `/api/exercise-audio/:exerciseId/upload-url` | Prepare an audio upload (250 MB maximum) |
+| `POST` | `/api/exercise-audio/:exerciseId/complete` | Verify audio upload and save metadata |
+| `DELETE` | `/api/exercise-audio/:exerciseId` | Delete the audio object and media record |
 
 ## Stopping The Project
 

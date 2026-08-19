@@ -15,6 +15,11 @@ import {
   refreshSession,
   signup,
   updateMe,
+  verifyEmail as verifyEmailRequest,
+  resendVerificationEmail,
+  changePassword as changePasswordRequest,
+  deleteAccount as deleteAccountRequest,
+  loginWithGoogle,
   type AuthIdentity,
   type AuthTokens,
 } from "../services/auth/authApi";
@@ -28,6 +33,8 @@ export type UserProfile = {
   id?: string;
   name: string;
   email: string;
+  emailVerified: boolean;
+  hasPassword: boolean;
 };
 
 export type ProfilePreferences = {
@@ -40,11 +47,16 @@ type AuthContextValue = {
   isLoading: boolean;
   user: UserProfile | null;
   preferences: ProfilePreferences;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<{ isNewUser: boolean }>;
   signOut: () => Promise<void>;
   updateProfile: (profile: { name: string }) => Promise<void>;
   updatePreference: (key: keyof ProfilePreferences, enabled: boolean) => Promise<void>;
+  verifyEmail: (code: string) => Promise<void>;
+  resendVerification: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (confirmation: { password: string } | { googleIdToken: string }) => Promise<void>;
   runAuthenticated: <T>(operation: (accessToken: string) => Promise<T>) => Promise<T>;
 };
 
@@ -61,6 +73,8 @@ function getProfile(identity: AuthIdentity): UserProfile {
     id: identity.user.id,
     name: identity.user.name,
     email: identity.user.email,
+    emailVerified: identity.user.emailVerified,
+    hasPassword: identity.user.hasPassword,
   };
 }
 
@@ -181,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string) => {
       const session = await login(email.trim(), password);
       await applySession(session);
+      return session.user.emailVerified;
     },
     [applySession]
   );
@@ -192,6 +207,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [applySession]
   );
+
+  const signInWithGoogle = useCallback(async (idToken: string) => {
+    const session = await loginWithGoogle(idToken);
+    await applySession(session);
+    return { isNewUser: session.isNewUser };
+  }, [applySession]);
 
   const signOut = useCallback(async () => {
     const currentTokens = tokensRef.current;
@@ -233,6 +254,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyIdentity, preferences, runAuthenticated]
   );
 
+  const verifyEmail = useCallback(async (code: string) => {
+    const identity = await runAuthenticated((accessToken) => verifyEmailRequest(accessToken, code));
+    applyIdentity(identity);
+  }, [applyIdentity, runAuthenticated]);
+
+  const resendVerification = useCallback(async () => {
+    await runAuthenticated((accessToken) => resendVerificationEmail(accessToken));
+  }, [runAuthenticated]);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await runAuthenticated((accessToken) => changePasswordRequest(accessToken, currentPassword, newPassword));
+  }, [runAuthenticated]);
+
+  const deleteAccount = useCallback(async (confirmation: { password: string } | { googleIdToken: string }) => {
+    await runAuthenticated((accessToken) => deleteAccountRequest(accessToken, confirmation));
+    tokensRef.current = null;
+    setUser(null);
+    setPreferences(defaultPreferences);
+    await clearAuthSession();
+  }, [runAuthenticated]);
+
   const value = useMemo(
     () => ({
       isLoading,
@@ -240,12 +282,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       preferences,
       signIn,
       signUp,
+      signInWithGoogle,
       signOut,
       updateProfile,
       updatePreference,
+      verifyEmail,
+      resendVerification,
+      changePassword,
+      deleteAccount,
       runAuthenticated,
     }),
-    [isLoading, preferences, runAuthenticated, signIn, signOut, signUp, updatePreference, updateProfile, user]
+    [changePassword, deleteAccount, isLoading, preferences, resendVerification, runAuthenticated, signIn, signInWithGoogle, signOut, signUp, updatePreference, updateProfile, user, verifyEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

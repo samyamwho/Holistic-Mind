@@ -37,7 +37,7 @@ export async function createAssetUploadUrl(objectKey: string, contentType: strin
 }
 
 export async function assertObjectExists(objectKey: string) {
-  await storage.send(
+  return storage.send(
     new HeadObjectCommand({
       Bucket: config.S3_BUCKET,
       Key: objectKey,

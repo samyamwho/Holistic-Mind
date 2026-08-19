@@ -30,6 +30,10 @@ const environmentSchema = z.object({
   S3_PUBLIC_BASE_URL: z.url(),
   RECOMMENDER_URL: z.url().default("http://localhost:8000"),
   RECOMMENDER_TIMEOUT_MS: z.coerce.number().int().positive().max(30000).default(10000),
+  EMAIL_DELIVERY_MODE: z.enum(["log", "resend"]).default("log"),
+  EMAIL_FROM: z.string().default("Holistic Mind <onboarding@resend.dev>"),
+  RESEND_API_KEY: z.string().optional(),
+  GOOGLE_WEB_CLIENT_ID: z.string().optional(),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

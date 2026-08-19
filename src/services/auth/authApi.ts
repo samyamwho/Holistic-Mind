@@ -5,6 +5,8 @@ export type AuthUser = {
   email: string;
   name: string;
   createdAt: string;
+  emailVerified: boolean;
+  hasPassword: boolean;
 };
 
 export type AuthPreferences = {
@@ -81,6 +83,13 @@ export function login(email: string, password: string) {
   });
 }
 
+export function loginWithGoogle(idToken: string) {
+  return request<AuthenticatedSession & { isNewUser: boolean }>("/api/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ idToken }),
+  });
+}
+
 export function refreshSession(refreshToken: string) {
   return request<AuthenticatedSession>("/api/auth/refresh", {
     method: "POST",
@@ -109,5 +118,50 @@ export function updateMe(
     method: "PATCH",
     headers: { authorization: `Bearer ${accessToken}` },
     body: JSON.stringify(update),
+  });
+}
+
+export function resendVerificationEmail(accessToken: string) {
+  return request<{ message: string }>("/api/auth/email/resend", {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function verifyEmail(accessToken: string, code: string) {
+  return request<AuthIdentity>("/api/auth/email/verify", {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function forgotPassword(email: string) {
+  return request<{ message: string }>("/api/auth/password/forgot", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resetPassword(email: string, code: string, newPassword: string) {
+  return request<{ message: string }>("/api/auth/password/reset", {
+    method: "POST",
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+}
+
+export function changePassword(accessToken: string, currentPassword: string, newPassword: string) {
+  return request<{ message: string }>("/api/auth/me/password", {
+    method: "PUT",
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export function deleteAccount(accessToken: string, confirmation: { password: string } | { googleIdToken: string }) {
+  return request<void>("/api/auth/me", {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(confirmation),
   });
 }

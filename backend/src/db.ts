@@ -17,10 +17,22 @@ export type ExerciseMediaRow = {
   updated_at: Date;
 };
 
+export type ExerciseAudioRow = {
+  exercise_id: string;
+  audio_object_key: string;
+  audio_url: string;
+  content_type: string;
+  duration_seconds: number | null;
+  status: ExerciseMediaStatus;
+  created_at: Date;
+  updated_at: Date;
+};
+
 export type AuthUserRow = {
   id: string;
   email: string;
-  password_hash: string;
+  password_hash: string | null;
+  email_verified_at: Date | null;
   name: string;
   daily_reminder: boolean;
   practice_reminder: boolean;
@@ -39,11 +51,37 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT,
+      email_verified_at TIMESTAMPTZ,
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CHECK (email = LOWER(email))
+    );
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+    ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+
+    CREATE TABLE IF NOT EXISTS auth_identities (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL CHECK (provider IN ('google', 'apple')),
+      provider_subject TEXT NOT NULL,
+      provider_email TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (provider, provider_subject),
+      UNIQUE (user_id, provider)
+    );
+
+    CREATE TABLE IF NOT EXISTS auth_action_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      purpose TEXT NOT NULL CHECK (purpose IN ('verify_email', 'reset_password')),
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      consumed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS user_profiles (
@@ -71,6 +109,17 @@ export async function ensureSchema() {
       video_url TEXT NOT NULL,
       poster_url TEXT,
       captions_url TEXT,
+      duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds > 0),
+      status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS exercise_audio (
+      exercise_id TEXT PRIMARY KEY,
+      audio_object_key TEXT NOT NULL,
+      audio_url TEXT NOT NULL,
+      content_type TEXT NOT NULL,
       duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds > 0),
       status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -221,8 +270,12 @@ export async function ensureSchema() {
     );
 
     CREATE INDEX IF NOT EXISTS auth_sessions_user_id_idx ON auth_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS auth_identities_user_id_idx ON auth_identities(user_id);
     CREATE INDEX IF NOT EXISTS auth_sessions_expires_at_idx ON auth_sessions(expires_at);
+    CREATE INDEX IF NOT EXISTS auth_action_tokens_lookup_idx
+      ON auth_action_tokens(token_hash, purpose, expires_at);
     CREATE INDEX IF NOT EXISTS exercise_media_status_idx ON exercise_media(status);
+    CREATE INDEX IF NOT EXISTS exercise_audio_status_idx ON exercise_audio(status);
     CREATE INDEX IF NOT EXISTS daily_check_ins_user_date_idx ON daily_check_ins(user_id, check_in_date DESC);
     CREATE INDEX IF NOT EXISTS journal_entries_user_created_idx ON journal_entries(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS exercises_status_order_idx ON exercises(status, display_order, title);
@@ -242,6 +295,8 @@ export function serializeAuthUser(row: AuthUserRow) {
     user: {
       id: row.id,
       email: row.email,
+      emailVerified: row.email_verified_at !== null,
+      hasPassword: row.password_hash !== null,
       name: row.name,
       createdAt: row.created_at.toISOString(),
     },
@@ -259,6 +314,17 @@ export function serializeExerciseMedia(row: ExerciseMediaRow) {
     videoUrl: row.video_url,
     posterUrl: row.poster_url,
     captionsUrl: row.captions_url,
+    durationSeconds: row.duration_seconds,
+    status: row.status,
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export function serializeExerciseAudio(row: ExerciseAudioRow) {
+  return {
+    exerciseId: row.exercise_id,
+    audioUrl: row.audio_url,
+    contentType: row.content_type,
     durationSeconds: row.duration_seconds,
     status: row.status,
     updatedAt: row.updated_at.toISOString(),

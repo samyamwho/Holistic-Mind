@@ -30,6 +30,14 @@ export type ExerciseMedia = {
   status: "ready";
   updatedAt: string;
 };
+export type ExerciseAudio = {
+  exerciseId: string;
+  audioUrl: string;
+  contentType: string;
+  durationSeconds: number | null;
+  status: "ready";
+  updatedAt: string;
+};
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/$/, "");
 
@@ -46,6 +54,8 @@ async function request<T>(path: string, adminKey: string, options: RequestInit =
 export const listExercises = (key: string) => request<Exercise[]>("/api/exercises/admin/all", key);
 export const updateExercise = (key: string, id: string, update: Partial<Omit<Exercise, "id">>) =>
   request<Exercise>(`/api/exercises/${encodeURIComponent(id)}`, key, { method: "PATCH", body: JSON.stringify(update) });
+export const createExercise = (key: string, exercise: Exercise) =>
+  request<Exercise>("/api/exercises", key, { method: "POST", body: JSON.stringify(exercise) });
 
 export async function uploadExerciseImage(key: string, exerciseId: string, file: File) {
   const prepared = await request<{ uploadUrl: string; objectKey: string }>(
@@ -81,3 +91,33 @@ export async function uploadExerciseVideo(key: string, exerciseId: string, file:
 
 export const deleteExerciseVideo = (key: string, exerciseId: string) =>
   request<{ deleted: true }>(`/api/exercise-media/${encodeURIComponent(exerciseId)}`, key, { method: "DELETE" });
+
+export async function getExerciseAudio(exerciseId: string) {
+  const response = await fetch(`${API_URL}/api/exercise-audio/${encodeURIComponent(exerciseId)}`);
+  if (response.status === 404) return null;
+  const payload = await response.json().catch(() => ({})) as { data?: ExerciseAudio; error?: string };
+  if (!response.ok || !payload.data) throw new Error(payload.error || "Unable to load exercise audio");
+  return payload.data;
+}
+
+export async function uploadExerciseAudio(key: string, exerciseId: string, file: File, durationSeconds?: number) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const inferredType: Record<string, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", webm: "audio/webm", ogg: "audio/ogg" };
+  const aliases: Record<string, string> = { "audio/mp3": "audio/mpeg", "audio/x-wav": "audio/wav" };
+  const supportedTypes = new Set(["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/webm", "audio/aac", "audio/ogg"]);
+  const browserType = aliases[file.type] ?? file.type;
+  const contentType = supportedTypes.has(browserType) ? browserType : inferredType[extension ?? ""];
+  if (!contentType) throw new Error("Choose an MP3, M4A, AAC, WAV, WebM, or OGG audio file.");
+  const prepared = await request<{ uploadUrl: string; objectKey: string }>(
+    `/api/exercise-audio/${encodeURIComponent(exerciseId)}/upload-url`, key,
+    { method: "POST", body: JSON.stringify({ fileName: file.name, contentType, fileSize: file.size }) }
+  );
+  const upload = await fetch(prepared.uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body: file });
+  if (!upload.ok) throw new Error(`Audio upload failed (${upload.status})`);
+  return request<ExerciseAudio>(`/api/exercise-audio/${encodeURIComponent(exerciseId)}/complete`, key, {
+    method: "POST", body: JSON.stringify({ objectKey: prepared.objectKey, contentType, durationSeconds }),
+  });
+}
+
+export const deleteExerciseAudio = (key: string, exerciseId: string) =>
+  request<{ deleted: true }>(`/api/exercise-audio/${encodeURIComponent(exerciseId)}`, key, { method: "DELETE" });

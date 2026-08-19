@@ -18,10 +18,12 @@ import {
   Bell,
   ChevronRight,
   Info,
+  KeyRound,
   LogOut,
   Pencil,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Vibrate,
   X,
 } from "lucide-react-native";
@@ -53,6 +55,8 @@ type PreferenceRowProps = {
 const fallbackProfile: UserProfile = {
   name: "Holistic Mind Member",
   email: "Personal account",
+  emailVerified: false,
+  hasPassword: false,
 };
 
 export default function ProfileSection({ navigation }: ProfileScreenProps) {
@@ -198,6 +202,13 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
             <Text style={styles.sectionLabel}>Essential profile</Text>
             <View style={styles.sectionSurface}>
               <ActionRow
+                description={profile.hasPassword ? "Update your account password" : "Create a password using your verified email"}
+                icon={<KeyRound color="#70454A" size={20} strokeWidth={2} />}
+                label={profile.hasPassword ? "Change password" : "Set password"}
+                onPress={() => navigation.getParent()?.navigate(profile.hasPassword ? "ChangePassword" : "ForgotPassword")}
+              />
+              <View style={styles.separator} />
+              <ActionRow
                 description="Update your display name"
                 icon={<Pencil color="#70454A" size={20} strokeWidth={2} />}
                 label="Personal details"
@@ -250,6 +261,13 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
                 icon={<Info color="#665477" size={21} strokeWidth={2} />}
                 label="About Holistic Mind"
                 onPress={showAppInfo}
+              />
+              <View style={styles.separator} />
+              <ActionRow
+                description="Permanently remove your data"
+                icon={<Trash2 color="#874853" size={20} strokeWidth={2} />}
+                label="Delete account"
+                onPress={() => navigation.getParent()?.navigate("DeleteAccount")}
               />
             </View>
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { config } from "../config.js";
 import { pool } from "../db.js";
+import { hashActionCode } from "../auth/actionTokens.js";
 
 type JsonResponse<T> = {
   status: number;
@@ -9,7 +10,7 @@ type JsonResponse<T> = {
 };
 
 type SessionResponse = {
-  user: { id: string; email: string; name: string };
+  user: { id: string; email: string; name: string; emailVerified: boolean };
   preferences: {
     dailyReminder: boolean;
     practiceReminder: boolean;
@@ -61,6 +62,20 @@ try {
   assert.equal(secondSignup.status, 201);
   assert.ok(secondSignup.data);
   assert.notEqual(firstSignup.data.user.id, secondSignup.data.user.id);
+
+  const verificationCode = "123456";
+  await pool.query(
+    `UPDATE auth_action_tokens SET token_hash = $2
+     WHERE id = (SELECT id FROM auth_action_tokens WHERE user_id = $1 AND purpose = 'verify_email' AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1)`,
+    [firstSignup.data.user.id, hashActionCode(firstEmail, verificationCode, "verify_email")]
+  );
+  const verified = await api<SessionResponse>("/api/auth/email/verify", {
+    method: "POST",
+    headers: { authorization: `Bearer ${firstSignup.data.tokens.accessToken}` },
+    body: JSON.stringify({ code: verificationCode }),
+  });
+  assert.equal(verified.status, 200);
+  assert.equal(verified.data?.user.emailVerified, true);
 
   const wrongLogin = await api<SessionResponse>("/api/auth/login", {
     method: "POST",
@@ -118,6 +133,44 @@ try {
     body: JSON.stringify({ refreshToken: refreshed.data.tokens.refreshToken }),
   });
   assert.equal(revokedRefresh.status, 401);
+
+  const forgot = await api<{ message: string }>("/api/auth/password/forgot", {
+    method: "POST",
+    body: JSON.stringify({ email: firstEmail }),
+  });
+  assert.equal(forgot.status, 200);
+  const resetCode = "654321";
+  await pool.query(
+    `UPDATE auth_action_tokens SET token_hash = $2
+     WHERE id = (SELECT id FROM auth_action_tokens WHERE user_id = $1 AND purpose = 'reset_password' AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1)`,
+    [firstSignup.data.user.id, hashActionCode(firstEmail, resetCode, "reset_password")]
+  );
+  const newPassword = "New secure password 84";
+  const reset = await api<{ message: string }>("/api/auth/password/reset", {
+    method: "POST",
+    body: JSON.stringify({ email: firstEmail, code: resetCode, newPassword }),
+  });
+  assert.equal(reset.status, 200);
+  const newLogin = await api<SessionResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: firstEmail, password: newPassword }),
+  });
+  assert.equal(newLogin.status, 200);
+
+  const changedPassword = "Changed secure password 126";
+  const changed = await api<{ message: string }>("/api/auth/me/password", {
+    method: "PUT",
+    headers: { authorization: `Bearer ${newLogin.data!.tokens.accessToken}` },
+    body: JSON.stringify({ currentPassword: newPassword, newPassword: changedPassword }),
+  });
+  assert.equal(changed.status, 200);
+
+  const deleted = await api<void>("/api/auth/me", {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${secondSignup.data.tokens.accessToken}` },
+    body: JSON.stringify({ password }),
+  });
+  assert.equal(deleted.status, 204);
 
   console.log("Authentication smoke test passed.");
 } finally {

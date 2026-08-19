@@ -16,11 +16,17 @@ export type BackendExerciseCatalogItem = ExerciseCatalogItem & {
   breathHoldRequired: boolean;
   positionRequired: "any" | "seated" | "standing" | "lying";
   environmentRequirements: string[];
+  audioUrl: string | null;
+  audioDurationSeconds: number | null;
 };
 
 export async function getExerciseCatalog(signal?: AbortSignal) {
   if (!API_URL) throw new Error("Backend API is not configured");
-  const response = await fetch(`${API_URL}/api/exercises`, { signal });
+  const response = await fetch(`${API_URL}/api/exercises?fresh=${Date.now()}`, {
+    signal,
+    cache: "no-store",
+    headers: { "cache-control": "no-cache" },
+  });
   if (!response.ok) throw new Error(`Exercise catalog request failed with ${response.status}`);
   const payload = (await response.json()) as { data?: BackendExerciseCatalogItem[] };
   if (!Array.isArray(payload.data)) throw new Error("Exercise catalog response is invalid");
@@ -35,7 +41,11 @@ export async function getExerciseCatalog(signal?: AbortSignal) {
 
 export async function getExerciseCatalogItem(id: string, signal?: AbortSignal) {
   if (!API_URL) throw new Error("Backend API is not configured");
-  const response = await fetch(`${API_URL}/api/exercises/${encodeURIComponent(id)}`, { signal });
+  const response = await fetch(`${API_URL}/api/exercises/${encodeURIComponent(id)}?fresh=${Date.now()}`, {
+    signal,
+    cache: "no-store",
+    headers: { "cache-control": "no-cache" },
+  });
   if (!response.ok) throw new Error(`Exercise request failed with ${response.status}`);
   const payload = (await response.json()) as { data?: BackendExerciseCatalogItem };
   if (!payload.data) throw new Error("Exercise response is invalid");

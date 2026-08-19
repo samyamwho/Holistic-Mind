@@ -132,7 +132,7 @@ function BreathingGuide({ isRunning, phases }: BreathingGuideProps) {
       <Animated.View style={[styles.breathingHalo, orbStyle]} />
       <View style={styles.breathingCore}>
         <Text style={styles.phaseLabel}>{isRunning ? phase?.label : "Ready"}</Text>
-        <Text style={styles.phaseCount}>{isRunning ? phaseSeconds : ""}</Text>
+        {isRunning ? <Text style={styles.phaseCount}>{phaseSeconds}</Text> : null}
       </View>
       <Text style={styles.phaseInstruction}>
         {isRunning ? phase?.instruction : "Begin whenever your body feels ready"}
