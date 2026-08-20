@@ -1,5 +1,6 @@
 import React from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { appSansFont as sansFont, typeScale } from "../../../theme/typography";
 
 type ProgressSummaryProps = {
   checkInsToday: number;
@@ -27,20 +28,6 @@ export default function ProgressSummary({
   );
 }
 
-const serifFont = Platform.select({
-  ios: "Times New Roman",
-  android: "serif",
-  web: "Times New Roman",
-  default: "serif",
-});
-
-const interFont = Platform.select({
-  ios: "Inter",
-  android: "sans-serif",
-  web: "Inter, system-ui, sans-serif",
-  default: "sans-serif",
-});
-
 const styles = StyleSheet.create({
   progressZone: {
     marginTop: 28,
@@ -52,9 +39,9 @@ const styles = StyleSheet.create({
   },
   progressZoneTitle: {
     color: "#5F3B2B",
-    fontFamily: interFont,
-    fontSize: 22,
-    lineHeight: 28,
+    fontFamily: sansFont,
+    fontSize: typeScale.sectionTitle,
+    lineHeight: typeScale.sectionTitleLine,
     fontWeight: "800",
   },
   progressStats: {
@@ -72,16 +59,16 @@ const styles = StyleSheet.create({
   },
   progressStatValue: {
     color: "#673F3F",
-    fontFamily: serifFont,
-    fontSize: 28,
-    lineHeight: 32,
+    fontFamily: sansFont,
+    fontSize: 24,
+    lineHeight: 29,
     fontWeight: "900",
   },
   progressStatLabel: {
     marginTop: 5,
     color: "rgba(95, 59, 43, 0.62)",
-    fontFamily: interFont,
-    fontSize: 13,
+    fontFamily: sansFont,
+    fontSize: typeScale.control,
     lineHeight: 18,
     fontWeight: "700",
   },

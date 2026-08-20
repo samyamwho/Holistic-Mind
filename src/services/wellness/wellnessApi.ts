@@ -15,6 +15,24 @@ export type OnboardingResponses = {
   dailyTime: string;
   updatedAt?: string;
 };
+export type PracticeActivity = {
+  id: string;
+  exerciseId: string;
+  title: string;
+  category: string;
+  kind: "exercise" | "audio";
+  createdAt: string;
+};
+
+type PracticeActivityListener = (activity: PracticeActivity) => void;
+const practiceActivityListeners = new Set<PracticeActivityListener>();
+
+export function subscribeToPracticeActivity(listener: PracticeActivityListener) {
+  practiceActivityListeners.add(listener);
+  return () => {
+    practiceActivityListeners.delete(listener);
+  };
+}
 
 async function request<T>(path: string, accessToken: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}/api/wellness${path}`, {
@@ -29,6 +47,7 @@ async function request<T>(path: string, accessToken: string, options: RequestIni
 }
 
 export const getLatestCheckIn = (token: string) => request<DailyCheckIn | null>("/check-ins/latest", token);
+export const getCheckIns = (token: string) => request<DailyCheckIn[]>("/check-ins", token);
 export const getOnboardingResponses = (token: string) => request<OnboardingResponses | null>("/onboarding", token);
 export const saveOnboardingResponses = (token: string, answers: Omit<OnboardingResponses, "updatedAt">) =>
   request<OnboardingResponses>("/onboarding", token, { method: "PUT", body: JSON.stringify(answers) });
@@ -37,3 +56,15 @@ export const saveCheckIn = (token: string, date: string, answers: DailyCheckInAn
 export const getJournalEntries = (token: string) => request<StoredJournalEntry[]>("/journal", token);
 export const createJournalEntry = (token: string, entry: Omit<StoredJournalEntry, "id" | "createdAt">) =>
   request<StoredJournalEntry>("/journal", token, { method: "POST", body: JSON.stringify(entry) });
+export const getPracticeEvents = (token: string) => request<PracticeActivity[]>("/practice-events", token);
+export const recordPracticeEvent = async (
+  token: string,
+  event: Omit<PracticeActivity, "id" | "createdAt">
+) => {
+  const recorded = await request<PracticeActivity>("/practice-events", token, {
+    method: "POST",
+    body: JSON.stringify(event),
+  });
+  practiceActivityListeners.forEach((listener) => listener(recorded));
+  return recorded;
+};

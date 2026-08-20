@@ -1,7 +1,8 @@
 import React from "react";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { SlidersHorizontal } from "lucide-react-native";
 import type { Exercise } from "../../../types/wellness";
+import { appSansFont as sansFont, typeScale } from "../../../theme/typography";
 
 type RecommendedToolsProps = {
   title: string;
@@ -40,13 +41,6 @@ export default function RecommendedTools({ title, tools, onSelectTool }: Recomme
   );
 }
 
-const interFont = Platform.select({
-  ios: "Inter",
-  android: "sans-serif",
-  web: "Inter, system-ui, sans-serif",
-  default: "sans-serif",
-});
-
 const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
@@ -58,9 +52,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     flex: 1,
     color: "#5F3B2B",
-    fontFamily: interFont,
-    fontSize: 23,
-    lineHeight: 30,
+    fontFamily: sansFont,
+    fontSize: typeScale.sectionTitle,
+    lineHeight: typeScale.sectionTitleLine,
     fontWeight: "700",
   },
   exerciseGrid: {
@@ -84,24 +78,24 @@ const styles = StyleSheet.create({
   },
   exerciseCategory: {
     color: "rgba(95, 59, 43, 0.66)",
-    fontFamily: interFont,
-    fontSize: 12,
+    fontFamily: sansFont,
+    fontSize: typeScale.meta,
     fontWeight: "800",
     textTransform: "uppercase",
   },
   exerciseTitle: {
     marginTop: 4,
     color: "#5F3B2B",
-    fontFamily: interFont,
-    fontSize: 16,
-    lineHeight: 20,
+    fontFamily: sansFont,
+    fontSize: typeScale.itemTitle,
+    lineHeight: typeScale.itemTitleLine,
     fontWeight: "800",
   },
   exerciseWhy: {
     marginTop: 8,
     color: "rgba(95, 59, 43, 0.68)",
-    fontFamily: interFont,
-    fontSize: 13,
+    fontFamily: sansFont,
+    fontSize: typeScale.control,
     lineHeight: 18,
     fontWeight: "500",
   },

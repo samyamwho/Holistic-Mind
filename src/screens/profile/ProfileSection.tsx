@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   ActivityIndicator,
   Alert,
@@ -33,15 +34,17 @@ import {
   type ProfilePreferences,
   type UserProfile,
 } from "../../context/AuthContext";
+import { appSansFont as sansFont, screenLayout, typeScale } from "../../theme/typography";
+
+type ProfileNavigator = {
+  navigate: (screen: string) => void;
+  reset: (state: { index: number; routes: Array<{ name: string }> }) => void;
+};
 
 type ProfileScreenProps = {
-  navigation: {
-    getParent: () =>
-      | {
-          navigate: (screen: string) => void;
-          reset: (state: { index: number; routes: Array<{ name: string }> }) => void;
-        }
-      | undefined;
+  navigation: ProfileNavigator & {
+    getParent?: () => ProfileNavigator | undefined;
+    goBack: () => void;
   };
 };
 
@@ -67,6 +70,11 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
     updateProfile,
     user,
   } = useAuth();
+  const rootNavigation = navigation.getParent?.() ?? navigation;
+  const supportsLiquidGlass =
+    Platform.OS === "ios" &&
+    isGlassEffectAPIAvailable() &&
+    isLiquidGlassAvailable();
   const profile = user ?? fallbackProfile;
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -118,7 +126,7 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
         {
           text: "Continue",
           onPress: () =>
-            navigation.getParent()?.reset({
+            rootNavigation.reset({
               index: 0,
               routes: [{ name: "Onboarding" }],
             }),
@@ -146,7 +154,7 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
         style: "destructive",
         onPress: async () => {
           await signOut();
-          navigation.getParent()?.reset({
+          rootNavigation.reset({
             index: 0,
             routes: [{ name: "Login" }],
           });
@@ -160,20 +168,47 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
   };
 
   return (
-    <View style={styles.root}>
+    <View collapsable={false} style={styles.root}>
       <ImageBackground
+        {...({ collapsable: false } as any)}
         source={require("../../../assets/welcome/paper-background.png")}
         resizeMode="cover"
         style={styles.background}
       >
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <SafeAreaView collapsable={false} style={styles.safeArea} edges={["top"]}>
           <ScrollView
+            contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <Text style={styles.kicker}>Your space</Text>
-              <Text style={styles.title}>Profile</Text>
+              <View style={styles.headerCopy}>
+                <Text style={styles.kicker}>Your space</Text>
+                <Text style={styles.title}>Profile</Text>
+              </View>
+              <Pressable
+                accessibilityHint="Returns to the app"
+                accessibilityLabel="Close profile"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => navigation.goBack()}
+                style={styles.profileCloseButton}
+              >
+                {supportsLiquidGlass ? (
+                  <GlassView
+                    glassEffectStyle="regular"
+                    isInteractive
+                    style={styles.profileCloseSurface}
+                    tintColor="rgba(255,248,238,0.16)"
+                  >
+                    <X color="#673F3F" size={24} strokeWidth={2.1} />
+                  </GlassView>
+                ) : (
+                  <View style={[styles.profileCloseSurface, styles.profileCloseFallback]}>
+                    <X color="#673F3F" size={24} strokeWidth={2.1} />
+                  </View>
+                )}
+              </Pressable>
             </View>
 
             <View style={styles.identityPanel}>
@@ -205,7 +240,7 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
                 description={profile.hasPassword ? "Update your account password" : "Create a password using your verified email"}
                 icon={<KeyRound color="#70454A" size={20} strokeWidth={2} />}
                 label={profile.hasPassword ? "Change password" : "Set password"}
-                onPress={() => navigation.getParent()?.navigate(profile.hasPassword ? "ChangePassword" : "ForgotPassword")}
+                onPress={() => rootNavigation.navigate(profile.hasPassword ? "ChangePassword" : "ForgotPassword")}
               />
               <View style={styles.separator} />
               <ActionRow
@@ -267,7 +302,7 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
                 description="Permanently remove your data"
                 icon={<Trash2 color="#874853" size={20} strokeWidth={2} />}
                 label="Delete account"
-                onPress={() => navigation.getParent()?.navigate("DeleteAccount")}
+                onPress={() => rootNavigation.navigate("DeleteAccount")}
               />
             </View>
 
@@ -433,13 +468,6 @@ function ProfileEditor({
   );
 }
 
-const sansFont = Platform.select({
-  ios: "Helvetica Neue",
-  android: "sans-serif",
-  web: "Helvetica Neue, Helvetica, Arial, sans-serif",
-  default: "sans-serif",
-});
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -452,27 +480,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 22,
-    paddingTop: 14,
+    paddingHorizontal: screenLayout.horizontalPadding,
+    paddingTop: screenLayout.topPadding,
     paddingBottom: 132,
   },
   header: {
+    minHeight: screenLayout.headerHeight,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 18,
     marginBottom: 20,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   kicker: {
     color: "rgba(95,59,43,0.58)",
     fontFamily: sansFont,
-    fontSize: 12,
+    fontSize: typeScale.screenKicker,
     fontWeight: "700",
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   title: {
     marginTop: 3,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: typeScale.screenTitle,
+    lineHeight: typeScale.screenTitleLine,
     fontWeight: "700",
+  },
+  profileCloseButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  profileCloseSurface: {
+    width: 52,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderRadius: 26,
+  },
+  profileCloseFallback: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.76)",
+    backgroundColor: "rgba(255,255,255,0.5)",
+    shadowColor: "#5F3B2B",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.09,
+    shadowRadius: 18,
+    elevation: 4,
   },
   identityPanel: {
     minHeight: 104,

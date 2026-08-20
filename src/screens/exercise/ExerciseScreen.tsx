@@ -39,6 +39,7 @@ import {
 } from "../../services/recommendations/recommendationApi";
 import type { Exercise, ExercisePhase } from "../../types/wellness";
 import { useAuth } from "../../context/AuthContext";
+import { recordPracticeEvent } from "../../services/wellness/wellnessApi";
 
 type ExerciseScreenProps = {
   navigation: {
@@ -255,7 +256,15 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
     }
     completedRecorded.current = true;
     recordEvent("completed");
-  }, [isComplete, recordEvent]);
+    if (exercise) {
+      runAuthenticated((token) => recordPracticeEvent(token, {
+        exerciseId: exercise.id,
+        title: exercise.title,
+        category: exercise.section,
+        kind: "exercise",
+      })).catch((error) => console.warn("Unable to record practice completion", error));
+    }
+  }, [exercise, isComplete, recordEvent, runAuthenticated]);
 
   useEffect(() => {
     const catalogId = route.params?.catalogId;

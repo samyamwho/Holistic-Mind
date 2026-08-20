@@ -146,6 +146,17 @@ export async function ensureSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS practice_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      exercise_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL,
+      practice_kind TEXT NOT NULL DEFAULT 'exercise'
+        CHECK (practice_kind IN ('exercise', 'audio')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS onboarding_responses (
       user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       support_goal TEXT NOT NULL,
@@ -278,6 +289,8 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS exercise_audio_status_idx ON exercise_audio(status);
     CREATE INDEX IF NOT EXISTS daily_check_ins_user_date_idx ON daily_check_ins(user_id, check_in_date DESC);
     CREATE INDEX IF NOT EXISTS journal_entries_user_created_idx ON journal_entries(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS practice_events_user_created_idx ON practice_events(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS practice_events_user_exercise_idx ON practice_events(user_id, exercise_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS exercises_status_order_idx ON exercises(status, display_order, title);
     CREATE INDEX IF NOT EXISTS recommendation_requests_user_created_idx
       ON recommendation_requests(user_id, created_at DESC);

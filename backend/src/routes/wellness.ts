@@ -20,6 +20,12 @@ const journalSchema = z.object({
   prompt: z.string().trim().min(1).max(500),
   text: z.string().trim().min(1).max(20000),
 });
+const practiceEventSchema = z.object({
+  exerciseId: z.string().trim().min(1).max(160),
+  title: z.string().trim().min(1).max(200),
+  category: z.string().trim().min(1).max(120),
+  kind: z.enum(["exercise", "audio"]).default("exercise"),
+});
 const onboardingSchema = z.object({
   support: z.string().trim().min(1).max(100),
   age: z.string().trim().min(1).max(30),
@@ -84,6 +90,26 @@ wellnessRouter.get("/check-ins/latest", async (_request, response, next) => {
   } catch (error) { next(error); }
 });
 
+wellnessRouter.get("/check-ins", async (_request, response, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, check_in_date::text AS date, answers, created_at
+       FROM daily_check_ins WHERE user_id = $1
+       ORDER BY check_in_date DESC, created_at DESC
+       LIMIT 365`,
+      [response.locals.userId]
+    );
+    response.json({
+      data: result.rows.map((row) => ({
+        id: row.id,
+        date: row.date,
+        answers: row.answers,
+        createdAt: row.created_at.toISOString(),
+      })),
+    });
+  } catch (error) { next(error); }
+});
+
 wellnessRouter.put("/check-ins", async (request, response, next) => {
   const parsed = checkInSchema.safeParse(request.body);
   if (!parsed.success) { response.status(400).json({ error: "Invalid check-in." }); return; }
@@ -123,5 +149,87 @@ wellnessRouter.post("/journal", async (request, response, next) => {
     );
     const row = result.rows[0];
     response.status(201).json({ data: { id: row.id, pack: row.pack, prompt: row.prompt, text: row.text, createdAt: row.created_at.toISOString() } });
+  } catch (error) { next(error); }
+});
+
+wellnessRouter.get("/practice-events", async (_request, response, next) => {
+  try {
+    const result = await pool.query(
+      `WITH all_practice_events AS (
+         SELECT id, exercise_id, title, category, practice_kind, created_at
+         FROM practice_events
+         WHERE user_id = $1
+
+         UNION ALL
+
+         SELECT
+           recommendation_events.id,
+           recommendation_events.exercise_id,
+           COALESCE(exercise_match.title, INITCAP(REPLACE(recommendation_events.exercise_id, '-', ' '))) AS title,
+           COALESCE(exercise_match.category, 'Exercise') AS category,
+           'exercise' AS practice_kind,
+           recommendation_events.created_at
+         FROM recommendation_events
+         LEFT JOIN LATERAL (
+           SELECT title, category
+           FROM exercises
+           WHERE exercises.id = recommendation_events.exercise_id
+              OR exercises.linked_exercise_id = recommendation_events.exercise_id
+           ORDER BY CASE WHEN exercises.id = recommendation_events.exercise_id THEN 0 ELSE 1 END
+           LIMIT 1
+         ) AS exercise_match ON TRUE
+         WHERE recommendation_events.user_id = $1
+           AND recommendation_events.event_type = 'completed'
+           AND NOT EXISTS (
+             SELECT 1 FROM practice_events
+             WHERE practice_events.user_id = recommendation_events.user_id
+               AND practice_events.exercise_id = recommendation_events.exercise_id
+               AND ABS(EXTRACT(EPOCH FROM (practice_events.created_at - recommendation_events.created_at))) < 15
+           )
+       )
+       SELECT id, exercise_id, title, category, practice_kind, created_at
+       FROM all_practice_events
+       ORDER BY created_at DESC
+       LIMIT 500`,
+      [response.locals.userId]
+    );
+    response.json({
+      data: result.rows.map((row) => ({
+        id: row.id,
+        exerciseId: row.exercise_id,
+        title: row.title,
+        category: row.category,
+        kind: row.practice_kind,
+        createdAt: row.created_at.toISOString(),
+      })),
+    });
+  } catch (error) { next(error); }
+});
+
+wellnessRouter.post("/practice-events", async (request, response, next) => {
+  const parsed = practiceEventSchema.safeParse(request.body);
+  if (!parsed.success) { response.status(400).json({ error: "Invalid practice event." }); return; }
+  try {
+    const result = await pool.query(
+      `INSERT INTO practice_events (user_id, exercise_id, title, category, practice_kind)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, exercise_id, title, category, practice_kind, created_at`,
+      [
+        response.locals.userId,
+        parsed.data.exerciseId,
+        parsed.data.title,
+        parsed.data.category,
+        parsed.data.kind,
+      ]
+    );
+    const row = result.rows[0];
+    response.status(201).json({ data: {
+      id: row.id,
+      exerciseId: row.exercise_id,
+      title: row.title,
+      category: row.category,
+      kind: row.practice_kind,
+      createdAt: row.created_at.toISOString(),
+    } });
   } catch (error) { next(error); }
 });

@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
   Image,
   ImageBackground,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,10 +11,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { BookOpenText, Check, Lock, PenLine } from "lucide-react-native";
+import { ArrowRight, BookOpenText, Check, Lock, PenLine } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { createJournalEntry, getJournalEntries } from "../../services/wellness/wellnessApi";
+import { appSansFont as sansFont, screenLayout, typeScale } from "../../theme/typography";
 
 type PromptPack = {
   id: string;
@@ -69,16 +70,21 @@ function formatEntryTime(date: string) {
 }
 
 export default function JournalScreen() {
+  const navigation = useNavigation<any>();
   const { runAuthenticated } = useAuth();
   const [selectedPackId, setSelectedPackId] = useState(promptPacks[0].id);
   const [draft, setDraft] = useState("");
   const [entries, setEntries] = useState<JournalEntry[]>([]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    let active = true;
     runAuthenticated(getJournalEntries)
-      .then(setEntries)
+      .then((savedEntries) => {
+        if (active) setEntries(savedEntries);
+      })
       .catch((error) => console.warn("Unable to load journal entries", error));
-  }, [runAuthenticated]);
+    return () => { active = false; };
+  }, [runAuthenticated]));
 
   const selectedPack = useMemo(
     () => promptPacks.find((pack) => pack.id === selectedPackId) ?? promptPacks[0],
@@ -107,14 +113,16 @@ export default function JournalScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View collapsable={false} style={styles.root}>
       <ImageBackground
+        {...({ collapsable: false } as any)}
         source={require("../../../assets/welcome/paper-background.png")}
         resizeMode="cover"
         style={styles.background}
       >
-        <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+        <SafeAreaView collapsable={false} style={styles.safeArea} edges={["top", "bottom"]}>
           <ScrollView
+            contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
@@ -145,7 +153,7 @@ export default function JournalScreen() {
                 <View pointerEvents="none" style={styles.glassHighlight} />
                 <View style={styles.promptHeader}>
                   <View style={styles.promptBadge}>
-                    <BookOpenText color="#5F3B2B" size={16} strokeWidth={2.3} />
+                    <View style={styles.promptBadgeDot} />
                     <Text style={styles.promptBadgeText}>{selectedPack.label}</Text>
                   </View>
                   <Text style={styles.savedCount}>{entries.length} saved</Text>
@@ -223,7 +231,15 @@ export default function JournalScreen() {
 
             <View style={styles.entriesHeader}>
               <Text style={styles.sectionTitle}>Recent Entries</Text>
-              <Text style={styles.entriesMeta}>{entries.length}</Text>
+              <Pressable
+                accessibilityLabel="View all journal history"
+                accessibilityRole="button"
+                onPress={() => navigation.navigate("History")}
+                style={styles.viewAllButton}
+              >
+                <Text style={styles.entriesMeta}>View all</Text>
+                <ArrowRight color="rgba(95, 59, 43, 0.62)" size={15} strokeWidth={2.4} />
+              </Pressable>
             </View>
 
             {entries.length === 0 ? (
@@ -234,13 +250,18 @@ export default function JournalScreen() {
               <View style={styles.entriesList}>
                 {entries.slice(0, 3).map((entry) => (
                   <View key={entry.id} style={styles.entryCard}>
-                    <View style={styles.entryTopRow}>
-                      <Text style={styles.entryPack}>{entry.pack}</Text>
-                      <Text style={styles.entryDate}>{formatEntryTime(entry.createdAt)}</Text>
+                    <View style={styles.entryIcon}>
+                      <BookOpenText color="#7A4652" size={20} strokeWidth={1.9} />
                     </View>
-                    <Text numberOfLines={2} style={styles.entryText}>
-                      {entry.text}
-                    </Text>
+                    <View style={styles.entryContent}>
+                      <View style={styles.entryTopRow}>
+                        <Text style={styles.entryPack}>{entry.pack}</Text>
+                        <Text style={styles.entryDate}>{formatEntryTime(entry.createdAt)}</Text>
+                      </View>
+                      <Text numberOfLines={2} style={styles.entryText}>
+                        {entry.text}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -251,13 +272,6 @@ export default function JournalScreen() {
     </View>
   );
 }
-
-const sansFont = Platform.select({
-  ios: "Helvetica",
-  android: "sans-serif",
-  web: "Helvetica, Arial, sans-serif",
-  default: "sans-serif",
-});
 
 const styles = StyleSheet.create({
   root: {
@@ -272,53 +286,52 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingHorizontal: screenLayout.horizontalPadding,
+    paddingTop: screenLayout.topPadding,
     paddingBottom: 124,
   },
   header: {
-    minHeight: 112,
+    minHeight: screenLayout.headerHeight,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
   },
   kicker: {
-    color: "#673F3F",
+    color: "rgba(95,59,43,0.58)",
     fontFamily: sansFont,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0,
+    fontSize: typeScale.screenKicker,
+    fontWeight: "700",
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   title: {
-    marginTop: 8,
+    marginTop: 3,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 44,
-    lineHeight: 50,
-    fontWeight: "600",
-    letterSpacing: 0,
+    fontSize: typeScale.screenTitle,
+    lineHeight: typeScale.screenTitleLine,
+    fontWeight: "700",
   },
   headerImage: {
-    width: 112,
-    height: 96,
+    width: 64,
+    height: 56,
     opacity: 0.92,
   },
   promptShell: {
-    marginTop: 12,
-    borderRadius: 34,
+    marginTop: 14,
+    borderRadius: 28,
     shadowColor: "#5F3B2B",
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    elevation: 7,
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 4,
   },
   promptCard: {
-    borderRadius: 34,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.68)",
     overflow: "hidden",
-    padding: 22,
+    padding: 18,
   },
   glassHighlight: {
     position: "absolute",
@@ -326,8 +339,8 @@ const styles = StyleSheet.create({
     left: 1,
     right: 1,
     height: 126,
-    borderTopLeftRadius: 33,
-    borderTopRightRadius: 33,
+    borderTopLeftRadius: 27,
+    borderTopRightRadius: 27,
     backgroundColor: "rgba(255, 255, 255, 0.24)",
   },
   promptHeader: {
@@ -336,21 +349,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   promptBadge: {
-    minHeight: 36,
+    minHeight: 32,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.54)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.64)",
-    paddingHorizontal: 12,
+    gap: 7,
+    borderRadius: 16,
+    backgroundColor: "rgba(223,162,177,0.26)",
+    paddingHorizontal: 11,
+  },
+  promptBadgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#9A5B6A",
   },
   promptBadgeText: {
     color: "#5F3B2B",
     fontFamily: sansFont,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   savedCount: {
     color: "rgba(95, 59, 43, 0.54)",
@@ -359,34 +376,34 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   promptText: {
-    marginTop: 24,
+    marginTop: 18,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 24,
-    lineHeight: 26,
-    fontWeight: "400",
+    fontSize: typeScale.heroTitle,
+    lineHeight: typeScale.heroTitleLine,
+    fontWeight: "600",
   },
   writer: {
-    minHeight: 184,
-    marginTop: 22,
-    borderRadius: 26,
+    minHeight: 134,
+    marginTop: 16,
+    borderRadius: 22,
     backgroundColor: "rgba(255, 255, 255, 0.52)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.64)",
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   textInput: {
-    minHeight: 150,
+    minHeight: 106,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 17,
-    lineHeight: 25,
+    fontSize: typeScale.itemTitle,
+    lineHeight: 22,
     fontWeight: "500",
     letterSpacing: 0,
   },
   actionRow: {
-    marginTop: 18,
+    marginTop: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -399,17 +416,17 @@ const styles = StyleSheet.create({
   draftMetaText: {
     color: "rgba(95, 59, 43, 0.62)",
     fontFamily: sansFont,
-    fontSize: 13,
+    fontSize: typeScale.meta,
     fontWeight: "700",
   },
   saveButton: {
-    minWidth: 112,
-    height: 48,
+    minWidth: 104,
+    height: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
-    borderRadius: 24,
+    borderRadius: 22,
     backgroundColor: "rgba(95, 59, 43, 0.9)",
     shadowColor: "#5F3B2B",
     shadowOffset: { width: 0, height: 10 },
@@ -423,36 +440,36 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "#F6E3C5",
     fontFamily: sansFont,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
   },
   sectionTitle: {
-    marginTop: 28,
+    marginTop: 24,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "800",
+    fontSize: typeScale.itemTitle,
+    lineHeight: typeScale.itemTitleLine,
+    fontWeight: "700",
   },
   packRow: {
-    gap: 10,
-    paddingTop: 14,
+    gap: 8,
+    paddingTop: 12,
     paddingRight: 24,
   },
   packChip: {
-    minHeight: 46,
+    minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    borderRadius: 23,
+    borderRadius: 18,
     backgroundColor: "rgba(255, 255, 255, 0.48)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.58)",
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
   packChipSelected: {
-    backgroundColor: "rgba(95, 59, 43, 0.88)",
-    borderColor: "rgba(255, 255, 255, 0.24)",
+    backgroundColor: "rgba(223,162,177,0.46)",
+    borderColor: "rgba(154,91,106,0.18)",
   },
   packChipLocked: {
     opacity: 0.66,
@@ -460,11 +477,11 @@ const styles = StyleSheet.create({
   packText: {
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 13,
-    fontWeight: "400",
+    fontSize: typeScale.control,
+    fontWeight: "600",
   },
   packTextSelected: {
-    color: "#F6E3C5",
+    color: "#673F3F",
   },
   packTextLocked: {
     color: "rgba(95, 59, 43, 0.54)",
@@ -474,12 +491,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  viewAllButton: {
+    marginTop: 24,
+    minHeight: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingLeft: 10,
+  },
   entriesMeta: {
-    marginTop: 28,
     color: "rgba(95, 59, 43, 0.58)",
     fontFamily: sansFont,
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 12,
+    fontWeight: "700",
   },
   emptyPanel: {
     marginTop: 14,
@@ -497,39 +521,52 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   entriesList: {
-    marginTop: 14,
-    gap: 12,
+    marginTop: 10,
   },
   entryCard: {
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.48)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.58)",
-    padding: 16,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(95,59,43,0.12)",
+    paddingVertical: 12,
+  },
+  entryIcon: {
+    width: 46,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "rgba(223,162,177,0.24)",
+  },
+  entryContent: {
+    minWidth: 0,
+    flex: 1,
   },
   entryTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 4,
   },
   entryPack: {
     color: "#5F3B2B",
     fontFamily: sansFont,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   entryDate: {
     color: "rgba(95, 59, 43, 0.54)",
     fontFamily: sansFont,
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "600",
   },
   entryText: {
     color: "rgba(95, 59, 43, 0.76)",
     fontFamily: sansFont,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: "600",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
   },
 });

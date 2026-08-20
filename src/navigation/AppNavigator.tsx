@@ -10,6 +10,7 @@ import { ExploreScreen } from "../screens/explore";
 import { ExerciseScreen } from "../screens/exercise";
 import { HomeScreen } from "../screens/home";
 import { JournalScreen } from "../screens/journal";
+import { HistoryScreen } from "../screens/history";
 import { OnboardingScreen } from "../screens/onboarding";
 import { ProfileScreen } from "../screens/profile";
 import { WelcomeScreen, WelcomeV2Screen } from "../screens/welcome";
@@ -30,8 +31,13 @@ function Tabs() {
         <Tab.Navigator
             hapticFeedbackEnabled
             labeled
-            minimizeBehavior="never"
+            minimizeBehavior="onScrollDown"
             scrollEdgeAppearance="default"
+            tabLabelStyle={{
+                fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
+                fontSize: 10,
+                fontWeight: "600",
+            }}
             tabBarActiveTintColor="#673F3F"
             tabBarInactiveTintColor="rgba(95, 59, 43, 0.58)"
             renderBottomAccessoryView={audioPlayer.track ? ({ placement }) => (
@@ -63,16 +69,16 @@ function Tabs() {
                 name="Journal"
                 component={JournalScreen}
                 options={{
-                    tabBarIcon: () => ({ sfSymbol: "book" }),
+                    tabBarIcon: () => ({ sfSymbol: "book.closed" }),
                     tabBarLabel: "Journal",
                 }}
             />
             <Tab.Screen
-                name="Profile"
-                component={ProfileScreen}
+                name="History"
+                component={HistoryScreen}
                 options={{
-                    tabBarIcon: () => ({ sfSymbol: "person.crop.circle" }),
-                    tabBarLabel: "Profile",
+                    tabBarIcon: () => ({ sfSymbol: "clock" }),
+                    tabBarLabel: "History",
                 }}
             />
         </Tab.Navigator>
@@ -113,6 +119,15 @@ export default function AppNavigator() {
                 <Stack.Screen name="Welcome" component={WelcomeScreen} />
                 <Stack.Screen name="Onboarding" component={OnboardingScreen} />
                 <Stack.Screen name="MainTabs" component={Tabs} />
+                <Stack.Screen
+                    name="Profile"
+                    component={ProfileScreen}
+                    options={{
+                        animation: "slide_from_bottom",
+                        gestureEnabled: true,
+                        presentation: "fullScreenModal",
+                    }}
+                />
                 <Stack.Screen name="Exercise" component={ExerciseScreen} />
                 <Stack.Screen name="AudioPlayer" component={AudioPlayerScreen} />
             </Stack.Navigator>

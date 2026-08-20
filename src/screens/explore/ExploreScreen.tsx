@@ -45,6 +45,7 @@ import {
 } from "../../data/exerciseCatalog";
 import { getExerciseCatalog, type BackendExerciseCatalogItem } from "../../services/exercises/exerciseCatalogApi";
 import { useAudioPlayerController } from "../../context/AudioPlayerContext";
+import { appSansFont as sansFont, screenLayout, typeScale } from "../../theme/typography";
 
 const categoryColors: Record<ExerciseCategory, { background: string; foreground: string }> = {
   "Nervous System Reset": { background: "rgba(223,162,177,0.28)", foreground: "#7A4652" },
@@ -173,14 +174,16 @@ export default function ExploreScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View collapsable={false} style={styles.root}>
       <ImageBackground
+        {...({ collapsable: false } as any)}
         source={require("../../../assets/welcome/paper-background.png")}
         resizeMode="cover"
         style={styles.background}
       >
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <SafeAreaView collapsable={false} style={styles.safeArea} edges={["top"]}>
           <SectionList
+            contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={styles.content}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
@@ -353,13 +356,6 @@ export default function ExploreScreen() {
   );
 }
 
-const sansFont = Platform.select({
-  ios: "Helvetica Neue",
-  android: "sans-serif",
-  web: "Helvetica Neue, Helvetica, Arial, sans-serif",
-  default: "sans-serif",
-});
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -375,8 +371,8 @@ const styles = StyleSheet.create({
     paddingBottom: 128,
   },
   header: {
-    paddingHorizontal: 22,
-    paddingTop: 14,
+    paddingHorizontal: screenLayout.horizontalPadding,
+    paddingTop: screenLayout.topPadding,
   },
   titleRow: {
     flexDirection: "row",
@@ -387,23 +383,24 @@ const styles = StyleSheet.create({
   kicker: {
     color: "rgba(95,59,43,0.58)",
     fontFamily: sansFont,
-    fontSize: 12,
+    fontSize: typeScale.screenKicker,
     fontWeight: "700",
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   title: {
     marginTop: 3,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: typeScale.screenTitle,
+    lineHeight: typeScale.screenTitleLine,
     fontWeight: "700",
   },
   count: {
     paddingBottom: 5,
     color: "rgba(95,59,43,0.58)",
     fontFamily: sansFont,
-    fontSize: 13,
+    fontSize: typeScale.control,
     fontWeight: "600",
   },
   libraryTabs: {
@@ -438,7 +435,7 @@ const styles = StyleSheet.create({
   libraryTabText: {
     color: "#673F3F",
     fontFamily: sansFont,
-    fontSize: 13,
+    fontSize: typeScale.control,
     fontWeight: "700",
   },
   libraryTabTextSelected: {
@@ -466,7 +463,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 15,
+    fontSize: typeScale.itemTitle,
     fontWeight: "500",
   },
   clearButton: {
@@ -527,7 +524,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: 15,
+    fontSize: typeScale.itemTitle,
     fontWeight: "700",
   },
   sectionCount: {
@@ -565,15 +562,15 @@ const styles = StyleSheet.create({
   exerciseTitle: {
     color: "#3F302A",
     fontFamily: sansFont,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: typeScale.itemTitle,
+    lineHeight: typeScale.itemTitleLine,
     fontWeight: "600",
   },
   exerciseMeta: {
     marginTop: 3,
     color: "rgba(95,59,43,0.52)",
     fontFamily: sansFont,
-    fontSize: 12,
+    fontSize: typeScale.meta,
     fontWeight: "500",
   },
   soonBadge: {
