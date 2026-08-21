@@ -5,7 +5,7 @@ export function getRecommendations(
   answers: Partial<DailyCheckInAnswers>,
   journalText = "",
   onboardingSupport = "",
-  limit = 3
+  limit = 4
 ): Recommendation[] {
   const normalizedJournal = journalText.toLowerCase();
   const journalSignals = [
@@ -21,23 +21,38 @@ export function getRecommendations(
     "Improve sleep": ["Tired", "Drained", "Calm down"],
     "Feel more focused": ["Scattered", "Focus"],
   };
-  const signals = [
-    ...Object.values(answers).filter(Boolean),
+  const historicalSignals = [
     ...journalSignals,
     ...(onboardingSignals[onboardingSupport] ?? []),
   ];
+  const answerWeights: Partial<Record<keyof DailyCheckInAnswers, number>> = {
+    support: 6,
+    state: 5,
+    body: 3,
+    energy: 3,
+    stress: 3,
+    focus: 2,
+  };
 
   return exerciseLibrary
     .map((exercise) => {
-      const matchedSignals = exercise.bestFor.filter((tag) => signals.includes(tag));
-      const stateMatch = answers.state ? exercise.bestFor.includes(answers.state) : false;
-      const supportMatch = answers.support
-        ? exercise.bestFor.includes(answers.support)
-        : false;
+      const answerScore = Object.entries(answers).reduce((score, [key, value]) => {
+        if (!value || !exercise.bestFor.includes(value)) return score;
+        return score + (answerWeights[key as keyof DailyCheckInAnswers] ?? 1);
+      }, 0);
+      const historyScore = exercise.bestFor.filter((tag) =>
+        historicalSignals.includes(tag)
+      ).length * 0.5;
+      const usesBreathHolds = exercise.phases?.some((phase) => phase.motion === "hold") ?? false;
+      const breathHoldPenalty = usesBreathHolds && (
+        answers.state === "Anxious" ||
+        answers.state === "Overwhelmed" ||
+        answers.stress === "Very stressed"
+      ) ? 5 : 0;
 
       return {
         ...exercise,
-        score: matchedSignals.length + (stateMatch ? 2 : 0) + (supportMatch ? 1 : 0),
+        score: answerScore + historyScore - breathHoldPenalty,
       };
     })
     .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))

@@ -40,7 +40,7 @@ Unsuitable exercises are removed
 Exercises are ranked by their final score
              |
              v
-Top three recommendations are returned
+Top four recommendations are returned
              |
              v
 Mobile app displays “For you right now”
@@ -86,7 +86,7 @@ The backend collects the following information from PostgreSQL:
 
 - The user's onboarding support goal
 - The latest daily check-in
-- Up to ten recent journal entries
+- Up to three recent journal excerpts
 
 ### Exercise information
 
@@ -189,10 +189,11 @@ Exercises that helped similar users receive a higher **collaborative score**.
 
 Collaborative filtering requires previous activity from several users. It becomes active when the current user has overlapping history with at least two similar users.
 
-Until enough data exists, the engine uses:
+Until enough data exists, the engine uses today's answers as the primary signal,
+with semantic similarity and recent history as secondary signals:
 
 ```text
-Content-based score + Rule-based score
+Rule score + current check-in content score + recent-history content score
 ```
 
 This mode is recorded as:
@@ -212,29 +213,38 @@ hybrid
 During cold start, the score is calculated as:
 
 ```text
-Final score = 88% content score + 12% rule score
+Final score =
+    72% rule score
+  + 23% current check-in content score
+  + 5% recent-history content score
 ```
 
 When collaborative filtering is active, the score is calculated as:
 
 ```text
 Final score =
-    72% content score
-  + 18% collaborative score
-  + 10% rule score
+    65% rule score
+  + 20% current check-in content score
+  + 5% recent-history content score
+  + 10% collaborative score
 ```
 
-These weights give the user's current needs the strongest influence while allowing previous user feedback and suitability rules to refine the ranking.
+Answer labels and metadata are normalized before matching, so values such as
+`Feel grounded` and `feel_grounded` are treated as the same signal. These weights
+give today's explicit support request and current state the strongest influence,
+while recent journals and longer-term goals remain secondary.
 
 ## Step 11 — Exercises Are Filtered and Ranked
 
 Before producing the final result, the engine:
 
 1. Removes exercises marked uncomfortable by the current user.
-2. Calculates the three score components.
-3. Calculates the final weighted score.
-4. Sorts exercises from the highest score to the lowest score.
-5. Selects the top three exercises.
+2. Penalizes breath-hold practices during high activation and intensive movement when energy is low.
+3. Calculates the score components.
+4. Calculates the final weighted score.
+5. Sorts exercises from the highest score to the lowest score.
+6. Applies a small category-repeat penalty so equally suitable results include useful variety.
+7. Selects the top four exercises.
 
 Each result contains:
 
@@ -248,7 +258,7 @@ Each result contains:
 An example reason is:
 
 ```text
-Recommended from your current check-in.
+Chosen to help you feel grounded based on today's check-in.
 ```
 
 ## Step 12 — The Recommendation Is Stored
@@ -268,7 +278,7 @@ The raw journal text is **not copied into recommendation history**. The history 
 
 ## Step 13 — Recommendations Are Displayed
 
-The backend returns the top three exercises to the mobile application.
+The backend returns the top four exercises to the mobile application.
 
 The Home screen matches the returned exercise IDs with the application's exercise content and displays them in:
 
@@ -334,4 +344,3 @@ The engine therefore starts with meaningful content-based recommendations and gr
 | Feedback collection | `src/screens/exercise/ExerciseScreen.tsx` |
 | Database tables | `backend/src/db.ts` |
 | Local service configuration | `backend/compose.yaml` |
-

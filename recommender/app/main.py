@@ -20,7 +20,7 @@ def create_recommendations(
 ) -> RecommendationResponse:
     items, strategy, embedding_backend = recommend(context)
     return RecommendationResponse(
-        model_version=f"hybrid-v1:{embedding_backend}",
+        model_version=f"hybrid-v2:{embedding_backend}",
         strategy=strategy,
         items=items,
     )

@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { UserRound } from "lucide-react-native";
 import { dailyCheckInQuestions, exerciseLibrary } from "../../data/wellnessContent";
 import { generateRecommendations } from "../../services/recommendations/recommendationApi";
+import { getRecommendations as getLocalRecommendations } from "../../services/recommendations/recommendationEngine";
 import DailyCheckInCard from "./components/DailyCheckInCard";
 import DailyCheckInFlow from "./components/DailyCheckInFlow";
 import ProgressSummary from "./components/ProgressSummary";
@@ -44,7 +45,7 @@ function getRecommendationKey(checkIn: DailyCheckIn) {
   const answerFingerprint = dailyCheckInQuestions
     .map(({ id }) => `${id}:${checkIn.answers[id] ?? ""}`)
     .join("|");
-  return `${checkIn.id}:${answerFingerprint}`;
+  return `v2-four:${checkIn.id}:${answerFingerprint}`;
 }
 
 function getTimeGreeting(date = new Date()) {
@@ -143,20 +144,30 @@ export default function HomeScreen() {
 
     runAuthenticated(generateRecommendations)
       .then((created) => {
+        const missingExerciseIds: string[] = [];
         const generated = created.items.flatMap((item) => {
           const exercise = exerciseLibrary.find((candidate) => candidate.id === item.exerciseId);
+          if (!exercise) missingExerciseIds.push(item.exerciseId);
           return exercise
             ? [{ ...exercise, why: item.reason, score: item.score }]
             : [];
         });
-        setRecommendations(generated);
-        setRecommendationRequestId(created.requestId);
+        if (missingExerciseIds.length > 0) {
+          console.warn("Ignoring unmapped recommendation exercises", missingExerciseIds);
+        }
+        if (generated.length > 0) {
+          setRecommendations(generated);
+          setRecommendationRequestId(created.requestId);
+        } else {
+          setRecommendations(getLocalRecommendations(latestCheckIn.answers));
+          setRecommendationRequestId(null);
+        }
       })
       .catch((error) => {
         registeredRecommendationKey.current = "";
-        setRecommendations([]);
+        setRecommendations(getLocalRecommendations(latestCheckIn.answers));
         setRecommendationRequestId(null);
-        console.warn("Unable to register recommendations", error);
+        console.warn("Using on-device recommendations because the service was unavailable", error);
       });
   }, [
     isCompleteToday,

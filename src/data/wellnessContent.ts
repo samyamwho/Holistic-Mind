@@ -273,7 +273,7 @@ export const exerciseLibrary: Exercise[] = [
     duration: "1 min",
     durationSeconds: 60,
     guidanceType: "guided",
-    bestFor: ["Overwhelmed", "Anxious", "Restless", "Calm down", "Very stressed"],
+    bestFor: ["Overwhelmed", "Anxious", "Restless", "Calm down", "Very stressed", "Get energy", "Tired", "Drained", "Foggy"],
     why: "Good for interrupting intense activation with a clear physical sensation.",
     steps: [
       "Hold something comfortably cool in your hands or splash cool water on your face.",

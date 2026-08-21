@@ -14,9 +14,12 @@ MODEL_NAME = os.getenv(
 )
 MODEL_PATH = os.getenv("SENTENCE_TRANSFORMER_PATH", "/models/all-MiniLM-L6-v2")
 MIN_COLLABORATIVE_NEIGHBORS = int(os.getenv("MIN_COLLABORATIVE_NEIGHBORS", "2"))
-CONTENT_WEIGHT = 0.72
-COLLABORATIVE_WEIGHT = 0.18
-RULE_WEIGHT = 0.10
+MIN_COMMON_INTERACTIONS = int(os.getenv("MIN_COMMON_INTERACTIONS", "2"))
+RULE_WEIGHT = 0.65
+CURRENT_CONTENT_WEIGHT = 0.20
+HISTORY_CONTENT_WEIGHT = 0.05
+COLLABORATIVE_WEIGHT = 0.10
+DIVERSITY_PENALTY = 0.045
 
 
 @lru_cache(maxsize=1)
@@ -96,46 +99,134 @@ def _exercise_document(exercise: Exercise) -> str:
     return ". ".join(part for part in parts if part)
 
 
-def _user_document(context: RecommendationContext) -> str:
+def _normalize_signal(value: str) -> str:
+    value = value.casefold().replace("_", " ").replace("-", " ").replace("&", " and ")
+    return " ".join(re.findall(r"[a-z0-9']+", value))
+
+
+def _current_document(context: RecommendationContext) -> str:
     answers = ". ".join(
         f"{key}: {value}" for key, value in context.check_in_answers.items() if value
     )
+    return answers or "general wellbeing"
+
+
+def _history_document(context: RecommendationContext) -> str:
     journals = " ".join(text.strip() for text in context.journal_texts if text.strip())
     return ". ".join(
         part
         for part in [
             f"Wellness goal: {context.onboarding_goal}" if context.onboarding_goal else "",
-            answers,
             journals,
         ]
         if part
-    ) or "general wellbeing and gentle self care"
+    )
 
 
-def _rule_score(exercise: Exercise, context: RecommendationContext) -> float:
-    signals = {
-        value.casefold() for value in context.check_in_answers.values() if value
-    }
-    if context.onboarding_goal:
-        signals.add(context.onboarding_goal.casefold())
-    metadata = {
-        value.casefold()
+def _metadata_signals(exercise: Exercise) -> set[str]:
+    return {
+        _normalize_signal(value)
         for value in (
             exercise.recommendation_tags
             + exercise.support_goals
             + exercise.intended_states
         )
+        if value
     }
-    exact_matches = len(signals & metadata)
-    score = min(exact_matches / 3.0, 1.0)
 
-    state = context.check_in_answers.get("state", "").casefold()
-    energy = context.check_in_answers.get("energy", "").casefold()
+
+def _rule_evaluation(
+    exercise: Exercise,
+    context: RecommendationContext,
+) -> tuple[float, list[str]]:
+    metadata = _metadata_signals(exercise)
+    answers = {
+        key: _normalize_signal(value)
+        for key, value in context.check_in_answers.items()
+        if value
+    }
+    field_weights = {
+        "support": 0.34,
+        "state": 0.22,
+        "body": 0.12,
+        "energy": 0.10,
+        "stress": 0.10,
+        "focus": 0.08,
+    }
+    matched_fields = [
+        key for key, value in answers.items() if value in metadata
+    ]
+    score = sum(field_weights.get(key, 0.04) for key in matched_fields)
+
+    support = answers.get("support", "")
+    state = answers.get("state", "")
+    body = answers.get("body", "")
+    energy = answers.get("energy", "")
+    stress = answers.get("stress", "")
+
+    if support == "calm down" and exercise.activation_level == "down_regulating":
+        score += 0.12
+    if support == "feel grounded" and exercise.activation_level in {"down_regulating", "neutral"}:
+        score += 0.08
+    if support == "get energy" and exercise.activation_level == "up_regulating":
+        score += 0.14
     if state in {"overwhelmed", "anxious"} and exercise.activation_level == "down_regulating":
-        score += 0.35
-    if energy in {"tired", "drained", "low"} and exercise.physical_intensity == "high":
-        score -= 0.35
-    return float(np.clip(score, 0.0, 1.0))
+        score += 0.10
+    if (
+        state == "numb" or body in {"heavy", "disconnected"}
+    ) and exercise.activation_level in {"neutral", "up_regulating"}:
+        score += 0.08
+    if body in {"tense", "restless"} and exercise.activation_level == "down_regulating":
+        score += 0.06
+    if stress == "very stressed" and exercise.activation_level == "down_regulating":
+        score += 0.10
+
+    contraindications = {
+        _normalize_signal(value) for value in exercise.contraindication_tags if value
+    }
+    if set(answers.values()) & contraindications:
+        score -= 0.40
+    if exercise.breath_hold_required and (
+        state in {"overwhelmed", "anxious"} or stress == "very stressed"
+    ):
+        score -= 0.32
+    if energy in {"tired", "drained"}:
+        if exercise.physical_intensity == "high":
+            score -= 0.38
+        elif exercise.physical_intensity == "moderate":
+            score -= 0.10
+    if stress == "very stressed" and exercise.physical_intensity == "high":
+        score -= 0.18
+
+    return float(np.clip(score, 0.0, 1.0)), matched_fields
+
+
+def _rule_score(exercise: Exercise, context: RecommendationContext) -> float:
+    return _rule_evaluation(exercise, context)[0]
+
+
+def _reason_for(
+    exercise: Exercise,
+    context: RecommendationContext,
+    matched_fields: list[str],
+) -> str:
+    answers = context.check_in_answers
+    if "support" in matched_fields and answers.get("support"):
+        return f"Chosen to help you {answers['support'].lower()} based on today's check-in."
+    if "state" in matched_fields and answers.get("state"):
+        return f"A gentle match for feeling {answers['state'].lower()} right now."
+    if "body" in matched_fields and answers.get("body"):
+        return f"Matched to the {answers['body'].lower()} body state you reported."
+    if "energy" in matched_fields and answers.get("energy"):
+        return f"Balanced for your {answers['energy'].lower()} energy today."
+    if "focus" in matched_fields and answers.get("focus"):
+        return f"Selected for the {answers['focus'].lower()} focus you reported."
+    if exercise.activation_level == "down_regulating" and (
+        _normalize_signal(answers.get("state", "")) in {"overwhelmed", "anxious"}
+        or _normalize_signal(answers.get("stress", "")) == "very stressed"
+    ):
+        return "A low-intensity settling practice for your current check-in."
+    return "A balanced practice for today's check-in and your longer-term goals."
 
 
 def _collaborative_scores(
@@ -156,7 +247,7 @@ def _collaborative_scores(
         if other_user == user_id:
             continue
         common = sorted(set(target) & set(other_ratings))
-        if not common:
+        if len(common) < MIN_COMMON_INTERACTIONS:
             continue
         left = np.array([target[item] for item in common])
         right = np.array([other_ratings[item] for item in common])
@@ -183,13 +274,24 @@ def _collaborative_scores(
 
 def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], str, str]:
     excluded = set(context.excluded_exercise_ids)
-    candidates = [item for item in context.exercises if item.id not in excluded]
+    seen_ids: set[str] = set()
+    candidates: list[Exercise] = []
+    for item in context.exercises:
+        if item.id in excluded or item.id in seen_ids:
+            continue
+        seen_ids.add(item.id)
+        candidates.append(item)
     if not candidates:
         return [], "no-candidates", MODEL_NAME
 
-    documents = [_user_document(context)] + [_exercise_document(item) for item in candidates]
+    documents = [
+        _current_document(context),
+        _history_document(context),
+        *[_exercise_document(item) for item in candidates],
+    ]
     embeddings, embedding_backend = encode(documents)
-    content_scores = np.clip(embeddings[1:] @ embeddings[0], 0.0, 1.0)
+    current_content_scores = np.clip(embeddings[2:] @ embeddings[0], 0.0, 1.0)
+    history_content_scores = np.clip(embeddings[2:] @ embeddings[1], 0.0, 1.0)
     collaborative, neighbour_count = _collaborative_scores(
         context.user_id,
         [item.id for item in candidates],
@@ -197,42 +299,59 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
     )
     collaborative_active = neighbour_count >= MIN_COLLABORATIVE_NEIGHBORS
 
-    ranked: list[RecommendedItem] = []
+    ranked: list[tuple[Exercise, RecommendedItem]] = []
     for index, exercise in enumerate(candidates):
-        content = float(content_scores[index])
-        rules = _rule_score(exercise, context)
+        current_content = float(current_content_scores[index])
+        history_content = float(history_content_scores[index])
+        rules, matched_fields = _rule_evaluation(exercise, context)
         collaborative_score = collaborative.get(exercise.id, 0.5)
         if collaborative_active:
             final_score = (
-                CONTENT_WEIGHT * content
+                RULE_WEIGHT * rules
+                + CURRENT_CONTENT_WEIGHT * current_content
+                + HISTORY_CONTENT_WEIGHT * history_content
                 + COLLABORATIVE_WEIGHT * collaborative_score
-                + RULE_WEIGHT * rules
             )
         else:
-            final_score = 0.88 * content + 0.12 * rules
+            final_score = (
+                0.72 * rules
+                + 0.23 * current_content
+                + 0.05 * history_content
+            )
 
-        strongest = max(
-            [("your current check-in", rules), ("your recent reflections", content)],
-            key=lambda item: item[1],
-        )[0]
-        if collaborative_active and collaborative_score > max(content, rules):
-            strongest = "practices helpful to people with similar preferences"
-
-        ranked.append(
+        ranked.append((
+            exercise,
             RecommendedItem(
                 exercise_id=exercise.id,
                 score=round(final_score, 6),
                 score_components={
-                    "content": round(content, 6),
+                    "content": round(current_content, 6),
+                    "current_check_in": round(current_content, 6),
+                    "history": round(history_content, 6),
                     "collaborative": round(collaborative_score, 6)
                     if collaborative_active
                     else 0.0,
                     "rules": round(rules, 6),
                 },
-                reason=f"Recommended from {strongest}.",
+                reason=_reason_for(exercise, context, matched_fields),
             )
-        )
+        ))
 
-    ranked.sort(key=lambda item: (-item.score, item.exercise_id))
+    ranked.sort(key=lambda pair: (-pair[1].score, pair[1].exercise_id))
+    selected: list[RecommendedItem] = []
+    category_counts: dict[str, int] = defaultdict(int)
+    remaining = ranked.copy()
+    while remaining and len(selected) < context.limit:
+        best_index = max(
+            range(len(remaining)),
+            key=lambda index: (
+                remaining[index][1].score
+                - DIVERSITY_PENALTY * category_counts[remaining[index][0].category]
+            ),
+        )
+        exercise, item = remaining.pop(best_index)
+        selected.append(item)
+        category_counts[exercise.category] += 1
+
     strategy = "hybrid" if collaborative_active else "content-based-cold-start"
-    return ranked[: context.limit], strategy, embedding_backend
+    return selected, strategy, embedding_backend

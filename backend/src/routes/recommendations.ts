@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { config } from "../config.js";
+import { recommendableExerciseIds } from "../data/recommendationProfiles.js";
 import { pool } from "../db.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { requestLocalRecommendations } from "../recommender.js";
@@ -75,8 +76,8 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
         [userId]
       ),
       pool.query(
-        `SELECT LEFT(content, 4000) AS content FROM journal_entries
-         WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10`,
+        `SELECT LEFT(content, 1200) AS content FROM journal_entries
+         WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3`,
         [userId]
       ),
       pool.query(
@@ -86,8 +87,10 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
                 contraindication_tags, activation_level, physical_intensity,
                 breath_hold_required
          FROM exercises
-         WHERE status = 'published' AND linked_exercise_id IS NOT NULL
-         ORDER BY display_order, title`
+         WHERE status = 'published'
+           AND linked_exercise_id = ANY($1::text[])
+         ORDER BY display_order, title`,
+        [recommendableExerciseIds]
       ),
       pool.query(
         `WITH feedback_values AS (
@@ -157,7 +160,7 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
         value: Number(row.value),
       })),
       excluded_exercise_ids: excludedResult.rows.map((row) => row.exercise_id),
-      limit: 3,
+      limit: 4,
     });
 
     const client = await pool.connect();

@@ -3,10 +3,12 @@ import "./global.css";
 import { AuthProvider } from "./src/context/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { AudioPlayerProvider } from "./src/context/AudioPlayerContext";
+import NotificationManager from "./src/components/notifications/NotificationManager";
 
 export default function App() {
   return (
     <AuthProvider>
+      <NotificationManager />
       <AudioPlayerProvider>
         <AppNavigator />
       </AudioPlayerProvider>

@@ -5,6 +5,7 @@ import {
   Alert,
   ImageBackground,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -35,6 +36,12 @@ import {
   type UserProfile,
 } from "../../context/AuthContext";
 import { appSansFont as sansFont, screenLayout, typeScale } from "../../theme/typography";
+import {
+  reminderTimes,
+  requestReminderPermission,
+  scheduleTestReminder,
+  synchronizeReminderNotifications,
+} from "../../services/notifications/reminderNotifications";
 
 type ProfileNavigator = {
   navigate: (screen: string) => void;
@@ -79,6 +86,7 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [isTestingReminder, setIsTestingReminder] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
   const [draftEmail, setDraftEmail] = useState(user?.email ?? "");
   const initials = useMemo(
@@ -163,8 +171,51 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
     ]);
   };
 
-  const setPreference = (key: keyof ProfilePreferences) => (enabled: boolean) => {
-    updatePreference(key, enabled);
+  const showNotificationSettingsAlert = () => {
+    Alert.alert(
+      "Notifications are turned off",
+      "Allow notifications in your device settings to receive gentle reminders.",
+      [
+        { text: "Not now", style: "cancel" },
+        { text: "Open settings", onPress: () => Linking.openSettings() },
+      ]
+    );
+  };
+
+  const setPreference = (key: keyof ProfilePreferences) => async (enabled: boolean) => {
+    if ((key === "dailyReminder" || key === "practiceReminder") && enabled) {
+      try {
+        if (!(await requestReminderPermission())) {
+          showNotificationSettingsAlert();
+          return;
+        }
+      } catch (error) {
+        console.warn("Unable to request notification permission", error);
+        Alert.alert("Notifications unavailable", "The notification permission could not be requested.");
+        return;
+      }
+    }
+
+    await updatePreference(key, enabled);
+  };
+
+  const testReminder = async () => {
+    if (isTestingReminder) return;
+    setIsTestingReminder(true);
+    try {
+      const scheduled = await scheduleTestReminder();
+      if (!scheduled) {
+        showNotificationSettingsAlert();
+        return;
+      }
+      await synchronizeReminderNotifications(preferences);
+      Alert.alert("Test reminder scheduled", "You should receive it in a couple of seconds.");
+    } catch (error) {
+      console.warn("Unable to schedule test reminder", error);
+      Alert.alert("Reminder unavailable", "The test reminder could not be scheduled.");
+    } finally {
+      setIsTestingReminder(false);
+    }
   };
 
   return (
@@ -261,17 +312,26 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
             <Text style={styles.sectionLabel}>Reminders and feel</Text>
             <View style={styles.sectionSurface}>
               <PreferenceRow
-                description="A gentle prompt to pause and notice"
+                description={`Every day at ${reminderTimes.dailyCheckIn}`}
                 enabled={preferences.dailyReminder}
                 label="Daily check-in"
                 onChange={setPreference("dailyReminder")}
               />
               <View style={styles.separator} />
               <PreferenceRow
-                description="Encouragement for a short practice"
+                description={`Every day at ${reminderTimes.practice}`}
                 enabled={preferences.practiceReminder}
                 label="Practice reminder"
                 onChange={setPreference("practiceReminder")}
+              />
+              <View style={styles.separator} />
+              <ActionRow
+                description={isTestingReminder ? "Scheduling…" : "Receive a notification in two seconds"}
+                icon={isTestingReminder
+                  ? <ActivityIndicator color="#78583D" size="small" />
+                  : <Bell color="#78583D" size={20} strokeWidth={2} />}
+                label="Test reminders"
+                onPress={testReminder}
               />
               <View style={styles.separator} />
               <PreferenceRow
