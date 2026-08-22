@@ -143,8 +143,8 @@ authRouter.post("/signup", authAttemptLimiter, async (request, response, next) =
     await client.query("BEGIN");
     const userResult = await client.query<{ id: string }>(
       `
-        INSERT INTO users (email, password_hash, email_verified_at)
-        VALUES ($1, $2, ${config.AUTO_VERIFY_EMAILS ? "NOW()" : "NULL"})
+        INSERT INTO users (email, password_hash)
+        VALUES ($1, $2)
         RETURNING id
       `,
       [parsedBody.data.email, passwordHash]
