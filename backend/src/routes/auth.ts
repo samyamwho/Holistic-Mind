@@ -207,29 +207,19 @@ authRouter.post("/email/verify", authAttemptLimiter, authenticate, async (reques
     if (!user) { response.status(404).json({ error: "Account not found." }); return; }
     await client.query("BEGIN");
 
-    const isMasterCode = parsed.data.code === "123456" || config.AUTO_VERIFY_EMAILS;
-    let validToken = false;
+    const result = await client.query<{ id: string }>(
+      `SELECT id FROM auth_action_tokens WHERE user_id = $1 AND purpose = 'verify_email'
+       AND token_hash = $2 AND consumed_at IS NULL AND expires_at > NOW() FOR UPDATE`,
+      [user.id, hashActionCode(user.email, parsed.data.code, "verify_email")]
+    );
 
-    if (isMasterCode) {
-      validToken = true;
-    } else {
-      const result = await client.query<{ id: string }>(
-        `SELECT id FROM auth_action_tokens WHERE user_id = $1 AND purpose = 'verify_email'
-         AND token_hash = $2 AND consumed_at IS NULL AND expires_at > NOW() FOR UPDATE`,
-        [user.id, hashActionCode(user.email, parsed.data.code, "verify_email")]
-      );
-      if (result.rows[0]) {
-        validToken = true;
-        await client.query("UPDATE auth_action_tokens SET consumed_at = NOW() WHERE id = $1", [result.rows[0].id]);
-      }
-    }
-
-    if (!validToken) {
+    if (!result.rows[0]) {
       await client.query("ROLLBACK");
       response.status(400).json({ error: "That code is invalid or has expired." });
       return;
     }
 
+    await client.query("UPDATE auth_action_tokens SET consumed_at = NOW() WHERE id = $1", [result.rows[0].id]);
     await client.query("UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW() WHERE id = $1", [user.id]);
     await client.query("COMMIT");
     const updated = await getAuthUser(user.id);

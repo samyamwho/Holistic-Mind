@@ -49,7 +49,6 @@ const environmentSchema = z.object({
   RECOMMENDER_TIMEOUT_MS: z.coerce.number().int().positive().max(30000).default(10000),
   EMAIL_DELIVERY_MODE: z.enum(["log", "resend"]).default("log"),
   EMAIL_FROM: z.string().default("Holistic Mind <onboarding@resend.dev>"),
-  AUTO_VERIFY_EMAILS: booleanString,
   RESEND_API_KEY: z
     .string()
     .trim()
