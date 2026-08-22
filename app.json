@@ -2,6 +2,7 @@
   "expo": {
     "name": "holistic-mind",
     "slug": "holistic-mind",
+    "owner": "samyam_shr",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/holistic-mind-icon.png",
@@ -47,6 +48,11 @@
           "enableBackgroundPlayback": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "706e1a70-fb5b-4d1e-82ba-bb7bae8cd84e"
+      }
+    }
   }
 }
