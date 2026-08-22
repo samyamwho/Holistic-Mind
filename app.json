@@ -17,6 +17,7 @@
       "bundleIdentifier": "com.anonymous.holistic-mind"
     },
     "android": {
+      "package": "com.anonymous.holisticmind",
       "adaptiveIcon": {
         "foregroundImage": "./assets/holistic-mind-icon.png",
         "backgroundColor": "#ffffff"
