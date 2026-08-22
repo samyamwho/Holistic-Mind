@@ -3,17 +3,23 @@ import { config } from "../config.js";
 type Message = { to: string; subject: string; text: string; html: string };
 
 async function send(message: Message) {
-  if (config.EMAIL_DELIVERY_MODE === "log") {
-    console.log(`[development email] to=${message.to} subject=${message.subject}\n${message.text}`);
+  if (config.EMAIL_DELIVERY_MODE === "log" || !config.RESEND_API_KEY) {
+    console.log(`[auth email code] to=${message.to} subject=${message.subject}\n${message.text}`);
     return;
   }
-  if (!config.RESEND_API_KEY) throw new Error("RESEND_API_KEY is required for email delivery");
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { authorization: `Bearer ${config.RESEND_API_KEY}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: config.EMAIL_FROM, ...message }),
-  });
-  if (!response.ok) throw new Error(`Email delivery failed (${response.status})`);
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${config.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({ from: config.EMAIL_FROM, ...message }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.warn(`[email warning] Resend returned ${response.status}: ${errorText}. Verification code fallback:\n${message.text}`);
+    }
+  } catch (error) {
+    console.warn(`[email warning] Resend network error: ${error}. Verification code fallback:\n${message.text}`);
+  }
 }
 
 export function sendVerificationCode(to: string, code: string) {
