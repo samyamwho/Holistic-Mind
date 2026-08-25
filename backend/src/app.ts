@@ -9,6 +9,7 @@ import { wellnessRouter } from "./routes/wellness.js";
 import { exercisesRouter } from "./routes/exercises.js";
 import { recommendationsRouter } from "./routes/recommendations.js";
 import { exerciseAudioRouter } from "./routes/exerciseAudio.js";
+import { libraryRouter } from "./routes/library.js";
 
 export const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api/exercise-audio", exerciseAudioRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/wellness", wellnessRouter);
 app.use("/api/exercises", exercisesRouter);
+app.use("/api/library", libraryRouter);
 app.use("/api/recommendations", recommendationsRouter);
 
 app.use((_request, response) => {

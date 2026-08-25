@@ -59,6 +59,22 @@ const environmentSchema = z.object({
     .trim()
     .transform((val) => (val === "" ? undefined : val))
     .optional(),
+}).superRefine((environment, context) => {
+  if (environment.EMAIL_DELIVERY_MODE === "resend" && !environment.RESEND_API_KEY) {
+    context.addIssue({
+      code: "custom",
+      path: ["RESEND_API_KEY"],
+      message: "RESEND_API_KEY is required when EMAIL_DELIVERY_MODE is resend.",
+    });
+  }
+
+  if (environment.NODE_ENV === "production" && environment.EMAIL_DELIVERY_MODE !== "resend") {
+    context.addIssue({
+      code: "custom",
+      path: ["EMAIL_DELIVERY_MODE"],
+      message: "Production must use EMAIL_DELIVERY_MODE=resend so authentication emails are delivered.",
+    });
+  }
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import {
   Bell,
+  Clock3,
   ChevronRight,
   Info,
   KeyRound,
@@ -283,6 +284,16 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
               >
                 <Pencil color="#673F3F" size={18} strokeWidth={2} />
               </Pressable>
+            </View>
+
+            <Text style={styles.sectionLabel}>Your activity</Text>
+            <View style={styles.sectionSurface}>
+              <ActionRow
+                description="Reflections, check-ins, and practice patterns"
+                icon={<Clock3 color="#7A5A6A" size={20} strokeWidth={2} />}
+                label="History and insights"
+                onPress={() => rootNavigation.navigate("History")}
+              />
             </View>
 
             <Text style={styles.sectionLabel}>Essential profile</Text>

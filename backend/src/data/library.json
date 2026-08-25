@@ -1,0 +1,29 @@
+{
+  "courses": [
+    {
+      "id": "foundations-of-nervous-system-care",
+      "title": "Nervous System Foundations",
+      "subtitle": "A gentle place to begin",
+      "description": "Short lessons and practices for understanding and supporting your nervous system.",
+      "category": "Foundations",
+      "level": "beginner",
+      "status": "published",
+      "displayOrder": 0
+    }
+  ],
+  "modules": [
+    { "id": "getting-started", "courseId": "foundations-of-nervous-system-care", "title": "Getting started", "description": "Begin here and move at your own pace.", "status": "published", "displayOrder": 0 },
+    { "id": "understanding-regulation", "courseId": "foundations-of-nervous-system-care", "title": "Understanding regulation", "description": "Notice and name what is happening within you.", "status": "published", "displayOrder": 1 },
+    { "id": "building-a-practice", "courseId": "foundations-of-nervous-system-care", "title": "Building a practice", "description": "Create a rhythm that works in everyday life.", "status": "published", "displayOrder": 2 }
+  ],
+  "chapters": [
+    { "id": "understanding-your-nervous-system", "courseId": "foundations-of-nervous-system-care", "moduleId": "getting-started", "title": "Understanding your nervous system", "description": "A welcoming overview of activation, regulation, and why your responses make sense.", "mediaType": "video", "durationSeconds": 420, "status": "published", "displayOrder": 0 },
+    { "id": "how-to-use-this-course", "courseId": "foundations-of-nervous-system-care", "moduleId": "getting-started", "title": "How to use this course gently", "description": "A short orientation to pacing, pausing, and choosing what feels supportive.", "mediaType": "audio", "durationSeconds": 240, "status": "published", "displayOrder": 1 },
+    { "id": "mapping-your-current-state", "courseId": "foundations-of-nervous-system-care", "moduleId": "understanding-regulation", "title": "Mapping your current state", "description": "Learn a simple language for noticing activation without judgement.", "mediaType": "video", "durationSeconds": 660, "status": "published", "displayOrder": 0 },
+    { "id": "reflection-check-in", "courseId": "foundations-of-nervous-system-care", "moduleId": "understanding-regulation", "title": "Reflection check-in", "description": "Pause and connect this lesson to your own experience.", "chapterType": "interactive_qna", "interactiveContent": { "question": "What signals tell you that your nervous system needs support?", "answer": "There is no single correct response. You might notice changes in breath, muscle tension, thoughts, energy, or the urge to withdraw. Naming one signal is a useful beginning." }, "mediaType": "video", "status": "published", "displayOrder": 1 },
+    { "id": "grounding-through-the-senses", "courseId": "foundations-of-nervous-system-care", "moduleId": "building-a-practice", "title": "Grounding through the senses", "description": "Reconnect with the present through gentle sensory cues.", "mediaType": "audio", "durationSeconds": 540, "status": "published", "displayOrder": 0 },
+    { "id": "choosing-your-anchor", "courseId": "foundations-of-nervous-system-care", "moduleId": "building-a-practice", "title": "Choosing a reliable anchor", "description": "Explore small sensory anchors you can return to throughout the day.", "mediaType": "audio", "durationSeconds": 480, "status": "published", "displayOrder": 1 },
+    { "id": "building-a-weekly-rhythm", "courseId": "foundations-of-nervous-system-care", "moduleId": "building-a-practice", "title": "Building a weekly rhythm", "description": "Turn what you have learned into a realistic weekly rhythm.", "mediaType": "video", "durationSeconds": 360, "status": "published", "displayOrder": 2 },
+    { "id": "choose-a-supportive-anchor", "courseId": "foundations-of-nervous-system-care", "moduleId": "building-a-practice", "title": "Choose a supportive anchor", "description": "Check your understanding with one short question.", "chapterType": "mcq", "interactiveContent": { "question": "Which option is the most supportive anchor?", "options": ["The one that feels steady and accessible", "The most difficult practice", "Whatever works for someone else"], "correctOptionIndex": 0, "explanation": "An anchor is useful when it feels accessible and helps you reconnect with the present." }, "mediaType": "video", "status": "published", "displayOrder": 3 }
+  ]
+}

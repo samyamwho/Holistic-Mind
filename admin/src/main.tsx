@@ -4,6 +4,7 @@ import App from "./App";
 import "./styles.css";
 import "./audio.css";
 import "./workspaces.css";
+import "./curriculum.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>

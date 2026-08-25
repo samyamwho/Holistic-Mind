@@ -15,7 +15,7 @@ import {
 import { pool, type AuthUserRow } from "../db.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { hashActionCode, storeActionCode } from "../auth/actionTokens.js";
-import { sendPasswordResetCode, sendVerificationCode } from "../auth/email.js";
+import { EmailDeliveryError, sendPasswordResetCode, sendVerificationCode } from "../auth/email.js";
 import { OAuth2Client } from "google-auth-library";
 import { config } from "../config.js";
 
@@ -69,6 +69,19 @@ const authAttemptLimiter = rateLimit({
 
 export const authRouter = Router();
 const googleClient = new OAuth2Client();
+
+function respondToEmailDeliveryFailure(
+  response: Parameters<Parameters<typeof authRouter.post>[1]>[1],
+  error: unknown
+) {
+  if (!(error instanceof EmailDeliveryError)) {
+    return false;
+  }
+
+  console.error("Authentication email delivery failed", error.message);
+  response.status(503).json({ error: error.userMessage });
+  return true;
+}
 
 authRouter.post("/google", authAttemptLimiter, async (request, response, next) => {
   const parsed = googleSchema.safeParse(request.body);
@@ -158,16 +171,31 @@ authRouter.post("/signup", authAttemptLimiter, async (request, response, next) =
     const tokens = await issueTokenPair(client, userId);
     const verificationCode = await storeActionCode(client, userId, parsedBody.data.email, "verify_email", 30);
     await client.query("COMMIT");
-    await sendVerificationCode(parsedBody.data.email, verificationCode).catch((error) => {
-      console.error("Unable to send verification email", error);
-    });
+    let emailDeliveryWarning: string | undefined;
+    try {
+      await sendVerificationCode(parsedBody.data.email, verificationCode);
+    } catch (error) {
+      console.error(
+        "Initial verification email delivery failed",
+        error instanceof Error ? error.message : error
+      );
+      emailDeliveryWarning = error instanceof EmailDeliveryError
+        ? error.userMessage
+        : "We could not send the verification email. Use Send a new code to try again.";
+    }
     const user = await getAuthUser(userId);
 
     if (!user) {
       throw new Error("Created user could not be loaded");
     }
 
-    response.status(201).json({ data: { ...serializeSessionUser(user), tokens } });
+    response.status(201).json({
+      data: {
+        ...serializeSessionUser(user),
+        tokens,
+        emailDeliveryWarning,
+      },
+    });
   } catch (error) {
     await client.query("ROLLBACK");
 
@@ -188,14 +216,24 @@ authRouter.post("/email/resend", authAttemptLimiter, authenticate, async (_reque
     const user = await getAuthUser(response.locals.userId);
     if (!user) { response.status(404).json({ error: "Account not found." }); return; }
     if (user.email_verified_at) { response.json({ data: { message: "Email is already verified." } }); return; }
-    await client.query("BEGIN");
-    const code = await storeActionCode(client, user.id, user.email, "verify_email", 30);
-    await client.query("COMMIT");
-    await sendVerificationCode(user.email, code).catch((error) => {
-      console.error("Unable to send verification email", error);
-    });
+    let code: string;
+    try {
+      await client.query("BEGIN");
+      code = await storeActionCode(client, user.id, user.email, "verify_email", 30);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+
+    try {
+      await sendVerificationCode(user.email, code);
+    } catch (error) {
+      if (respondToEmailDeliveryFailure(response, error)) return;
+      throw error;
+    }
     response.json({ data: { message: "A new verification code has been sent." } });
-  } catch (error) { await client.query("ROLLBACK"); next(error); } finally { client.release(); }
+  } catch (error) { next(error); } finally { client.release(); }
 });
 
 authRouter.post("/email/verify", authAttemptLimiter, authenticate, async (request, response, next) => {
@@ -234,14 +272,19 @@ authRouter.post("/password/forgot", authAttemptLimiter, async (request, response
     const user = await getAuthUserByEmail(parsed.data.email);
     if (user) {
       const client = await pool.connect();
+      let code: string;
       try {
         await client.query("BEGIN");
-        const code = await storeActionCode(client, user.id, user.email, "reset_password", 15);
+        code = await storeActionCode(client, user.id, user.email, "reset_password", 15);
         await client.query("COMMIT");
-        await sendPasswordResetCode(user.email, code).catch((error) => {
-          console.error("Unable to send password reset email", error);
-        });
       } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+
+      try {
+        await sendPasswordResetCode(user.email, code);
+      } catch (error) {
+        if (respondToEmailDeliveryFailure(response, error)) return;
+        throw error;
+      }
     }
     response.json({ data: { message: "If an account exists, a reset code has been sent." } });
   } catch (error) { next(error); }

@@ -28,6 +28,53 @@ export type ExerciseAudioRow = {
   updated_at: Date;
 };
 
+export type LibraryCourseRow = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  category: string;
+  level: "all_levels" | "beginner" | "intermediate" | "advanced";
+  cover_object_key: string | null;
+  cover_image_url: string | null;
+  status: "draft" | "published" | "archived";
+  display_order: number;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export type LibraryModuleRow = {
+  id: string;
+  course_id: string;
+  title: string;
+  description: string | null;
+  status: "draft" | "published" | "archived";
+  display_order: number;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export type LibraryChapterRow = {
+  id: string;
+  course_id: string;
+  course_module_id: string;
+  title: string;
+  description: string | null;
+  classification: string;
+  chapter_type: "audio" | "video" | "interactive_qna" | "mcq";
+  interactive_content: Record<string, unknown>;
+  media_type: "audio" | "video";
+  media_object_key: string | null;
+  media_url: string | null;
+  media_content_type: string | null;
+  thumbnail_url: string | null;
+  duration_seconds: number | null;
+  status: "draft" | "published" | "archived";
+  display_order: number;
+  created_at: Date;
+  updated_at: Date;
+};
+
 export type AuthUserRow = {
   id: string;
   email: string;
@@ -214,6 +261,55 @@ export async function ensureSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS library_courses (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      subtitle TEXT,
+      description TEXT,
+      category TEXT NOT NULL,
+      level TEXT NOT NULL DEFAULT 'all_levels'
+        CHECK (level IN ('all_levels', 'beginner', 'intermediate', 'advanced')),
+      cover_object_key TEXT,
+      cover_image_url TEXT,
+      status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'published', 'archived')),
+      display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS library_course_modules (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL REFERENCES library_courses(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'published', 'archived')),
+      display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS library_modules (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL REFERENCES library_courses(id) ON DELETE CASCADE,
+      course_module_id TEXT REFERENCES library_course_modules(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      classification TEXT NOT NULL DEFAULT 'lesson',
+      media_type TEXT NOT NULL CHECK (media_type IN ('audio', 'video')),
+      media_object_key TEXT,
+      media_url TEXT,
+      media_content_type TEXT,
+      thumbnail_url TEXT,
+      duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds > 0),
+      status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'published', 'archived')),
+      display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
     ALTER TABLE exercises
       ADD COLUMN IF NOT EXISTS duration_seconds INTEGER,
       ADD COLUMN IF NOT EXISTS activation_level TEXT NOT NULL DEFAULT 'neutral',
@@ -312,6 +408,31 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS practice_events_user_created_idx ON practice_events(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS practice_events_user_exercise_idx ON practice_events(user_id, exercise_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS exercises_status_order_idx ON exercises(status, display_order, title);
+    CREATE INDEX IF NOT EXISTS library_courses_status_order_idx
+      ON library_courses(status, display_order, title);
+    ALTER TABLE library_modules
+      ADD COLUMN IF NOT EXISTS course_module_id TEXT REFERENCES library_course_modules(id) ON DELETE CASCADE,
+      ADD COLUMN IF NOT EXISTS chapter_type TEXT NOT NULL DEFAULT 'video',
+      ADD COLUMN IF NOT EXISTS interactive_content JSONB NOT NULL DEFAULT '{}';
+
+    UPDATE library_modules SET chapter_type = media_type
+      WHERE chapter_type = 'video' AND media_type = 'audio';
+
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'library_modules_chapter_type_check') THEN
+        ALTER TABLE library_modules ADD CONSTRAINT library_modules_chapter_type_check
+          CHECK (chapter_type IN ('audio', 'video', 'interactive_qna', 'mcq'));
+      END IF;
+    END
+    $$;
+
+    CREATE INDEX IF NOT EXISTS library_course_modules_course_order_idx
+      ON library_course_modules(course_id, status, display_order, title);
+    CREATE INDEX IF NOT EXISTS library_modules_course_order_idx
+      ON library_modules(course_id, status, display_order, title);
+    CREATE INDEX IF NOT EXISTS library_modules_module_order_idx
+      ON library_modules(course_module_id, status, display_order, title);
     CREATE INDEX IF NOT EXISTS recommendation_requests_user_created_idx
       ON recommendation_requests(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS recommendation_events_user_created_idx

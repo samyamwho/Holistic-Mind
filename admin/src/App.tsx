@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  API_ENVIRONMENT,
+  API_URL,
   createExercise,
   deleteExerciseAudio,
   deleteExerciseVideo,
@@ -14,10 +16,11 @@ import {
   type ExerciseAudio,
   type ExerciseMedia,
 } from "./api";
+import LibraryWorkspace from "./LibraryWorkspace";
 
 const categories = ["Nervous System Reset", "Breathwork", "Whole Body", "Hip & Pelvic", "Spine & Core", "Upper Body", "Sensory Regulation", "Ancient Practices", "Kundalini Yoga", "For Children", "Headache Relief"];
 const exerciseGuidanceTypes = ["breathing", "video", "guided", "grounding"] as const;
-type Workspace = "exercises" | "audio";
+type Workspace = "exercises" | "audio" | "library";
 
 const splitList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
@@ -38,7 +41,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  const belongsToWorkspace = (item: Exercise, target = workspace) => target === "audio" ? item.guidanceType === "audio" : item.guidanceType !== "audio";
+  const belongsToWorkspace = (item: Exercise, target = workspace) => target === "audio" ? item.guidanceType === "audio" : target === "exercises" ? item.guidanceType !== "audio" : false;
 
   const select = (item: Exercise) => {
     setSelectedId(item.id);
@@ -73,7 +76,7 @@ export default function App() {
     }
   };
 
-  useEffect(() => { if (adminKey) load().catch(() => undefined); }, [adminKey, workspace]);
+  useEffect(() => { if (adminKey && workspace !== "library") load().catch(() => undefined); }, [adminKey, workspace]);
 
   const workspaceItems = useMemo(() => items.filter((item) => belongsToWorkspace(item)), [items, workspace]);
   const filtered = useMemo(() => {
@@ -121,6 +124,7 @@ export default function App() {
       return;
     }
     setBusy(true); setMessage("");
+    let detailsSaved = false;
     try {
       const values = {
         title: draft.title, category: draft.category,
@@ -134,16 +138,28 @@ export default function App() {
         contraindicationTags: draft.contraindicationTags, breathHoldRequired: draft.breathHoldRequired,
         positionRequired: draft.positionRequired, environmentRequirements: draft.environmentRequirements,
       };
+      const syncSavedExercise = (savedExercise: Exercise) => {
+        setItems((current) => current.some((item) => item.id === savedExercise.id)
+          ? current.map((item) => item.id === savedExercise.id ? savedExercise : item)
+          : [...current, savedExercise]);
+        setDraft(savedExercise);
+        setIsNew(false);
+      };
       let saved = isNew ? await createExercise(adminKey, { ...draft, ...values }) : await updateExercise(adminKey, draft.id, values);
-      if (isNew) { setIsNew(false); setItems((current) => [...current, saved]); setDraft(saved); }
-      if (imageFile) saved = await uploadExerciseImage(adminKey, draft.id, imageFile);
+      detailsSaved = true;
+      syncSavedExercise(saved);
+      if (imageFile) {
+        saved = await uploadExerciseImage(adminKey, draft.id, imageFile);
+        syncSavedExercise(saved);
+      }
       if (workspace === "exercises" && videoFile && saved.guidanceType === "video" && saved.exerciseId) setVideo(await uploadExerciseVideo(adminKey, saved.exerciseId, videoFile));
       if (workspace === "audio" && audioFile && saved.exerciseId) setAudio(await uploadExerciseAudio(adminKey, saved.exerciseId, audioFile, saved.durationSeconds ?? undefined));
-      setItems((current) => current.map((item) => item.id === saved.id ? saved : item));
-      setDraft(saved); setIsNew(false); setImageFile(null); setVideoFile(null); setAudioFile(null);
+      syncSavedExercise(saved);
+      setImageFile(null); setVideoFile(null); setAudioFile(null);
       setMessage(workspace === "audio" ? "Audio library updated successfully." : "Exercise updated successfully.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save changes");
+      const detail = error instanceof Error ? error.message : "Unable to save changes";
+      setMessage(detailsSaved ? `Details were saved, but the media step failed. ${detail}` : detail);
     } finally { setBusy(false); }
   };
 
@@ -165,10 +181,13 @@ export default function App() {
 
   if (!adminKey) return <main className="login-page"><section className="login-card">
     <div className="brand-mark">HM</div><p className="eyebrow">Holistic Mind</p><h1>Content admin</h1>
-    <p className="muted">Enter the administrator key from <code>backend/.env</code>. It stays only in this browser tab.</p>
+    <p className="muted">Enter the production <code>ADMIN_API_KEY</code> from Railway. It stays only in this browser tab.</p>
+    <p className="api-target"><strong>{API_ENVIRONMENT}</strong><span>{API_URL}</span></p>
     <label>Administrator key<input type="password" value={keyDraft} onChange={(event) => setKeyDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && signIn()} placeholder="Paste ADMIN_API_KEY" autoFocus /></label>
     <button className="primary" onClick={signIn}>Open content manager</button>
   </section></main>;
+
+  if (workspace === "library") return <LibraryWorkspace adminKey={adminKey} onSwitch={switchWorkspace} onSignOut={signOut} />;
 
   const isAudioWorkspace = workspace === "audio";
 
@@ -178,6 +197,7 @@ export default function App() {
       <nav className="library-nav" aria-label="Content workspace">
         <button className={!isAudioWorkspace ? "active" : ""} onClick={() => switchWorkspace("exercises")}><span>Exercises</span><small>{items.filter((item) => item.guidanceType !== "audio").length}</small></button>
         <button className={isAudioWorkspace ? "active" : ""} onClick={() => switchWorkspace("audio")}><span>Audio</span><small>{items.filter((item) => item.guidanceType === "audio").length}</small></button>
+        <button onClick={() => switchWorkspace("library")}><span>Curriculum</span></button>
       </nav>
       <div className="header-actions"><span>{workspaceItems.length} {isAudioWorkspace ? "recordings" : "exercises"}</span>{isAudioWorkspace && <button className="primary" onClick={beginNewAudio}>+ New audio</button>}<button className="quiet" onClick={() => load().catch(() => undefined)}>Refresh</button><button className="quiet" onClick={signOut}>Lock</button></div>
     </header>

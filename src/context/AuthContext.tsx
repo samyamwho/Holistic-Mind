@@ -48,7 +48,7 @@ type AuthContextValue = {
   user: UserProfile | null;
   preferences: ProfilePreferences;
   signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<{ emailDeliveryWarning?: string }>;
   signInWithGoogle: (idToken: string) => Promise<{ isNewUser: boolean }>;
   signOut: () => Promise<void>;
   updateProfile: (profile: { name: string }) => Promise<void>;
@@ -204,6 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (name: string, email: string, password: string) => {
       const session = await signup(name.trim(), email.trim(), password);
       await applySession(session);
+      return { emailDeliveryWarning: session.emailDeliveryWarning };
     },
     [applySession]
   );

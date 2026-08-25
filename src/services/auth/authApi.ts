@@ -28,6 +28,7 @@ export type AuthIdentity = {
 
 export type AuthenticatedSession = AuthIdentity & {
   tokens: AuthTokens;
+  emailDeliveryWarning?: string;
 };
 
 export class ApiError extends Error {

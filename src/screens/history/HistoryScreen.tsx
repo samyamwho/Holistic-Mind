@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { BookOpenText, CalendarDays, Check, ChevronDown, HeartPulse, Sparkles, X } from "lucide-react-native";
+import { ArrowLeft, BookOpenText, CalendarDays, Check, ChevronDown, HeartPulse, Sparkles, X } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle as SvgCircle, Line as SvgLine, Path as SvgPath } from "react-native-svg";
 import { useAuth } from "../../context/AuthContext";
@@ -148,7 +148,7 @@ function TrendChart({ days }: { days: TrendDay[] }) {
   );
 }
 
-export default function HistoryScreen() {
+export default function HistoryScreen({ navigation }: { navigation: { goBack: () => void } }) {
   const { runAuthenticated } = useAuth();
   const [entries, setEntries] = useState<StoredJournalEntry[]>([]);
   const [checkIns, setCheckIns] = useState<DailyCheckIn[]>([]);
@@ -297,9 +297,14 @@ export default function HistoryScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <View>
-                <Text style={styles.kicker}>Your Story</Text>
-                <Text style={styles.title}>History</Text>
+              <View style={styles.titleGroup}>
+                <Pressable accessibilityLabel="Back to profile" accessibilityRole="button" hitSlop={8} onPress={navigation.goBack} style={styles.backButton}>
+                  <ArrowLeft color="#673F3F" size={22} strokeWidth={2} />
+                </Pressable>
+                <View>
+                  <Text style={styles.kicker}>Your Story</Text>
+                  <Text style={styles.title}>History</Text>
+                </View>
               </View>
               <Pressable
                 accessibilityLabel={`Choose history period. Currently ${rangeLabel}`}
@@ -531,6 +536,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
+  titleGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
+  backButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 21, backgroundColor: "rgba(255,255,255,.46)", borderWidth: 1, borderColor: "rgba(255,255,255,.68)" },
   kicker: {
     color: "#8A6C61",
     fontFamily: bodyFont,

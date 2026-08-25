@@ -44,8 +44,8 @@ export function ResetPasswordScreen({ navigation, route }: { navigation: Nav; ro
   </Shell>;
 }
 
-export function VerifyEmailScreen({ navigation }: { navigation: Nav }) {
-  const { user, verifyEmail, resendVerification, signOut } = useAuth(); const [code, setCode] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
+export function VerifyEmailScreen({ navigation, route }: { navigation: Nav; route?: { params?: { emailDeliveryWarning?: string } } }) {
+  const { user, verifyEmail, resendVerification, signOut } = useAuth(); const [code, setCode] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(route?.params?.emailDeliveryWarning ?? "");
   const submit = async () => { if (!/^\d{6}$/.test(code)) return setMessage("Enter the six-digit code."); setBusy(true); setMessage(""); try { await verifyEmail(code); navigation.replace("Onboarding"); } catch (e) { setMessage(e instanceof Error ? e.message : "Verification failed."); } finally { setBusy(false); } };
   const resend = async () => { setBusy(true); setMessage(""); try { await resendVerification(); setMessage("A new code has been sent."); } catch (e) { setMessage(e instanceof Error ? e.message : "Could not resend the code."); } finally { setBusy(false); } };
   return <Shell navigation={{...navigation, goBack: async () => { await signOut(); navigation.replace("Login"); }}} title="Verify your email" subtitle={`Enter the code sent to ${user?.email ?? "your email"}.`}>

@@ -11,6 +11,7 @@ import { ExerciseScreen } from "../screens/exercise";
 import { HomeScreen } from "../screens/home";
 import { JournalScreen } from "../screens/journal";
 import { HistoryScreen } from "../screens/history";
+import { CourseScreen, LibraryModuleScreen, LibraryScreen } from "../screens/library";
 import { OnboardingScreen } from "../screens/onboarding";
 import { ProfileScreen } from "../screens/profile";
 import { WelcomeScreen, WelcomeV2Screen } from "../screens/welcome";
@@ -74,11 +75,11 @@ function Tabs() {
                 }}
             />
             <Tab.Screen
-                name="History"
-                component={HistoryScreen}
+                name="Library"
+                component={LibraryScreen}
                 options={{
-                    tabBarIcon: () => ({ sfSymbol: "clock" }),
-                    tabBarLabel: "History",
+                    tabBarIcon: () => ({ sfSymbol: "books.vertical" }),
+                    tabBarLabel: "Library",
                 }}
             />
         </Tab.Navigator>
@@ -130,6 +131,9 @@ export default function AppNavigator() {
                 />
                 <Stack.Screen name="Exercise" component={ExerciseScreen} />
                 <Stack.Screen name="AudioPlayer" component={AudioPlayerScreen} />
+                <Stack.Screen name="Course" component={CourseScreen} />
+                <Stack.Screen name="LibraryModule" component={LibraryModuleScreen} />
+                <Stack.Screen name="History" component={HistoryScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );

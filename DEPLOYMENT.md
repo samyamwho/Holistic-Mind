@@ -59,14 +59,20 @@ Cloudflare R2 is S3-compatible and has **$0 egress fees**, making it ideal for s
    ```json
    [
      {
-       "AllowedOrigins": ["*"],
-       "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
-       "AllowedHeaders": ["*"],
-       "ExposeHeaders": ["ETag"],
+       "AllowedOrigins": [
+         "https://holistic-mind-admin.vercel.app",
+         "http://localhost:5173",
+         "http://127.0.0.1:5173"
+       ],
+       "AllowedMethods": ["GET", "PUT", "HEAD"],
+       "AllowedHeaders": ["Content-Type", "Range"],
+       "ExposeHeaders": ["ETag", "Content-Length", "Content-Range", "Accept-Ranges"],
        "MaxAgeSeconds": 3600
      }
    ]
    ```
+   Origin values must match exactly and must not end with `/`. Add any future
+   production or preview admin hostname explicitly before uploading from it.
 5. **Create API Tokens**:
    - In R2, click **Manage R2 API Tokens** $\rightarrow$ **Create API Token**.
    - Permissions: **Object Read & Write**.
@@ -116,6 +122,14 @@ Cloudflare R2 is S3-compatible and has **$0 egress fees**, making it ideal for s
 | `EMAIL_FROM` | `Holistic Mind <hello@yourdomain.com>` | Verified sender address |
 | `RESEND_API_KEY` | `re_xxx` | Your Resend API key |
 
+> **Authentication email requirement:** `onboarding@resend.dev` is test-only and
+> can send only to the email address that owns the Resend account. Before sharing
+> the beta with other people, add a domain (preferably a sending subdomain such as
+> `mail.yourdomain.com`) in Resend, publish the SPF and DKIM records, wait until the
+> domain is marked **Verified**, and set `EMAIL_FROM` to the exact verified domain,
+> for example `Holistic Mind <hello@mail.yourdomain.com>`. A domain mismatch causes
+> Resend to return HTTP 403 and prevents both verification and password-reset mail.
+
 ---
 
 ## 5. Step 4: Seed Database & Upload Initial Media
@@ -139,6 +153,16 @@ npm run api:upload -- \
   --duration 60
 ```
 
+### 3. Seed the Example Curriculum
+
+The curriculum tables are separate from exercises and are never sent to the recommendation engine.
+
+```bash
+DATABASE_URL="postgresql://user:pass@host:5432/holistic_mind" npm --prefix backend run seed:library
+```
+
+After seeding, courses, module classification, ordering, publishing, cover images, audio, and video can be managed from the **Curriculum** workspace in the admin dashboard.
+
 ---
 
 ## 6. Step 5: Deploy the Admin Dashboard (Vercel)
@@ -146,10 +170,16 @@ npm run api:upload -- \
 1. Import your repository into [Vercel](https://vercel.com).
 2. Set **Root Directory**: `admin`
 3. Set **Framework Preset**: `Vite`
-4. Add Environment Variable:
-   - `VITE_API_URL` = `https://your-backend.up.railway.app`
+4. Add Environment Variable (the committed production default already uses this URL,
+   but setting it in Vercel keeps the target explicit):
+   - `VITE_API_URL` = `https://backend-production-f2a02.up.railway.app`
 5. Deploy. You will get a live HTTPS dashboard link (e.g. `https://holistic-mind-admin.vercel.app`).
-6. Unlock the dashboard with your `ADMIN_API_KEY`.
+6. Unlock the dashboard with the production `ADMIN_API_KEY` from the Railway
+   **backend** service. Do not add this key to Vercel—the dashboard keeps it only
+   in the current browser session.
+
+The production admin build targets Railway automatically. Local `npm --prefix admin
+run dev` continues to use `http://localhost:4000` unless `VITE_API_URL` is provided.
 
 ---
 

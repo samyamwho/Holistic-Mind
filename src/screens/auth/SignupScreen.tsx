@@ -16,7 +16,7 @@ import { getGoogleIdToken } from "../../services/auth/googleAuth";
 type SignupScreenProps = {
   navigation: {
     navigate: (screen: string) => void;
-    replace: (screen: string) => void;
+    replace: (screen: string, params?: Record<string, string>) => void;
   };
 };
 
@@ -38,8 +38,10 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
     setErrorMessage("");
     setIsSubmitting(true);
     try {
-      await signUp(name, email, password);
-      navigation.replace("VerifyEmail");
+      const result = await signUp(name, email, password);
+      navigation.replace("VerifyEmail", result.emailDeliveryWarning
+        ? { emailDeliveryWarning: result.emailDeliveryWarning }
+        : undefined);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Account creation failed.");
     } finally {

@@ -2,7 +2,7 @@
 
 Holistic Mind is an Expo React Native wellness app with a Node.js backend.
 
-The app currently includes backend authentication, per-user onboarding, daily check-ins, persistent journals, personalized recommendations, a backend-managed exercise library, guided breathing, hosted exercise images and videos, an exercise admin dashboard, and a profile screen.
+The app currently includes backend authentication, per-user onboarding, daily check-ins, persistent journals, personalized recommendations, a backend-managed exercise library, a separate curriculum library with audio/video modules, guided breathing, hosted media, an admin dashboard, and a profile screen.
 
 ## How It Works
 
@@ -12,7 +12,7 @@ Mobile app
     v
 Node backend (port 4000)
     |
-    +-- PostgreSQL (port 5433) stores users, wellness data, and exercise metadata
+    +-- PostgreSQL (port 5433) stores users, wellness data, exercises, courses, and modules
     |
     +-- MinIO (port 9000) stores exercise images and videos
 ```
@@ -22,8 +22,8 @@ PostgreSQL and MinIO run inside Docker during local development.
 ```text
 Admin dashboard (port 5173)
     |
-    +-- edits exercise records through protected backend APIs
-    +-- uploads images and videos directly to MinIO using temporary URLs
+    +-- edits exercise, audio, course, and module records through protected backend APIs
+    +-- uploads images, audio, and videos directly to MinIO using temporary URLs
 ```
 
 ## Accounts And Login
@@ -158,6 +158,7 @@ The first run downloads the required Docker images and may take a few minutes.
 ```bash
 npm run api:migrate
 npm run api:seed:exercises
+npm run api:seed:library
 ```
 
 You should see:
@@ -165,6 +166,7 @@ You should see:
 ```text
 Database schema is ready.
 Seeded 60 exercises.
+Seeded 1 library course and 6 modules.
 ```
 
 ## What To Run Each Day
@@ -191,10 +193,12 @@ Open another terminal and run:
 
 ```bash
 cd /Users/samyamshrestha/Holistic-Mind
-npm start
+npm run start:local
 ```
 
 Press `i` in the Expo terminal to open the iOS Simulator.
+
+`start:local` overrides the production Railway URL only for this development process and points the simulator to `http://127.0.0.1:4000`. The regular `npm start` and release builds continue to use the configured production URL. For a physical iPhone, use the Mac's LAN IP instead of `127.0.0.1`.
 
 ### Terminal 3: Admin dashboard
 
@@ -250,7 +254,7 @@ PostgreSQL and MinIO should show as healthy. pgAdmin should show as running.
 | pgAdmin | `http://localhost:5050` | View and edit database records |
 | MinIO storage | `http://localhost:9000` | Exercise images, videos, and audio |
 | MinIO console | `http://localhost:9001` | View stored media |
-| Admin dashboard | `http://127.0.0.1:5173` | Manage exercises and media |
+| Admin dashboard | `http://127.0.0.1:5173` | Manage exercises, curriculum, and media |
 
 Local MinIO console credentials:
 

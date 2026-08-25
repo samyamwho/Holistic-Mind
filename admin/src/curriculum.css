@@ -1,0 +1,286 @@
+.curriculum-aside-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 18px;
+  color: #684a3d;
+}
+
+.curriculum-aside-heading span {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: #ead8c4;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.curriculum-editor {
+  padding: 38px 44px 90px;
+}
+
+.curriculum-editor > .notice {
+  margin-top: 0;
+}
+
+.curriculum-editor .editor-heading,
+.curriculum-editor > .panel {
+  max-width: 1080px;
+}
+
+.curriculum-editor > .panel {
+  margin-top: 28px;
+  padding: 30px;
+  border-radius: 22px;
+}
+
+.curriculum-editor .form-grid {
+  column-gap: 26px;
+  row-gap: 24px;
+}
+
+.curriculum-editor .form-grid label {
+  gap: 9px;
+  line-height: 1.35;
+}
+
+.curriculum-editor input,
+.curriculum-editor select {
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+.curriculum-editor textarea {
+  min-height: 92px;
+  padding: 13px 14px;
+  line-height: 1.5;
+  border-radius: 12px;
+}
+
+.curriculum-editor .image-panel {
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 32px;
+}
+
+.curriculum-editor .image-preview {
+  width: 170px;
+  height: 170px;
+}
+
+.module-manager {
+  max-width: 1180px !important;
+}
+
+.module-manager-heading,
+.module-form-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.module-manager-heading .eyebrow,
+.module-form-heading .eyebrow {
+  margin-top: 0;
+}
+
+.module-manager-heading h3,
+.module-form-heading h3 {
+  margin-bottom: 0;
+  font-family: Georgia, serif;
+  font-size: 25px;
+}
+
+.module-admin-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 36px;
+  margin-top: 28px;
+}
+
+.module-admin-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.module-admin-list button {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 58px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 14px;
+  background: #f4e9dc;
+  color: #4c352c;
+  text-align: left;
+  cursor: pointer;
+}
+
+.module-admin-list button.active {
+  border-color: #c6a996;
+  background: #dfc7b4;
+}
+
+.module-admin-list b {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: #fff8ef;
+  color: #8b5b50;
+  font-size: 10px;
+}
+
+.module-admin-list span {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.module-admin-list strong {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.module-admin-list small {
+  color: #866f64;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.module-form {
+  min-width: 0;
+  padding-left: 36px;
+  border-left: 1px solid #e1d2c1;
+}
+
+.module-form > .form-grid {
+  margin-top: 26px;
+}
+
+.module-form > .module-manager-heading {
+  margin-top: 38px;
+  padding-top: 30px;
+  border-top: 1px solid #e1d2c1;
+}
+
+.module-form > .module-admin-list {
+  margin-top: 20px;
+}
+
+.chapter-form {
+  margin-top: 30px;
+  padding: 26px;
+  border: 1px solid #e1d2c1;
+  border-radius: 18px;
+  background: #fffdf8;
+}
+
+.chapter-form > .form-grid {
+  margin-top: 24px;
+}
+
+.interactive-editor {
+  margin-top: 28px !important;
+  padding-top: 26px;
+  border-top: 1px solid #e8d9c8;
+}
+
+.module-media-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+  padding: 20px;
+  border: 1px dashed #ceb7a3;
+  border-radius: 16px;
+  background: #fbf2e8;
+}
+
+.module-media-box > div {
+  min-width: 190px;
+  margin-right: auto;
+}
+
+.module-media-box p {
+  margin: 5px 0 0;
+  color: #806d63;
+  font-size: 12px;
+}
+
+.module-media-box small {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #806d63;
+}
+
+.module-empty {
+  display: grid;
+  place-items: center;
+  min-height: 340px;
+  color: #927d70;
+}
+
+@media (max-width: 1100px) {
+  .curriculum-editor {
+    padding: 30px 28px 80px;
+  }
+
+  .module-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .module-admin-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .module-form {
+    padding: 30px 0 0;
+    border-top: 1px solid #e1d2c1;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 800px) {
+  .curriculum-editor {
+    padding: 24px 18px 60px;
+  }
+
+  .curriculum-editor > .panel,
+  .chapter-form {
+    padding: 22px;
+  }
+
+  .curriculum-editor .image-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .module-admin-list {
+    grid-template-columns: 1fr;
+  }
+
+  .module-media-box {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .module-media-box > div {
+    min-width: 0;
+  }
+
+  .curriculum-workspace aside {
+    max-height: 360px;
+  }
+}
