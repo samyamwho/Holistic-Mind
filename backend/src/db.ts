@@ -3,6 +3,21 @@ import { config } from "./config.js";
 
 const { Pool } = pg;
 
+function resolveDatabaseUrl() {
+  const tunnelHost = process.env.DATABASE_TUNNEL_HOST?.trim();
+  const tunnelPort = process.env.DATABASE_TUNNEL_PORT?.trim();
+  if (!tunnelHost && !tunnelPort) return config.DATABASE_URL;
+  if (!tunnelHost || !tunnelPort) {
+    throw new Error("DATABASE_TUNNEL_HOST and DATABASE_TUNNEL_PORT must be set together.");
+  }
+  const url = new URL(config.DATABASE_URL);
+  url.hostname = tunnelHost;
+  url.port = tunnelPort;
+  return url.toString();
+}
+
+const databaseUrl = resolveDatabaseUrl();
+
 export type ExerciseMediaStatus = "draft" | "ready";
 
 export type ExerciseMediaRow = {
@@ -88,7 +103,7 @@ export type AuthUserRow = {
   updated_at: Date;
 };
 
-function resolveDatabaseSsl() {
+function resolveDatabaseSsl(databaseUrl: string) {
   if (config.DATABASE_SSL === true) {
     return { rejectUnauthorized: false };
   }
@@ -96,9 +111,9 @@ function resolveDatabaseSsl() {
     return undefined;
   }
   const isRemote =
-    !config.DATABASE_URL.includes("localhost") &&
-    !config.DATABASE_URL.includes("127.0.0.1");
-  const hasSslQuery = config.DATABASE_URL.includes("sslmode=");
+    !databaseUrl.includes("localhost") &&
+    !databaseUrl.includes("127.0.0.1");
+  const hasSslQuery = databaseUrl.includes("sslmode=");
   if (isRemote || hasSslQuery) {
     return { rejectUnauthorized: false };
   }
@@ -106,8 +121,8 @@ function resolveDatabaseSsl() {
 }
 
 export const pool = new Pool({
-  connectionString: config.DATABASE_URL,
-  ssl: resolveDatabaseSsl(),
+  connectionString: databaseUrl,
+  ssl: resolveDatabaseSsl(databaseUrl),
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,

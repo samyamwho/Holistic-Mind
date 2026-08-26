@@ -82,6 +82,48 @@ libraryRouter.patch("/course-modules/:moduleId",requireAdmin,async(req,res,next)
 libraryRouter.post("/chapters",requireAdmin,async(req,res,next)=>{const p=chapterSchema.safeParse(req.body);if(!p.success)return void res.status(400).json({error:"Invalid chapter"});const v=p.data;const mediaType=v.chapterType==="audio"?"audio":"video";try{const r=await pool.query<LibraryChapterRow>(`INSERT INTO library_modules (id,course_id,course_module_id,title,description,classification,chapter_type,interactive_content,media_type,media_url,media_content_type,thumbnail_url,duration_seconds,status,display_order) VALUES ($1,$2,$3,$4,$5,'chapter',$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,[v.id,v.courseId,v.moduleId,v.title,v.description,v.chapterType,v.interactiveContent,mediaType,v.mediaUrl,v.mediaContentType,v.thumbnailUrl,v.durationSeconds,v.status,v.displayOrder]);res.status(201).json({data:serializeChapter(r.rows[0])});}catch(e){if((e as {code?:string}).code==="23505")return void res.status(409).json({error:"Chapter id already exists"});next(e);}});
 libraryRouter.patch("/chapters/:chapterId",requireAdmin,async(req,res,next)=>{const id=idSchema.safeParse(req.params.chapterId),p=chapterUpdateSchema.safeParse(req.body);if(!id.success||!p.success)return void res.status(400).json({error:"Invalid chapter update"});try{const c=await pool.query<LibraryChapterRow>("SELECT * FROM library_modules WHERE id=$1",[id.data]);if(!c.rows[0])return void res.status(404).json({error:"Chapter not found"});const v={...serializeChapter(c.rows[0]),...p.data};const mediaType=v.chapterType==="audio"?"audio":"video";const r=await pool.query<LibraryChapterRow>(`UPDATE library_modules SET course_id=$2,course_module_id=$3,title=$4,description=$5,chapter_type=$6,interactive_content=$7,media_type=$8,media_url=$9,media_content_type=$10,thumbnail_url=$11,duration_seconds=$12,status=$13,display_order=$14,updated_at=NOW() WHERE id=$1 RETURNING *`,[id.data,v.courseId,v.moduleId,v.title,v.description,v.chapterType,v.interactiveContent,mediaType,v.mediaUrl,v.mediaContentType,v.thumbnailUrl,v.durationSeconds,v.status,v.displayOrder]);res.json({data:serializeChapter(r.rows[0])});}catch(e){next(e);}});
 
+async function removeStoredObjects(keys: Array<string | null>) {
+  await Promise.all(keys.filter((key): key is string => Boolean(key)).map((key) => deleteObject(key).catch(() => undefined)));
+}
+
+libraryRouter.delete("/courses/:courseId", requireAdmin, async (req, res, next) => {
+  const id = idSchema.safeParse(req.params.courseId);
+  if (!id.success) return void res.status(400).json({ error: "Invalid course id" });
+  try {
+    const course = await pool.query<Pick<LibraryCourseRow, "cover_object_key">>("SELECT cover_object_key FROM library_courses WHERE id=$1", [id.data]);
+    if (!course.rows[0]) return void res.status(404).json({ error: "Course not found" });
+    const media = await pool.query<Pick<LibraryChapterRow, "media_object_key">>("SELECT media_object_key FROM library_modules WHERE course_id=$1", [id.data]);
+    await pool.query("DELETE FROM library_courses WHERE id=$1", [id.data]);
+    await removeStoredObjects([course.rows[0].cover_object_key, ...media.rows.map((row) => row.media_object_key)]);
+    res.json({ data: { deleted: true, id: id.data } });
+  } catch (error) { next(error); }
+});
+
+libraryRouter.delete("/course-modules/:moduleId", requireAdmin, async (req, res, next) => {
+  const id = idSchema.safeParse(req.params.moduleId);
+  if (!id.success) return void res.status(400).json({ error: "Invalid module id" });
+  try {
+    const module = await pool.query("SELECT id FROM library_course_modules WHERE id=$1", [id.data]);
+    if (!module.rows[0]) return void res.status(404).json({ error: "Module not found" });
+    const media = await pool.query<Pick<LibraryChapterRow, "media_object_key">>("SELECT media_object_key FROM library_modules WHERE course_module_id=$1", [id.data]);
+    await pool.query("DELETE FROM library_course_modules WHERE id=$1", [id.data]);
+    await removeStoredObjects(media.rows.map((row) => row.media_object_key));
+    res.json({ data: { deleted: true, id: id.data } });
+  } catch (error) { next(error); }
+});
+
+libraryRouter.delete("/chapters/:chapterId", requireAdmin, async (req, res, next) => {
+  const id = idSchema.safeParse(req.params.chapterId);
+  if (!id.success) return void res.status(400).json({ error: "Invalid chapter id" });
+  try {
+    const chapter = await pool.query<Pick<LibraryChapterRow, "media_object_key">>("SELECT media_object_key FROM library_modules WHERE id=$1", [id.data]);
+    if (!chapter.rows[0]) return void res.status(404).json({ error: "Chapter not found" });
+    await pool.query("DELETE FROM library_modules WHERE id=$1", [id.data]);
+    await removeStoredObjects([chapter.rows[0].media_object_key]);
+    res.json({ data: { deleted: true, id: id.data } });
+  } catch (error) { next(error); }
+});
+
 libraryRouter.post("/courses/:courseId/cover-upload-url",requireAdmin,async(req,res,next)=>{const id=idSchema.safeParse(req.params.courseId),b=imageUploadSchema.safeParse(req.body);if(!id.success||!b.success)return void res.status(400).json({error:"Invalid cover upload"});const ext=b.data.contentType==="image/png"?".png":b.data.contentType==="image/webp"?".webp":".jpg",objectKey=`library/courses/${id.data}/cover-${Date.now()}-${randomUUID()}${ext}`;try{res.json({data:{uploadUrl:await createAssetUploadUrl(objectKey,b.data.contentType),objectKey,expiresInSeconds:900}});}catch(e){next(e);}});
 libraryRouter.post("/courses/:courseId/cover-complete",requireAdmin,async(req,res,next)=>{const id=idSchema.safeParse(req.params.courseId),b=z.object({objectKey:z.string().min(1).max(500)}).safeParse(req.body),prefix=`library/courses/${id.success?id.data:""}/`;if(!id.success||!b.success||!b.data.objectKey.startsWith(prefix))return void res.status(400).json({error:"Invalid cover completion"});try{await assertObjectExists(b.data.objectKey);const c=await pool.query<LibraryCourseRow>("SELECT * FROM library_courses WHERE id=$1",[id.data]);if(!c.rows[0])return void res.status(404).json({error:"Course not found"});const r=await pool.query<LibraryCourseRow>("UPDATE library_courses SET cover_object_key=$2,cover_image_url=$3,updated_at=NOW() WHERE id=$1 RETURNING *",[id.data,b.data.objectKey,getPublicObjectUrl(b.data.objectKey)]);if(c.rows[0].cover_object_key&&c.rows[0].cover_object_key!==b.data.objectKey)await deleteObject(c.rows[0].cover_object_key).catch(()=>undefined);res.json({data:serializeCourse(r.rows[0])});}catch(e){next(e);}});
 libraryRouter.post("/chapters/:chapterId/media-upload-url",requireAdmin,async(req,res,next)=>{const id=idSchema.safeParse(req.params.chapterId),b=mediaUploadSchema.safeParse(req.body);if(!id.success||!b.success)return void res.status(400).json({error:"Invalid media upload"});try{const c=await pool.query<LibraryChapterRow>("SELECT * FROM library_modules WHERE id=$1",[id.data]);if(!c.rows[0])return void res.status(404).json({error:"Chapter not found"});if(!b.data.contentType.startsWith(`${c.rows[0].media_type}/`))return void res.status(400).json({error:`Choose a ${c.rows[0].media_type} file`});const extensions:Record<string,string>={"audio/mpeg":".mp3","audio/mp3":".mp3","audio/mp4":".m4a","audio/x-m4a":".m4a","audio/wav":".wav","audio/webm":".webm","audio/aac":".aac","audio/ogg":".ogg","video/mp4":".mp4","video/quicktime":".mov","video/webm":".webm"},objectKey=`library/chapters/${id.data}/${Date.now()}-${randomUUID()}${extensions[b.data.contentType]}`;res.json({data:{uploadUrl:await createAssetUploadUrl(objectKey,b.data.contentType),objectKey,expiresInSeconds:900}});}catch(e){next(e);}});

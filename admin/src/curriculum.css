@@ -94,6 +94,19 @@
   font-size: 25px;
 }
 
+.editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.editor-actions .danger,
+.editor-actions .primary {
+  min-height: 42px;
+}
+
 .module-admin-grid {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
@@ -261,6 +274,17 @@
   .curriculum-editor > .panel,
   .chapter-form {
     padding: 22px;
+  }
+
+  .editor-heading,
+  .module-manager-heading,
+  .module-form-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .editor-actions {
+    justify-content: flex-start;
   }
 
   .curriculum-editor .image-panel {

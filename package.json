@@ -15,6 +15,8 @@
     "api:migrate": "npm --prefix backend run migrate",
     "api:seed:exercises": "npm --prefix backend run seed:exercises",
     "api:seed:library": "npm --prefix backend run seed:library",
+    "content:export": "npm --prefix backend run content:export --",
+    "content:import": "npm --prefix backend run content:import --",
     "api:smoke:audio": "npm --prefix backend run smoke:audio",
     "admin:dev": "npm --prefix admin run dev",
     "admin:build": "npm --prefix admin run build",

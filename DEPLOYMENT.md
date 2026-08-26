@@ -163,6 +163,54 @@ DATABASE_URL="postgresql://user:pass@host:5432/holistic_mind" npm --prefix backe
 
 After seeding, courses, module classification, ordering, publishing, cover images, audio, and video can be managed from the **Curriculum** workspace in the admin dashboard.
 
+### Promote Edited Local Content to Production
+
+Schema migration does not copy PostgreSQL rows, and seed commands restore the
+committed defaults. After editing names, ordering, exercises, courses, modules,
+chapters, images, audio, or video locally, export a portable content bundle:
+
+```bash
+npm run content:export -- ./content-exports/release-2026-08-26
+```
+
+The bundle includes the six content tables and every referenced MinIO object. It
+does not include users, passwords, sessions, journals, check-ins, or history.
+
+Link the Railway CLI to the backend service. Because Railway's production
+PostgreSQL address is private, open a temporary SSH tunnel in one terminal:
+
+```bash
+railway service backend
+railway connect Postgres --tunnel-only --port 55432
+```
+
+Keep that terminal open. In a second terminal, build the backend and import with
+Railway's production database and R2 variables. The two tunnel variables replace
+only the private database host and port; credentials still come from Railway:
+
+```bash
+npm --prefix backend run build
+DATABASE_TUNNEL_HOST=127.0.0.1 DATABASE_TUNNEL_PORT=55432 \
+  railway run --service backend -- \
+  npm --prefix backend run content:import:prod -- \
+  content-exports/release-2026-08-26
+```
+
+The default import upserts content, preserving unrelated production rows. For an
+exact replacement of production content with the local bundle, use the explicit
+guard below. This still leaves all user-owned tables untouched:
+
+```bash
+CONFIRM_CONTENT_REPLACE=yes DATABASE_TUNNEL_HOST=127.0.0.1 \
+  DATABASE_TUNNEL_PORT=55432 railway run --service backend -- \
+  npm --prefix backend run content:import:prod -- \
+  content-exports/release-2026-08-26 --replace
+```
+
+Do not rerun `seed:exercises` or `seed:library` after production content has been
+edited unless you intentionally want the committed sample values to overwrite
+matching records.
+
 ---
 
 ## 6. Step 5: Deploy the Admin Dashboard (Vercel)

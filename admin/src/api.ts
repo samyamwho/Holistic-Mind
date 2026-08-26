@@ -195,14 +195,20 @@ export const createLibraryCourse = (key: string, course: Omit<LibraryCourse, "mo
   request<LibraryCourse>("/api/library/courses", key, { method: "POST", body: JSON.stringify(course) });
 export const updateLibraryCourse = (key: string, id: string, update: Partial<Omit<LibraryCourse, "id" | "modules">>) =>
   request<LibraryCourse>(`/api/library/courses/${encodeURIComponent(id)}`, key, { method: "PATCH", body: JSON.stringify(update) });
+export const deleteLibraryCourse = (key: string, id: string) =>
+  request<{ deleted: true; id: string }>(`/api/library/courses/${encodeURIComponent(id)}`, key, { method: "DELETE" });
 export const createLibraryModule = (key: string, module: Omit<LibraryModule, "chapters">) =>
   request<LibraryModule>("/api/library/course-modules", key, { method: "POST", body: JSON.stringify(module) });
 export const updateLibraryModule = (key: string, id: string, update: Partial<Omit<LibraryModule, "id" | "chapters">>) =>
   request<LibraryModule>(`/api/library/course-modules/${encodeURIComponent(id)}`, key, { method: "PATCH", body: JSON.stringify(update) });
+export const deleteLibraryModule = (key: string, id: string) =>
+  request<{ deleted: true; id: string }>(`/api/library/course-modules/${encodeURIComponent(id)}`, key, { method: "DELETE" });
 export const createLibraryChapter = (key: string, chapter: LibraryChapter) =>
   request<LibraryChapter>("/api/library/chapters", key, { method: "POST", body: JSON.stringify(chapter) });
 export const updateLibraryChapter = (key: string, id: string, update: Partial<Omit<LibraryChapter, "id">>) =>
   request<LibraryChapter>(`/api/library/chapters/${encodeURIComponent(id)}`, key, { method: "PATCH", body: JSON.stringify(update) });
+export const deleteLibraryChapter = (key: string, id: string) =>
+  request<{ deleted: true; id: string }>(`/api/library/chapters/${encodeURIComponent(id)}`, key, { method: "DELETE" });
 
 export async function uploadLibraryCover(key: string, courseId: string, file: File) {
   const prepared = await request<{ uploadUrl: string; objectKey: string }>(

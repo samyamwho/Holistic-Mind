@@ -10,6 +10,9 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://backend-production-f2a02.up.railway.app"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -19,7 +22,10 @@
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://backend-production-f2a02.up.railway.app"
+      }
     }
   },
   "submit": {

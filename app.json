@@ -15,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.holistic-mind"
+      "bundleIdentifier": "com.anonymous.holistic-mind",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.anonymous.holisticmind",
