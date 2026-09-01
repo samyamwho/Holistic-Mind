@@ -9,7 +9,7 @@ import { ChangePasswordScreen, DeleteAccountScreen, ForgotPasswordScreen, LoginS
 import { ExploreScreen } from "../screens/explore";
 import { ExerciseScreen } from "../screens/exercise";
 import { HomeScreen } from "../screens/home";
-import { JournalScreen } from "../screens/journal";
+import { FreeJournalEntryScreen, JournalScreen } from "../screens/journal";
 import { HistoryScreen } from "../screens/history";
 import { CourseScreen, LibraryModuleScreen, LibraryScreen } from "../screens/library";
 import { OnboardingScreen } from "../screens/onboarding";
@@ -134,6 +134,15 @@ export default function AppNavigator() {
                 <Stack.Screen name="Course" component={CourseScreen} />
                 <Stack.Screen name="LibraryModule" component={LibraryModuleScreen} />
                 <Stack.Screen name="History" component={HistoryScreen} />
+                <Stack.Screen
+                    name="FreeJournalEntry"
+                    component={FreeJournalEntryScreen}
+                    options={{
+                        animation: "slide_from_bottom",
+                        gestureEnabled: true,
+                        presentation: "fullScreenModal",
+                    }}
+                />
             </Stack.Navigator>
         </NavigationContainer>
     );

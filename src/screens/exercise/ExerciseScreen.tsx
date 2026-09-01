@@ -6,14 +6,11 @@ import {
   Check,
   ChevronLeft,
   Clock3,
-  Film,
   Pause,
   Play,
   ShieldCheck,
-  Volume2,
 } from "lucide-react-native";
 import {
-  Image,
   ImageBackground,
   Platform,
   Pressable,
@@ -30,6 +27,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { exerciseCatalog, type ExerciseCatalogItem } from "../../data/exerciseCatalog";
 import { exerciseLibrary } from "../../data/wellnessContent";
 import { getExerciseMedia } from "../../services/exercises/exerciseMediaApi";
 import { getExerciseCatalogItem, type BackendExerciseCatalogItem } from "../../services/exercises/exerciseCatalogApi";
@@ -166,29 +164,59 @@ function VideoGuide({ isRunning, videoUrl }: { isRunning: boolean; videoUrl: str
   );
 }
 
-function VisualGuide({ exercise, isLoadingVideo, hasVideo }: { exercise: Exercise; isLoadingVideo: boolean; hasVideo: boolean }) {
-  const Icon = exercise.guidanceType === "audio" ? Volume2 : exercise.guidanceType === "video" ? Film : Play;
+function VisualGuide({ exercise, isLoadingVideo }: { exercise: Exercise; isLoadingVideo: boolean }) {
+  const guideLabel = exercise.guidanceType === "video"
+    ? "Guided movement"
+    : exercise.guidanceType === "audio"
+      ? "Audio practice"
+      : "Guided practice";
 
   return (
     <View style={styles.visualStage}>
-      <Image source={exercise.image} resizeMode="contain" style={styles.exerciseImage} />
-      <View style={styles.guideTypeBadge}>
-        <Icon color="#673F3F" size={16} strokeWidth={2} />
-        <Text style={styles.guideTypeText}>
-          {exercise.guidanceType === "video"
-            ? "Video guide"
-            : exercise.guidanceType === "audio"
-              ? "Audio guide"
-              : "Guided practice"}
-        </Text>
-      </View>
-      {exercise.guidanceType === "video" ? (
-        <Text style={styles.mediaPending}>
-          {isLoadingVideo ? "Loading demonstration video..." : hasVideo ? "Press Start practice to watch the demonstration." : "Demonstration video coming soon."}
-        </Text>
-      ) : null}
+      <View style={styles.guideRule} />
+      <Text style={styles.guideTypeText}>{guideLabel}</Text>
+      <Text style={styles.guideTitle}>Move at your own pace</Text>
+      <Text style={styles.mediaPending}>
+        {isLoadingVideo ? "Checking for the demonstration video…" : "Follow the gentle steps below and pause whenever you need."}
+      </Text>
+      <View style={styles.guideRule} />
     </View>
   );
+}
+
+function createCatalogPractice(item: ExerciseCatalogItem | BackendExerciseCatalogItem): Exercise {
+  const details = item as Partial<BackendExerciseCatalogItem>;
+  const durationSeconds = details.durationSeconds ?? 180;
+  const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
+  const isMovement = item.guidanceType === "video";
+
+  return {
+    id: item.exerciseId ?? item.id,
+    title: item.title,
+    section: item.category as Exercise["section"],
+    duration: `${durationMinutes} min`,
+    durationSeconds,
+    guidanceType: item.guidanceType,
+    bestFor: details.supportGoals ?? [],
+    why: details.description?.trim() || `A gentle ${item.title.toLowerCase()} practice you can explore at your own pace.`,
+    steps: isMovement
+      ? [
+          "Find a comfortable position with enough room to move without strain.",
+          "Begin slowly and keep the movement inside a range that feels steady and supported.",
+          "Pause, soften, or stop whenever your body asks for less.",
+        ]
+      : [
+          "Settle into a position that feels supported.",
+          "Follow the practice slowly, without trying to force a particular feeling.",
+          "Pause when you need to and notice what feels different afterward.",
+        ],
+    safetyNote: "Stay within a comfortable range and stop if you feel pain, dizziness, or distress.",
+    sourcePage: item.sourcePage,
+    color: "rgba(223,162,177,0.30)",
+    image: details.imageUrl
+      ? { uri: details.imageUrl }
+      : require("../../../assets/onboarding/summary-practice.png"),
+  };
 }
 
 export default function ExerciseScreen({ navigation, route }: ExerciseScreenProps) {
@@ -197,22 +225,33 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
     () => exerciseLibrary.find((item) => item.id === route.params?.exerciseId),
     [route.params?.exerciseId]
   );
+  const bundledCatalogExercise = useMemo(
+    () => exerciseCatalog.find((item) => item.id === route.params?.catalogId)
+      ?? exerciseCatalog.find((item) => item.exerciseId === route.params?.exerciseId)
+      ?? null,
+    [route.params?.catalogId, route.params?.exerciseId]
+  );
   const [remoteVideoUrl, setRemoteVideoUrl] = useState<string | null>(null);
   const [catalogExercise, setCatalogExercise] = useState<BackendExerciseCatalogItem | null>(null);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
-  const [hasStartedVideo, setHasStartedVideo] = useState(false);
   const exercise = useMemo(
-    () =>
-      libraryExercise
-        ? {
-            ...libraryExercise,
-            title: catalogExercise?.title ?? libraryExercise.title,
-            why: catalogExercise?.description || libraryExercise.why,
-            image: catalogExercise?.imageUrl ? { uri: catalogExercise.imageUrl } : libraryExercise.image,
-            ...(remoteVideoUrl ? { videoUrl: remoteVideoUrl } : {}),
-          }
-        : libraryExercise,
-    [catalogExercise, libraryExercise, remoteVideoUrl]
+    () => {
+      if (libraryExercise) {
+        return {
+          ...libraryExercise,
+          title: catalogExercise?.title ?? libraryExercise.title,
+          why: catalogExercise?.description || libraryExercise.why,
+          ...(remoteVideoUrl ? { videoUrl: remoteVideoUrl } : {}),
+        };
+      }
+      const catalogItem = catalogExercise ?? bundledCatalogExercise;
+      if (!catalogItem) return undefined;
+      return {
+        ...createCatalogPractice(catalogItem),
+        ...(remoteVideoUrl ? { videoUrl: remoteVideoUrl } : {}),
+      };
+    },
+    [bundledCatalogExercise, catalogExercise, libraryExercise, remoteVideoUrl]
   );
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -280,23 +319,35 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
 
   useEffect(() => {
     setRemoteVideoUrl(null);
-    setHasStartedVideo(false);
-
-    if (!libraryExercise || libraryExercise.guidanceType !== "video") {
+    const catalogItem = catalogExercise ?? bundledCatalogExercise;
+    const guidanceType = libraryExercise?.guidanceType ?? catalogItem?.guidanceType;
+    if (guidanceType !== "video") {
       setIsLoadingVideo(false);
       return;
     }
 
+    const lookupIds = Array.from(new Set([
+      catalogItem?.exerciseId,
+      libraryExercise?.id,
+      route.params?.exerciseId,
+      catalogItem?.id,
+    ].filter((value): value is string => Boolean(value))));
     const controller = new AbortController();
     let isActive = true;
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
     setIsLoadingVideo(true);
 
-    getExerciseMedia(libraryExercise.id, controller.signal)
-      .then((media) => {
-        if (isActive) {
-          setRemoteVideoUrl(media?.videoUrl ?? null);
+    (async () => {
+      for (const id of lookupIds) {
+        const media = await getExerciseMedia(id, controller.signal);
+        if (media?.videoUrl) {
+          return media.videoUrl;
         }
+      }
+      return null;
+    })()
+      .then((videoUrl) => {
+        if (isActive) setRemoteVideoUrl(videoUrl);
       })
       .catch((error) => {
         if ((error as Error).name !== "AbortError") {
@@ -315,13 +366,13 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [libraryExercise]);
+  }, [bundledCatalogExercise, catalogExercise, libraryExercise, route.params?.exerciseId]);
 
   useEffect(() => {
     setIsRunning(false);
     setIsComplete(false);
     setRemainingSeconds(exercise?.durationSeconds ?? 0);
-  }, [libraryExercise]);
+  }, [exercise?.durationSeconds, exercise?.id]);
 
   useEffect(() => {
     if (!isRunning || isComplete) {
@@ -374,7 +425,6 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
       completedRecorded.current = false;
       setSubmittedStateChange(null);
       setIsRunning(true);
-      if (exercise.guidanceType === "video" && exercise.videoUrl) setHasStartedVideo(true);
       return;
     }
 
@@ -382,7 +432,6 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
       startedRecorded.current = true;
       recordEvent("started");
     }
-    if (!isRunning && exercise.guidanceType === "video" && exercise.videoUrl) setHasStartedVideo(true);
     setIsRunning((running) => !running);
   };
 
@@ -456,10 +505,10 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
               >
                 {exercise.guidanceType === "breathing" && exercise.phases ? (
                   <BreathingGuide isRunning={isRunning} phases={exercise.phases} />
-                ) : exercise.guidanceType === "video" && exercise.videoUrl && hasStartedVideo ? (
+                ) : exercise.guidanceType === "video" && exercise.videoUrl ? (
                   <VideoGuide isRunning={isRunning} videoUrl={exercise.videoUrl} />
                 ) : (
-                  <VisualGuide exercise={exercise} isLoadingVideo={isLoadingVideo} hasVideo={Boolean(exercise.videoUrl)} />
+                  <VisualGuide exercise={exercise} isLoadingVideo={isLoadingVideo} />
                 )}
               </LinearGradient>
             </View>
@@ -714,36 +763,44 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   visualStage: {
-    minHeight: 328,
+    minHeight: 250,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 32,
+    paddingVertical: 34,
   },
-  exerciseImage: {
-    width: "82%",
-    height: 222,
-  },
-  guideTypeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    minHeight: 34,
-    paddingHorizontal: 12,
-    borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.64)",
+  guideRule: {
+    width: 42,
+    height: 1,
+    marginVertical: 16,
+    backgroundColor: "rgba(103,63,63,0.24)",
   },
   guideTypeText: {
+    color: "rgba(103,63,63,0.62)",
+    fontFamily: sansFont,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  guideTitle: {
+    marginTop: 8,
     color: "#673F3F",
     fontFamily: sansFont,
-    fontSize: 13,
+    fontSize: 22,
+    lineHeight: 29,
     fontWeight: "700",
+    textAlign: "center",
   },
   mediaPending: {
-    marginTop: 8,
+    maxWidth: 280,
+    marginTop: 9,
     color: "rgba(95,59,43,0.56)",
     fontFamily: sansFont,
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 20,
     fontWeight: "500",
+    textAlign: "center",
   },
   video: {
     width: "100%",

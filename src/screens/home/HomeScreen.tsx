@@ -306,6 +306,7 @@ export default function HomeScreen() {
             <RecommendedTools
               title={isCompleteToday ? "For you right now" : "Tools often recommended"}
               tools={visibleTools}
+              showImages={isCompleteToday && recommendations.length > 0}
               onSelectTool={(exerciseId) =>
                 navigation.navigate("Exercise", {
                   exerciseId,

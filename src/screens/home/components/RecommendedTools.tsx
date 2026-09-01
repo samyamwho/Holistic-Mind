@@ -7,10 +7,11 @@ import { appSansFont as sansFont, typeScale } from "../../../theme/typography";
 type RecommendedToolsProps = {
   title: string;
   tools: Exercise[];
+  showImages?: boolean;
   onSelectTool: (exerciseId: string) => void;
 };
 
-export default function RecommendedTools({ title, tools, onSelectTool }: RecommendedToolsProps) {
+export default function RecommendedTools({ title, tools, showImages = false, onSelectTool }: RecommendedToolsProps) {
   return (
     <>
       <View style={styles.sectionHeader}>
@@ -26,14 +27,23 @@ export default function RecommendedTools({ title, tools, onSelectTool }: Recomme
             accessibilityRole="button"
             key={exercise.id}
             onPress={() => onSelectTool(exercise.id)}
-            style={[styles.exerciseCard, { backgroundColor: exercise.color }]}
+            style={[styles.exerciseCard, !showImages && styles.exerciseCardWithoutImage, { backgroundColor: exercise.color }]}
           >
-            <Image source={exercise.image} resizeMode="contain" style={styles.exerciseImage} />
-            <Text style={styles.exerciseCategory}>
-              {exercise.section} · {exercise.duration}
-            </Text>
-            <Text style={styles.exerciseTitle}>{exercise.title}</Text>
-            <Text style={styles.exerciseWhy}>{exercise.why}</Text>
+            {showImages ? <View style={styles.exerciseImageFrame}>
+              <Image
+                accessibilityIgnoresInvertColors
+                source={exercise.image}
+                resizeMode="cover"
+                style={styles.exerciseImage}
+              />
+            </View> : null}
+            <View style={[styles.exerciseCopy, !showImages && styles.exerciseCopyWithoutImage]}>
+              <Text numberOfLines={1} style={styles.exerciseCategory}>
+                {exercise.section} · {exercise.duration}
+              </Text>
+              <Text numberOfLines={2} style={styles.exerciseTitle}>{exercise.title}</Text>
+              <Text numberOfLines={3} style={styles.exerciseWhy}>{exercise.why}</Text>
+            </View>
           </Pressable>
         ))}
       </View>
@@ -64,17 +74,34 @@ const styles = StyleSheet.create({
   },
   exerciseCard: {
     width: "47.8%",
-    minHeight: 232,
+    minHeight: 310,
     borderRadius: 20,
-    padding: 14,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.58)",
   },
+  exerciseCardWithoutImage: {
+    minHeight: 168,
+  },
+  exerciseImageFrame: {
+    width: "100%",
+    aspectRatio: 1,
+    overflow: "hidden",
+    backgroundColor: "rgba(95, 59, 43, 0.08)",
+  },
   exerciseImage: {
     width: "100%",
-    height: 126,
-    marginBottom: 10,
+    height: "100%",
+  },
+  exerciseCopy: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingTop: 13,
+    paddingBottom: 15,
+  },
+  exerciseCopyWithoutImage: {
+    paddingHorizontal: 15,
+    paddingVertical: 17,
   },
   exerciseCategory: {
     color: "rgba(95, 59, 43, 0.66)",

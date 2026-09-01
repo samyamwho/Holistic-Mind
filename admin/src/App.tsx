@@ -148,7 +148,7 @@ export default function App() {
       let saved = isNew ? await createExercise(adminKey, { ...draft, ...values }) : await updateExercise(adminKey, draft.id, values);
       detailsSaved = true;
       syncSavedExercise(saved);
-      if (imageFile) {
+      if (workspace === "audio" && imageFile) {
         saved = await uploadExerciseImage(adminKey, draft.id, imageFile);
         syncSavedExercise(saved);
       }
@@ -213,10 +213,10 @@ export default function App() {
           <div className="editor-heading"><div><p className="eyebrow">{isAudioWorkspace ? "Audio recording" : "Somatic exercise"}</p><h2>{draft.title}</h2><code>{draft.id}</code></div><button className="primary save" disabled={busy || !draft.title.trim()} onClick={save}>{busy ? "Saving…" : isAudioWorkspace ? "Save audio" : "Save exercise"}</button></div>
           {message && <div className={message.includes("successfully") ? "notice success" : "notice error"}>{message}</div>}
 
-          <section className="panel image-panel">
+          {isAudioWorkspace && <section className="panel image-panel">
             <div className="image-preview">{imageFile ? <img src={URL.createObjectURL(imageFile)} /> : draft.imageUrl ? <img src={draft.imageUrl} /> : <span>No image yet</span>}</div>
-            <div><h3>{isAudioWorkspace ? "Cover artwork" : "Exercise image"}</h3><p className="muted">Square WebP, PNG, or JPEG works best.</p><label className="file-button">Choose image<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] || null)} /></label>{imageFile && <small>{imageFile.name}</small>}</div>
-          </section>
+            <div><h3>Cover artwork</h3><p className="muted">Square WebP, PNG, or JPEG works best.</p><label className="file-button">Choose image<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] || null)} /></label>{imageFile && <small>{imageFile.name}</small>}</div>
+          </section>}
 
           {isAudioWorkspace ? <section className="panel image-panel audio-upload-panel">
             <div className="video-preview">{audioFile ? <audio src={URL.createObjectURL(audioFile)} controls /> : audio ? <audio src={audio.audioUrl} controls /> : <span>No audio uploaded</span>}</div>

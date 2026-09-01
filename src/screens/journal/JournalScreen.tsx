@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
-  Image,
   ImageBackground,
   Pressable,
   ScrollView,
@@ -11,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { ArrowRight, BookOpenText, Check, Lock, PenLine } from "lucide-react-native";
+import { ArrowRight, BookOpenText, Check, Lock, PenLine, Plus } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { createJournalEntry, getJournalEntries } from "../../services/wellness/wellnessApi";
@@ -130,13 +129,19 @@ export default function JournalScreen() {
               <View>
                 <Text style={styles.kicker}>Private Space</Text>
                 <Text style={styles.title}>Journal</Text>
+                <Text style={styles.headerHint}>Follow a prompt or simply write what is here.</Text>
               </View>
-              <Image
-                accessibilityIgnoresInvertColors
-                resizeMode="contain"
-                source={require("../../../assets/onboarding/summary-reflect.png")}
-                style={styles.headerImage}
-              />
+              <Pressable
+                accessibilityLabel="Write a free journal entry"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => navigation.navigate("FreeJournalEntry")}
+                style={({ pressed }) => [styles.newEntryButton, pressed && styles.newEntryButtonPressed]}
+              >
+                <View style={styles.newEntrySurface}>
+                  <Plus color="#FFF8EE" size={24} strokeWidth={2.2} />
+                </View>
+              </Pressable>
             </View>
 
             <View style={styles.promptShell}>
@@ -258,6 +263,9 @@ export default function JournalScreen() {
                         <Text style={styles.entryPack}>{entry.pack}</Text>
                         <Text style={styles.entryDate}>{formatEntryTime(entry.createdAt)}</Text>
                       </View>
+                      {entry.pack === "Free writing" ? (
+                        <Text numberOfLines={1} style={styles.entryPrompt}>{entry.prompt}</Text>
+                      ) : null}
                       <Text numberOfLines={2} style={styles.entryText}>
                         {entry.text}
                       </Text>
@@ -293,7 +301,7 @@ const styles = StyleSheet.create({
   header: {
     minHeight: screenLayout.headerHeight,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
   },
   kicker: {
@@ -312,10 +320,38 @@ const styles = StyleSheet.create({
     lineHeight: typeScale.screenTitleLine,
     fontWeight: "700",
   },
-  headerImage: {
-    width: 64,
-    height: 56,
-    opacity: 0.92,
+  headerHint: {
+    maxWidth: 250,
+    marginTop: 5,
+    color: "rgba(95, 59, 43, 0.56)",
+    fontFamily: sansFont,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "500",
+  },
+  newEntryButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  newEntrySurface: {
+    width: 50,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 25,
+    backgroundColor: "#70454A",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.34)",
+    shadowColor: "#5F3B2B",
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.14,
+    shadowRadius: 15,
+    elevation: 4,
+  },
+  newEntryButtonPressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.97 }],
   },
   promptShell: {
     marginTop: 14,
@@ -561,6 +597,14 @@ const styles = StyleSheet.create({
     fontFamily: sansFont,
     fontSize: 11,
     fontWeight: "600",
+  },
+  entryPrompt: {
+    marginBottom: 3,
+    color: "#5F3B2B",
+    fontFamily: sansFont,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "700",
   },
   entryText: {
     color: "rgba(95, 59, 43, 0.76)",

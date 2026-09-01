@@ -72,7 +72,7 @@ export const exerciseLibrary: Exercise[] = [
     safetyNote: "Return to your natural breath if you feel light-headed or uncomfortable.",
     sourcePage: 105,
     color: "rgba(255, 255, 255, 0.48)",
-    image: require("../../assets/onboarding/elements/page2-illustration-2.png"),
+    image: require("../../Holistic-Mind- Assets/cabc1fdd-91f8-4cbe-b0b6-cfa70bf6e6fd.png"),
   },
   {
     id: "longer-exhale",
@@ -168,7 +168,7 @@ export const exerciseLibrary: Exercise[] = [
     safetyNote: "Use a seated position or stable support if standing feels unsteady.",
     sourcePage: 105,
     color: "rgba(223, 162, 177, 0.28)",
-    image: require("../../assets/onboarding/elements/page3-illustration-1.png"),
+    image: require("../../Holistic-Mind- Assets/4a4f014d-6055-4571-bbf0-d714be8d537c.png"),
   },
   {
     id: "orienting-exercise",
@@ -187,7 +187,7 @@ export const exerciseLibrary: Exercise[] = [
     safetyNote: "Pause if looking around increases dizziness or disorientation.",
     sourcePage: 105,
     color: "rgba(255, 255, 255, 0.42)",
-    image: require("../../assets/onboarding/elements/page2-illustration-1.png"),
+    image: require("../../Holistic-Mind- Assets/1ec89212-1e24-47b3-acf5-85e5e313f7dc.png"),
   },
   {
     id: "five-senses",
@@ -226,7 +226,7 @@ export const exerciseLibrary: Exercise[] = [
     safetyNote: "Keep the movement small and stop if it causes neck or shoulder pain.",
     sourcePage: 106,
     color: "rgba(223, 162, 177, 0.25)",
-    image: require("../../assets/onboarding/elements/page3-illustration-1.png"),
+    image: require("../../Holistic-Mind- Assets/c539c34f-9203-4c37-8ba7-93fbf772b719.png"),
   },
   {
     id: "butterfly-hug",
@@ -245,7 +245,7 @@ export const exerciseLibrary: Exercise[] = [
     safetyNote: "Stop or uncross your arms if the hold feels restrictive or activating.",
     sourcePage: 106,
     color: "rgba(255, 255, 255, 0.46)",
-    image: require("../../assets/onboarding/elements/page2-illustration-2.png"),
+    image: require("../../Holistic-Mind- Assets/112d5cae-f90d-43fb-8cfa-0edc73bed02d.png"),
   },
   {
     id: "humming-vibration",
@@ -302,7 +302,7 @@ export const exerciseLibrary: Exercise[] = [
     safetyNote: "Move your hands or stop if touch around the chest or stomach feels uncomfortable.",
     sourcePage: 106,
     color: "rgba(223, 162, 177, 0.24)",
-    image: require("../../assets/onboarding/elements/page2-illustration-2.png"),
+    image: require("../../Holistic-Mind- Assets/53c59103-c03d-4fa8-a124-a54e3e7cba6a.png"),
   },
   {
     id: "body-scan",
