@@ -1,16 +1,26 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { ArrowLeft, ArrowRight, Check, Clock3, Headphones, ListChecks, MessageCircleQuestion, Play, Video, X } from "lucide-react-native";
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ArrowLeft, ArrowRight, Check, Clock3, Download, FileText, Headphones, ListChecks, MessageCircleQuestion, Play, Video, X } from "lucide-react-native";
+import { Alert, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAudioPlayerController } from "../../context/AudioPlayerContext";
 import { exampleLibraryCourses, type LibraryChapter, type LibraryCourse } from "../../data/libraryCatalog";
 import { getLibraryCourse } from "../../services/library/libraryApi";
+import { downloadPdf } from "../../services/library/pdfFiles";
 import { appSansFont as sansFont, screenLayout } from "../../theme/typography";
 
 function ModuleVideo({ url }: { url: string }) {
   const player = useVideoPlayer(url, (created) => { created.loop = false; });
   return <VideoView allowsFullscreen contentFit="contain" nativeControls player={player} style={styles.video} />;
+}
+
+function PdfGlyph({ compact = false }: { compact?: boolean }) {
+  return <View style={[styles.pdfGlyph,compact&&styles.pdfGlyphCompact]}><View style={[styles.pdfFold,compact&&styles.pdfFoldCompact]}/><Text style={[styles.pdfGlyphText,compact&&styles.pdfGlyphTextCompact]}>PDF</Text></View>;
+}
+
+function PdfResourceCard({ title, primary, onOpen, onDownload }: { title: string; primary?: boolean; onOpen: () => void; onDownload: () => void }) {
+  return <View style={[styles.pdfResource,primary&&styles.pdfResourcePrimary]}><View style={styles.pdfIcon}><FileText color="#81545E" size={primary?29:23} strokeWidth={1.6}/></View><View style={styles.pdfCopy}><Text style={styles.pdfKicker}>{primary?"PDF chapter":"Attached PDF"}</Text><Text numberOfLines={2} style={styles.pdfTitle}>{title}</Text><Text style={styles.pdfHint}>Read inside Holistic Mind</Text></View><View style={styles.pdfActions}><Pressable accessibilityLabel={`Open ${title}`} onPress={onOpen} style={styles.pdfOpen}><Text style={styles.pdfOpenText}>Open</Text><ArrowRight color="#FFF8EE" size={15}/></Pressable><Pressable accessibilityLabel={`Download ${title}`} onPress={onDownload} style={styles.pdfDownload}><Download color="#70454A" size={17}/></Pressable></View></View>;
 }
 
 function InteractiveChapter({ chapter }: { chapter: LibraryChapter }) {
@@ -39,14 +49,27 @@ export default function LibraryModuleScreen({ navigation, route }: { navigation:
   const moduleId = route.params?.moduleId;
   const fallback = useMemo(() => exampleLibraryCourses.find((item) => item.id === courseId) ?? null, [courseId]);
   const [course, setCourse] = useState<LibraryCourse | null>(fallback);
+  const [refreshing, setRefreshing] = useState(false);
   const audioPlayer = useAudioPlayerController();
 
-  useEffect(() => {
+  const refreshCourse = useCallback(async (signal?: AbortSignal) => {
     if (!courseId) return;
+    const refreshed = await getLibraryCourse(courseId, signal);
+    setCourse(refreshed);
+  }, [courseId, moduleId]);
+
+  useFocusEffect(useCallback(() => {
     const controller = new AbortController();
-    getLibraryCourse(courseId, controller.signal).then(setCourse).catch(() => undefined);
+    void refreshCourse(controller.signal).catch(() => undefined);
     return () => controller.abort();
-  }, [courseId]);
+  }, [refreshCourse]));
+
+  const manuallyRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await refreshCourse(); }
+    catch { Alert.alert("Unable to refresh", "Check your connection and try again."); }
+    finally { setRefreshing(false); }
+  }, [refreshCourse]);
 
   const chapters = useMemo(() => [...(course?.modules ?? [])].sort((a,b)=>a.displayOrder-b.displayOrder).flatMap((module) => [...module.chapters].sort((a,b)=>a.displayOrder-b.displayOrder)), [course]);
   const chapterIndex = chapters.findIndex((item) => item.id === moduleId);
@@ -62,6 +85,11 @@ export default function LibraryModuleScreen({ navigation, route }: { navigation:
     navigation.navigate("AudioPlayer");
   };
   const goTo = (target: LibraryChapter) => navigation.replace("LibraryModule", { courseId: target.courseId, moduleId: target.id });
+  const openPdf = (title: string, url: string) => navigation.navigate("PdfViewer", { title, url });
+  const savePdf = async (title: string, url: string) => {
+    try { await downloadPdf(url, title); }
+    catch { Alert.alert("Download failed", "We couldn’t save this PDF. Check your connection and try again."); }
+  };
 
   if (!course || !module) return <SafeAreaView style={styles.missing}><Text style={styles.missingTitle}>Chapter not found</Text><Pressable onPress={navigation.goBack}><Text style={styles.backText}>Go back</Text></Pressable></SafeAreaView>;
 
@@ -73,14 +101,16 @@ export default function LibraryModuleScreen({ navigation, route }: { navigation:
         <View style={styles.headerButton} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.lessonMetaRow}><View style={styles.typeBadge}>{chapterType === "audio" ? <Headphones color="#7E525D" size={16} /> : chapterType === "interactive_qna" ? <MessageCircleQuestion color="#7E525D" size={16}/> : chapterType === "mcq" ? <ListChecks color="#7E525D" size={16}/> : <Video color="#7E525D" size={16} />}<Text style={styles.typeBadgeText}>{chapterType === "interactive_qna" ? "Q&A" : chapterType === "mcq" ? "Quiz" : chapterType}</Text></View><Text style={styles.classification}>{parentModule?.title}</Text></View>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void manuallyRefresh()} tintColor="#81545E"/>} showsVerticalScrollIndicator={false}>
+        <View style={styles.lessonMetaRow}><View style={styles.typeBadge}>{chapterType === "audio" ? <Headphones color="#7E525D" size={16} /> : chapterType === "pdf" ? <PdfGlyph compact/> : chapterType === "interactive_qna" ? <MessageCircleQuestion color="#7E525D" size={16}/> : chapterType === "mcq" ? <ListChecks color="#7E525D" size={16}/> : <Video color="#7E525D" size={16} />}<Text style={styles.typeBadgeText}>{chapterType === "interactive_qna" ? "Q&A" : chapterType === "mcq" ? "Quiz" : chapterType}</Text></View><Text style={styles.classification}>{parentModule?.title}</Text></View>
         <Text style={styles.title}>{module.title}</Text>
         <View style={styles.duration}><Clock3 color="rgba(95,59,43,.46)" size={15} /><Text style={styles.durationText}>{chapterType === "interactive_qna" || chapterType === "mcq" ? "Interactive chapter" : module.durationSeconds ? `${Math.max(1, Math.round(module.durationSeconds / 60))} minutes` : "Short lesson"}</Text></View>
 
-        {chapterType === "interactive_qna" || chapterType === "mcq" ? <InteractiveChapter chapter={module}/> : <View style={styles.mediaCard}>
+        {chapterType === "interactive_qna" || chapterType === "mcq" ? <InteractiveChapter chapter={module}/> : chapterType === "pdf" ? <View style={styles.primaryPdfCard}>{module.mediaUrl?<PdfResourceCard onDownload={()=>void savePdf(module.title,module.mediaUrl!)} onOpen={()=>openPdf(module.title,module.mediaUrl!)} primary title={module.title}/>:<View style={styles.mediaPlaceholder}><View style={styles.placeholderArtwork}><View style={styles.placeholderOrb}/><PdfGlyph/></View><Text style={styles.placeholderKicker}>PDF chapter</Text><Text style={styles.placeholderTitle}>Document not loaded</Text><Text style={styles.placeholderText}>Refresh to check for a recently uploaded document.</Text><Pressable onPress={()=>void refreshCourse()} style={styles.refreshMedia}><Text style={styles.refreshMediaText}>Refresh document</Text></Pressable></View>}</View> : <View style={styles.mediaCard}>
           {module.mediaType === "video" && module.mediaUrl ? <ModuleVideo url={module.mediaUrl} /> : module.mediaType === "audio" && module.mediaUrl ? <Pressable onPress={() => void playAudio()} style={({ pressed }) => [styles.audioButton, pressed && styles.pressed]}><View style={styles.audioArtwork}><View style={styles.audioOrb} /><Headphones color="#FFF8EE" size={37} strokeWidth={1.7} /></View><View style={styles.audioCopy}><Text style={styles.audioKicker}>Guided audio</Text><Text style={styles.audioLabel}>Listen to this chapter</Text><Text style={styles.audioHint}>Open in the Holistic Mind player</Text></View><View style={styles.playCircle}><Play color="#FFF8EE" fill="#FFF8EE" size={20} /></View></Pressable> : <View style={styles.mediaPlaceholder}><View style={styles.placeholderArtwork}><View style={styles.placeholderOrb} />{module.mediaType === "audio" ? <Headphones color="#FFF8EE" size={38} strokeWidth={1.7} /> : <Video color="#FFF8EE" size={38} strokeWidth={1.7} />}</View><Text style={styles.placeholderKicker}>{module.mediaType} chapter</Text><Text style={styles.placeholderTitle}>Chapter guide</Text><Text style={styles.placeholderText}>Follow the lesson notes below. Attached media will appear here automatically.</Text></View>}
         </View>}
+
+        {(module.attachments??[]).length>0?<View style={styles.attachmentsSection}><View style={styles.attachmentsHeading}><Text style={styles.aboutLabel}>Chapter resources</Text><Text style={styles.attachmentsCount}>{module.attachments.length} {module.attachments.length===1?"PDF":"PDFs"}</Text></View><View style={styles.attachmentsList}>{[...module.attachments].sort((a,b)=>a.displayOrder-b.displayOrder).map((attachment)=><PdfResourceCard key={attachment.id} onDownload={()=>void savePdf(attachment.title,attachment.url)} onOpen={()=>openPdf(attachment.title,attachment.url)} title={attachment.title}/>)}</View></View>:null}
 
         {module.description ? <View style={styles.lessonCopy}><Text style={styles.aboutLabel}>About this chapter</Text><Text style={styles.description}>{module.description}</Text></View> : null}
 
@@ -98,6 +128,8 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: screenLayout.horizontalPadding, paddingTop: 24, paddingBottom: 50 }, lessonMetaRow: { flexDirection: "row", alignItems: "center", gap: 9 }, typeBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: "rgba(223,162,177,.18)" }, typeBadgeText: { color: "#7E525D", fontSize: 9, fontWeight: "900", textTransform: "uppercase" }, classification: { flex: 1, color: "rgba(95,59,43,.48)", fontSize: 9, fontWeight: "800" },
   title: { maxWidth: 355, marginTop: 16, color: "#5F3B2B", fontSize: 31, lineHeight: 37, fontWeight: "700" }, duration: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 11 }, durationText: { color: "rgba(95,59,43,.50)", fontSize: 10, fontWeight: "700" },
   mediaCard: { overflow: "hidden", minHeight: 240, marginTop: 24, borderRadius: 25, borderWidth: 1, borderColor: "rgba(95,59,43,.10)", backgroundColor: "rgba(255,251,244,.82)" }, video: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#211A18" },
+  pdfGlyph:{position:"relative",width:42,height:50,alignItems:"center",justifyContent:"flex-end",paddingBottom:9,borderRadius:7,borderWidth:2,borderColor:"#FFF8EE",backgroundColor:"transparent"},pdfGlyphCompact:{width:16,height:19,paddingBottom:3,borderRadius:3,borderWidth:1.3,borderColor:"#7E525D"},pdfFold:{position:"absolute",top:-2,right:-2,width:12,height:12,borderLeftWidth:2,borderBottomWidth:2,borderColor:"#FFF8EE",backgroundColor:"#A26C74"},pdfFoldCompact:{top:-1.3,right:-1.3,width:5,height:5,borderLeftWidth:1,borderBottomWidth:1,borderColor:"#7E525D",backgroundColor:"rgba(223,162,177,.18)"},pdfGlyphText:{color:"#FFF8EE",fontSize:8,fontWeight:"900",letterSpacing:.4},pdfGlyphTextCompact:{color:"#7E525D",fontSize:4,lineHeight:5,letterSpacing:0},refreshMedia:{minHeight:40,marginTop:16,alignItems:"center",justifyContent:"center",paddingHorizontal:17,borderRadius:20,borderWidth:1,borderColor:"rgba(112,69,74,.18)"},refreshMediaText:{color:"#70454A",fontSize:10,fontWeight:"800"},
+  primaryPdfCard:{minHeight:190,marginTop:24,justifyContent:"center",overflow:"hidden",borderRadius:25,borderWidth:1,borderColor:"rgba(95,59,43,.10)",backgroundColor:"rgba(255,251,244,.82)"},pdfResource:{minHeight:98,flexDirection:"row",alignItems:"center",gap:13,padding:15,borderRadius:18,borderWidth:1,borderColor:"rgba(95,59,43,.10)",backgroundColor:"rgba(255,251,244,.70)"},pdfResourcePrimary:{minHeight:188,padding:20,borderWidth:0,backgroundColor:"transparent"},pdfIcon:{width:48,height:58,alignItems:"center",justifyContent:"center",borderRadius:15,backgroundColor:"rgba(223,162,177,.19)"},pdfCopy:{minWidth:0,flex:1},pdfKicker:{color:"#9A5B6A",fontSize:8,fontWeight:"900",letterSpacing:.9,textTransform:"uppercase"},pdfTitle:{marginTop:5,color:"#5F3B2B",fontSize:14,lineHeight:19,fontWeight:"800"},pdfHint:{marginTop:5,color:"rgba(95,59,43,.48)",fontSize:9,fontWeight:"600"},pdfActions:{alignItems:"center",gap:8},pdfOpen:{minHeight:36,flexDirection:"row",alignItems:"center",gap:4,paddingHorizontal:12,borderRadius:18,backgroundColor:"#70454A"},pdfOpenText:{color:"#FFF8EE",fontSize:10,fontWeight:"800"},pdfDownload:{width:36,height:36,alignItems:"center",justifyContent:"center",borderRadius:18,borderWidth:1,borderColor:"rgba(112,69,74,.18)"},attachmentsSection:{marginTop:20,padding:18,borderRadius:22,borderWidth:1,borderColor:"rgba(95,59,43,.10)",backgroundColor:"rgba(255,251,244,.48)"},attachmentsHeading:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:13},attachmentsCount:{color:"rgba(95,59,43,.46)",fontSize:9,fontWeight:"800"},attachmentsList:{gap:10},
   audioButton: { minHeight: 240, flexDirection: "row", alignItems: "center", gap: 15, padding: 18 }, audioArtwork: { position: "relative", width: 80, height: 118, overflow: "hidden", alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "#A26C74" }, audioOrb: { position: "absolute", width: 72, height: 72, top: -25, right: -24, borderRadius: 36, backgroundColor: "rgba(246,227,197,.34)" }, audioCopy: { flex: 1 }, audioKicker: { color: "#9A5B6A", fontSize: 9, fontWeight: "900", letterSpacing: .8, textTransform: "uppercase" }, audioLabel: { marginTop: 6, color: "#5F3B2B", fontSize: 16, lineHeight: 21, fontWeight: "800" }, audioHint: { marginTop: 5, color: "rgba(95,59,43,.50)", fontSize: 10, lineHeight: 15 }, playCircle: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "#70454A" },
   mediaPlaceholder: { minHeight: 240, alignItems: "center", justifyContent: "center", padding: 24 }, placeholderArtwork: { position: "relative", width: 70, height: 70, overflow: "hidden", alignItems: "center", justifyContent: "center", borderRadius: 24, backgroundColor: "#A26C74" }, placeholderOrb: { position: "absolute", width: 55, height: 55, top: -18, right: -17, borderRadius: 28, backgroundColor: "rgba(246,227,197,.34)" }, placeholderKicker: { marginTop: 14, color: "#9A5B6A", fontSize: 9, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" }, placeholderTitle: { marginTop: 5, color: "#673F3F", fontSize: 17, fontWeight: "800" }, placeholderText: { maxWidth: 275, marginTop: 7, color: "rgba(95,59,43,.53)", fontSize: 11, lineHeight: 17, textAlign: "center" },
   lessonCopy: { marginTop: 20, padding: 19, borderRadius: 20, backgroundColor: "rgba(255,251,244,.58)" }, aboutLabel: { color: "#9A5B6A", fontSize: 9, fontWeight: "900", letterSpacing: 1.1, textTransform: "uppercase" }, description: { marginTop: 8, color: "rgba(95,59,43,.68)", fontSize: 14, lineHeight: 22 },

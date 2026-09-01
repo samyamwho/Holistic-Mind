@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, ChevronRight, Folder, FolderOpen, Headphones, ListChecks, MessageCircleQuestion, Video } from "lucide-react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { ArrowLeft, ChevronDown, ChevronRight, FileText, Folder, FolderOpen, Headphones, ListChecks, MessageCircleQuestion, Video } from "lucide-react-native";
 import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { exampleLibraryCourses, type LibraryChapter, type LibraryCourse, type LibraryModule } from "../../data/libraryCatalog";
@@ -11,12 +12,14 @@ const chapterLabel = (chapter: LibraryChapter) => {
   const type = chapter.chapterType ?? chapter.mediaType;
   if (type === "interactive_qna") return "Interactive Q&A";
   if (type === "mcq") return "Quick quiz";
+  if (type === "pdf") return "PDF document";
   return `${type} · ${minutes(chapter.durationSeconds)}`;
 };
 const ChapterIcon = ({ chapter }: { chapter: LibraryChapter }) => {
   const type = chapter.chapterType ?? chapter.mediaType;
   if (type === "interactive_qna") return <MessageCircleQuestion color="#81545E" size={19} strokeWidth={1.7}/>;
   if (type === "mcq") return <ListChecks color="#81545E" size={19} strokeWidth={1.7}/>;
+  if (type === "pdf") return <FileText color="#81545E" size={19} strokeWidth={1.7}/>;
   return type === "audio" ? <Headphones color="#81545E" size={19} strokeWidth={1.7}/> : <Video color="#81545E" size={19} strokeWidth={1.7}/>;
 };
 
@@ -40,10 +43,22 @@ export default function CourseScreen({navigation,route}:{navigation:any;route:{p
   const fallback=useMemo(()=>exampleLibraryCourses.find(c=>c.id===courseId)??null,[courseId]);
   const [course,setCourse]=useState<LibraryCourse|null>(fallback);
   const [expandedModuleId,setExpandedModuleId]=useState<string|null>(null);
-  useEffect(()=>{if(!courseId)return;const controller=new AbortController();getLibraryCourse(courseId,controller.signal).then(setCourse).catch(()=>undefined);return()=>controller.abort();},[courseId]);
+  useFocusEffect(useCallback(()=>{if(!courseId)return;const controller=new AbortController();getLibraryCourse(courseId,controller.signal).then(setCourse).catch(()=>undefined);return()=>controller.abort();},[courseId]));
   const modules=useMemo(()=>[...(course?.modules??[])].sort((a,b)=>a.displayOrder-b.displayOrder),[course]);
   const chapterCount=modules.reduce((sum,module)=>sum+module.chapters.length,0);
-  const open=(chapter:LibraryChapter)=>navigation.navigate("LibraryModule",{courseId:chapter.courseId,moduleId:chapter.id});
+  const open=async(chapter:LibraryChapter)=>{
+    let current=chapter;
+    if((chapter.chapterType??chapter.mediaType)==="pdf"&&courseId){
+      try {
+        const refreshed=await getLibraryCourse(courseId);
+        setCourse(refreshed);
+        current=refreshed.modules.flatMap(value=>value.chapters).find(value=>value.id===chapter.id)??chapter;
+      } catch { /* The detail screen still provides a retry action. */ }
+    }
+    return (current.chapterType??current.mediaType)==="pdf"&&current.mediaUrl
+      ? navigation.navigate("PdfViewer",{title:current.title,url:current.mediaUrl})
+      : navigation.navigate("LibraryModule",{courseId:current.courseId,moduleId:current.id});
+  };
   if(!course)return <SafeAreaView style={styles.missing}><Text style={styles.missingTitle}>Course not found</Text></SafeAreaView>;
   return <View style={styles.root}><ImageBackground source={require("../../../assets/welcome/paper-background.png")} resizeMode="cover" style={styles.background}><SafeAreaView edges={["top"]} style={styles.safe}>
     <View style={styles.topBar}><Pressable accessibilityLabel="Back to library" onPress={navigation.goBack} style={styles.back}><ArrowLeft color="#5F3B2B" size={23}/></Pressable><Text style={styles.topTitle}>Library</Text><View style={styles.back}/></View>

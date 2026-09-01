@@ -27,8 +27,8 @@ type ChapterSeed = {
   moduleId: string;
   title: string;
   description?: string;
-  mediaType: "audio" | "video";
-  chapterType?: "audio" | "video" | "interactive_qna" | "mcq";
+  mediaType: "audio" | "video" | "pdf";
+  chapterType?: "audio" | "video" | "pdf" | "interactive_qna" | "mcq";
   interactiveContent?: Record<string, unknown>;
   durationSeconds?: number;
   status: "draft" | "published" | "archived";

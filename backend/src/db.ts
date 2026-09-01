@@ -76,15 +76,28 @@ export type LibraryChapterRow = {
   title: string;
   description: string | null;
   classification: string;
-  chapter_type: "audio" | "video" | "interactive_qna" | "mcq";
+  chapter_type: "audio" | "video" | "pdf" | "interactive_qna" | "mcq";
   interactive_content: Record<string, unknown>;
-  media_type: "audio" | "video";
+  media_type: "audio" | "video" | "pdf";
   media_object_key: string | null;
   media_url: string | null;
   media_content_type: string | null;
   thumbnail_url: string | null;
   duration_seconds: number | null;
   status: "draft" | "published" | "archived";
+  display_order: number;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export type LibraryChapterAttachmentRow = {
+  id: string;
+  chapter_id: string;
+  title: string;
+  object_key: string;
+  file_url: string;
+  content_type: string;
+  file_size: number | null;
   display_order: number;
   created_at: Date;
   updated_at: Date;
@@ -312,7 +325,7 @@ export async function ensureSchema() {
       title TEXT NOT NULL,
       description TEXT,
       classification TEXT NOT NULL DEFAULT 'lesson',
-      media_type TEXT NOT NULL CHECK (media_type IN ('audio', 'video')),
+      media_type TEXT NOT NULL CHECK (media_type IN ('audio', 'video', 'pdf')),
       media_object_key TEXT,
       media_url TEXT,
       media_content_type TEXT,
@@ -430,17 +443,28 @@ export async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS chapter_type TEXT NOT NULL DEFAULT 'video',
       ADD COLUMN IF NOT EXISTS interactive_content JSONB NOT NULL DEFAULT '{}';
 
+    CREATE TABLE IF NOT EXISTS library_chapter_attachments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      chapter_id TEXT NOT NULL REFERENCES library_modules(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      object_key TEXT NOT NULL UNIQUE,
+      file_url TEXT NOT NULL,
+      content_type TEXT NOT NULL DEFAULT 'application/pdf',
+      file_size BIGINT CHECK (file_size IS NULL OR file_size > 0),
+      display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
     UPDATE library_modules SET chapter_type = media_type
       WHERE chapter_type = 'video' AND media_type = 'audio';
 
-    DO $$
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'library_modules_chapter_type_check') THEN
-        ALTER TABLE library_modules ADD CONSTRAINT library_modules_chapter_type_check
-          CHECK (chapter_type IN ('audio', 'video', 'interactive_qna', 'mcq'));
-      END IF;
-    END
-    $$;
+    ALTER TABLE library_modules DROP CONSTRAINT IF EXISTS library_modules_media_type_check;
+    ALTER TABLE library_modules ADD CONSTRAINT library_modules_media_type_check
+      CHECK (media_type IN ('audio', 'video', 'pdf'));
+    ALTER TABLE library_modules DROP CONSTRAINT IF EXISTS library_modules_chapter_type_check;
+    ALTER TABLE library_modules ADD CONSTRAINT library_modules_chapter_type_check
+      CHECK (chapter_type IN ('audio', 'video', 'pdf', 'interactive_qna', 'mcq'));
 
     CREATE INDEX IF NOT EXISTS library_course_modules_course_order_idx
       ON library_course_modules(course_id, status, display_order, title);
@@ -448,6 +472,8 @@ export async function ensureSchema() {
       ON library_modules(course_id, status, display_order, title);
     CREATE INDEX IF NOT EXISTS library_modules_module_order_idx
       ON library_modules(course_module_id, status, display_order, title);
+    CREATE INDEX IF NOT EXISTS library_chapter_attachments_chapter_order_idx
+      ON library_chapter_attachments(chapter_id, display_order, created_at);
     CREATE INDEX IF NOT EXISTS recommendation_requests_user_created_idx
       ON recommendation_requests(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS recommendation_events_user_created_idx

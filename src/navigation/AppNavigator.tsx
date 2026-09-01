@@ -11,7 +11,7 @@ import { ExerciseScreen } from "../screens/exercise";
 import { HomeScreen } from "../screens/home";
 import { FreeJournalEntryScreen, JournalScreen } from "../screens/journal";
 import { HistoryScreen } from "../screens/history";
-import { CourseScreen, LibraryModuleScreen, LibraryScreen } from "../screens/library";
+import { CourseScreen, LibraryModuleScreen, LibraryScreen, PdfViewerScreen } from "../screens/library";
 import { OnboardingScreen } from "../screens/onboarding";
 import { ProfileScreen } from "../screens/profile";
 import { WelcomeScreen, WelcomeV2Screen } from "../screens/welcome";
@@ -133,6 +133,7 @@ export default function AppNavigator() {
                 <Stack.Screen name="AudioPlayer" component={AudioPlayerScreen} />
                 <Stack.Screen name="Course" component={CourseScreen} />
                 <Stack.Screen name="LibraryModule" component={LibraryModuleScreen} />
+                <Stack.Screen name="PdfViewer" component={PdfViewerScreen} />
                 <Stack.Screen name="History" component={HistoryScreen} />
                 <Stack.Screen
                     name="FreeJournalEntry"

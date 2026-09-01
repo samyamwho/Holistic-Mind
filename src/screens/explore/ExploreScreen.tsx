@@ -48,7 +48,7 @@ function CategoryFolder({ category, count, kind, onPress, width }: { category: E
     <View style={[styles.folderTab, { backgroundColor: palette.tab }]} />
     <View style={[styles.folder, fixedWidth, { backgroundColor: palette.face, borderColor: `${palette.text}1F` }]}>
       <View style={[styles.folderIcon, { borderColor: `${palette.text}2E` }]}><FolderCategoryIcon category={category} color={palette.text} /></View>
-      <Text style={[styles.folderLabel, { color: palette.text }]}>{kind === "audio" ? "Audio practices" : "Somatic practices"}</Text>
+      {kind === "audio" ? <Text style={[styles.folderLabel, { color: palette.text }]}>Audio practices</Text> : null}
       <View style={styles.folderBottom}><Text style={styles.folderCount}>{count} {noun}</Text><ChevronRight color={palette.text} size={17} strokeWidth={1.7} /></View>
     </View>
     <View style={styles.folderNameFrame}><Text numberOfLines={2} style={styles.folderName}>{category}</Text></View>

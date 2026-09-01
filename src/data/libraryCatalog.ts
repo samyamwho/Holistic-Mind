@@ -1,9 +1,15 @@
+export type LibraryPdfAttachment = {
+  id: string; chapterId: string; title: string; url: string; contentType: "application/pdf";
+  fileSize: number | null; displayOrder: number;
+};
+
 export type LibraryChapter = {
   id: string; courseId: string; moduleId: string; title: string; description: string | null;
-  chapterType: "audio" | "video" | "interactive_qna" | "mcq";
+  chapterType: "audio" | "video" | "pdf" | "interactive_qna" | "mcq";
   interactiveContent: { question?: string; answer?: string; options?: string[]; correctOptionIndex?: number; explanation?: string };
-  mediaType: "audio" | "video"; mediaUrl: string | null; mediaContentType: string | null;
+  mediaType: "audio" | "video" | "pdf"; mediaUrl: string | null; mediaContentType: string | null;
   thumbnailUrl: string | null; durationSeconds: number | null; status: "published" | "draft" | "archived"; displayOrder: number;
+  attachments: LibraryPdfAttachment[];
 };
 
 export type LibraryModule = {
@@ -19,12 +25,12 @@ export type LibraryCourse = {
 
 const chapter = (id: string, moduleId: string, title: string, mediaType: "audio" | "video", durationSeconds: number, displayOrder: number): LibraryChapter => ({
   id, courseId: "foundations-of-nervous-system-care", moduleId, title, description: "A gentle lesson you can return to whenever it feels useful.",
-  chapterType: mediaType, interactiveContent: {}, mediaType, mediaUrl: null, mediaContentType: null, thumbnailUrl: null, durationSeconds, status: "published", displayOrder,
+  chapterType: mediaType, interactiveContent: {}, mediaType, mediaUrl: null, mediaContentType: null, thumbnailUrl: null, durationSeconds, status: "published", displayOrder, attachments: [],
 });
 
 const interactiveChapter = (id: string, moduleId: string, title: string, chapterType: "interactive_qna" | "mcq", interactiveContent: LibraryChapter["interactiveContent"], displayOrder: number): LibraryChapter => ({
   id, courseId: "foundations-of-nervous-system-care", moduleId, title, description: "A short interactive check for deeper understanding.", chapterType,
-  interactiveContent, mediaType: "video", mediaUrl: null, mediaContentType: null, thumbnailUrl: null, durationSeconds: null, status: "published", displayOrder,
+  interactiveContent, mediaType: "video", mediaUrl: null, mediaContentType: null, thumbnailUrl: null, durationSeconds: null, status: "published", displayOrder, attachments: [],
 });
 
 export const exampleLibraryCourses: LibraryCourse[] = [{

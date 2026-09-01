@@ -44,7 +44,7 @@ export type LibraryChapter = {
   moduleId: string;
   title: string;
   description: string | null;
-  chapterType: "audio" | "video" | "interactive_qna" | "mcq";
+  chapterType: "audio" | "video" | "pdf" | "interactive_qna" | "mcq";
   interactiveContent: {
     question?: string;
     answer?: string;
@@ -52,12 +52,22 @@ export type LibraryChapter = {
     correctOptionIndex?: number;
     explanation?: string;
   };
-  mediaType: "audio" | "video";
+  mediaType: "audio" | "video" | "pdf";
   mediaUrl: string | null;
   mediaContentType: string | null;
   thumbnailUrl: string | null;
   durationSeconds: number | null;
   status: ExerciseStatus;
+  displayOrder: number;
+  attachments: LibraryPdfAttachment[];
+};
+export type LibraryPdfAttachment = {
+  id: string;
+  chapterId: string;
+  title: string;
+  url: string;
+  contentType: "application/pdf";
+  fileSize: number | null;
   displayOrder: number;
 };
 export type LibraryModule = {
@@ -225,11 +235,11 @@ export async function uploadLibraryChapterMedia(key: string, chapterId: string, 
   const extension = file.name.split(".").pop()?.toLowerCase();
   const inferred: Record<string, string> = {
     mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg",
-    mp4: "video/mp4", mov: "video/quicktime", webm: file.type.startsWith("audio/") ? "audio/webm" : "video/webm",
+    mp4: "video/mp4", mov: "video/quicktime", webm: file.type.startsWith("audio/") ? "audio/webm" : "video/webm", pdf: "application/pdf",
   };
   const aliases: Record<string, string> = { "audio/mp3": "audio/mpeg", "audio/x-wav": "audio/wav" };
   const contentType = aliases[file.type] ?? (file.type || inferred[extension ?? ""]);
-  if (!contentType) throw new Error("Choose a supported audio or video file.");
+  if (!contentType) throw new Error("Choose a supported audio, video, or PDF file.");
   const prepared = await request<{ uploadUrl: string; objectKey: string }>(
     `/api/library/chapters/${encodeURIComponent(chapterId)}/media-upload-url`, key,
     { method: "POST", body: JSON.stringify({ fileName: file.name, contentType, fileSize: file.size }) }
@@ -239,3 +249,22 @@ export async function uploadLibraryChapterMedia(key: string, chapterId: string, 
     method: "POST", body: JSON.stringify({ objectKey: prepared.objectKey, contentType, durationSeconds }),
   });
 }
+
+export async function uploadLibraryPdfAttachment(key: string, chapterId: string, file: File, title: string, displayOrder: number) {
+  const contentType = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : null;
+  if (!contentType) throw new Error("Choose a PDF file.");
+  const prepared = await request<{ uploadUrl: string; objectKey: string }>(
+    `/api/library/chapters/${encodeURIComponent(chapterId)}/pdf-attachments/upload-url`, key,
+    { method: "POST", body: JSON.stringify({ fileName: file.name, contentType, fileSize: file.size }) },
+  );
+  await uploadToStorage(prepared.uploadUrl, file, contentType, "PDF attachment");
+  return request<LibraryPdfAttachment>(`/api/library/chapters/${encodeURIComponent(chapterId)}/pdf-attachments/complete`, key, {
+    method: "POST", body: JSON.stringify({ objectKey: prepared.objectKey, title, fileSize: file.size, displayOrder }),
+  });
+}
+
+export const updateLibraryPdfAttachment = (key: string, chapterId: string, attachmentId: string, update: Pick<LibraryPdfAttachment, "title" | "displayOrder">) =>
+  request<LibraryPdfAttachment>(`/api/library/chapters/${encodeURIComponent(chapterId)}/pdf-attachments/${encodeURIComponent(attachmentId)}`, key, { method: "PATCH", body: JSON.stringify(update) });
+
+export const deleteLibraryPdfAttachment = (key: string, chapterId: string, attachmentId: string) =>
+  request<{ deleted: true; id: string }>(`/api/library/chapters/${encodeURIComponent(chapterId)}/pdf-attachments/${encodeURIComponent(attachmentId)}`, key, { method: "DELETE" });

@@ -239,6 +239,103 @@
   color: #806d63;
 }
 
+.attachment-editor {
+  margin-top: 24px;
+  padding: 22px;
+  border: 1px solid #e5d6c7;
+  border-radius: 16px;
+  background: #faf5ee;
+}
+
+.attachment-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.attachment-heading h4 {
+  margin: 4px 0 6px;
+  color: #4c352c;
+  font-family: Georgia, serif;
+  font-size: 20px;
+}
+
+.attachment-heading p {
+  margin: 0;
+}
+
+.attachment-heading > span {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ead8c4;
+  color: #684a3d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.attachment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 12px 0;
+  border-top: 1px solid #eadfd3;
+}
+
+.attachment-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.attachment-row input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  background: #fffdf8;
+}
+
+.attachment-row strong {
+  overflow: hidden;
+  color: #4c352c;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-row small,
+.attachment-row a {
+  color: #8b6c60;
+  font-size: 11px;
+}
+
+.attachment-upload {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 20px;
+  border-top: 1px solid #eadfd3;
+}
+
+.attachment-upload label:first-child {
+  display: grid;
+  gap: 8px;
+}
+
+.attachment-upload small {
+  grid-column: 1 / -1;
+  color: #806d63;
+}
+
 .module-empty {
   display: grid;
   place-items: center;
@@ -302,6 +399,12 @@
 
   .module-media-box > div {
     min-width: 0;
+  }
+
+  .attachment-row,
+  .attachment-upload {
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .curriculum-workspace aside {

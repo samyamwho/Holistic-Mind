@@ -45,6 +45,13 @@
       ],
       "expo-secure-store",
       "expo-asset",
+      [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
+        }
+      ],
       "expo-notifications",
       [
         "expo-audio",

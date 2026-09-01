@@ -7,11 +7,10 @@ import { appSansFont as sansFont, typeScale } from "../../../theme/typography";
 type RecommendedToolsProps = {
   title: string;
   tools: Exercise[];
-  showImages?: boolean;
   onSelectTool: (exerciseId: string) => void;
 };
 
-export default function RecommendedTools({ title, tools, showImages = false, onSelectTool }: RecommendedToolsProps) {
+export default function RecommendedTools({ title, tools, onSelectTool }: RecommendedToolsProps) {
   return (
     <>
       <View style={styles.sectionHeader}>
@@ -27,22 +26,22 @@ export default function RecommendedTools({ title, tools, showImages = false, onS
             accessibilityRole="button"
             key={exercise.id}
             onPress={() => onSelectTool(exercise.id)}
-            style={[styles.exerciseCard, !showImages && styles.exerciseCardWithoutImage, { backgroundColor: exercise.color }]}
+            style={[styles.exerciseCard, { backgroundColor: exercise.color }]}
           >
-            {showImages ? <View style={styles.exerciseImageFrame}>
+            <View style={styles.exerciseImageFrame}>
               <Image
                 accessibilityIgnoresInvertColors
                 source={exercise.image}
                 resizeMode="cover"
                 style={styles.exerciseImage}
               />
-            </View> : null}
-            <View style={[styles.exerciseCopy, !showImages && styles.exerciseCopyWithoutImage]}>
+            </View>
+            <View style={styles.exerciseCopy}>
               <Text numberOfLines={1} style={styles.exerciseCategory}>
                 {exercise.section} · {exercise.duration}
               </Text>
               <Text numberOfLines={2} style={styles.exerciseTitle}>{exercise.title}</Text>
-              <Text numberOfLines={3} style={styles.exerciseWhy}>{exercise.why}</Text>
+              <Text numberOfLines={2} style={styles.exerciseWhy}>{exercise.why}</Text>
             </View>
           </Pressable>
         ))}
@@ -70,60 +69,63 @@ const styles = StyleSheet.create({
   exerciseGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 14,
+    gap: 12,
   },
   exerciseCard: {
-    width: "47.8%",
-    minHeight: 310,
-    borderRadius: 20,
+    width: "48.2%",
+    height: 244,
+    borderRadius: 18,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.58)",
   },
-  exerciseCardWithoutImage: {
-    minHeight: 168,
-  },
   exerciseImageFrame: {
-    width: "100%",
-    aspectRatio: 1,
+    width: 94,
+    height: 94,
+    alignSelf: "center",
+    marginTop: 13,
     overflow: "hidden",
+    borderRadius: 47,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.50)",
     backgroundColor: "rgba(95, 59, 43, 0.08)",
   },
   exerciseImage: {
-    width: "100%",
-    height: "100%",
+    position: "absolute",
+    top: -16,
+    left: -18,
+    width: 130,
+    height: 130,
   },
   exerciseCopy: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 13,
-    paddingBottom: 15,
-  },
-  exerciseCopyWithoutImage: {
-    paddingHorizontal: 15,
-    paddingVertical: 17,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   exerciseCategory: {
     color: "rgba(95, 59, 43, 0.66)",
     fontFamily: sansFont,
-    fontSize: typeScale.meta,
+    fontSize: 9,
+    lineHeight: 12,
     fontWeight: "800",
+    letterSpacing: 0.25,
     textTransform: "uppercase",
   },
   exerciseTitle: {
     marginTop: 4,
     color: "#5F3B2B",
     fontFamily: sansFont,
-    fontSize: typeScale.itemTitle,
-    lineHeight: typeScale.itemTitleLine,
-    fontWeight: "800",
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "700",
   },
   exerciseWhy: {
-    marginTop: 8,
+    marginTop: 6,
     color: "rgba(95, 59, 43, 0.68)",
     fontFamily: sansFont,
-    fontSize: typeScale.control,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "500",
   },
 });

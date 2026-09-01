@@ -21,6 +21,7 @@ const tableDefinitions = {
   library_courses: ["id", "title", "subtitle", "description", "category", "level", "cover_object_key", "cover_image_url", "status", "display_order"],
   library_course_modules: ["id", "course_id", "title", "description", "status", "display_order"],
   library_modules: ["id", "course_id", "course_module_id", "title", "description", "classification", "chapter_type", "interactive_content", "media_type", "media_object_key", "media_url", "media_content_type", "thumbnail_url", "duration_seconds", "status", "display_order"],
+  library_chapter_attachments: ["id", "chapter_id", "title", "object_key", "file_url", "content_type", "file_size", "display_order"],
 } as const;
 
 const conflictColumns: Record<keyof typeof tableDefinitions, string> = {
@@ -30,6 +31,7 @@ const conflictColumns: Record<keyof typeof tableDefinitions, string> = {
   library_courses: "id",
   library_course_modules: "id",
   library_modules: "id",
+  library_chapter_attachments: "id",
 };
 
 function keyFromSourceUrl(value: unknown, sourceBaseUrl: string) {
@@ -52,7 +54,7 @@ async function upsertRows(
 ) {
   const columns = tableDefinitions[table];
   const conflictColumn = conflictColumns[table];
-  const urlColumns = new Set(["image_url", "video_url", "poster_url", "captions_url", "audio_url", "cover_image_url", "media_url", "thumbnail_url"]);
+  const urlColumns = new Set(["image_url", "video_url", "poster_url", "captions_url", "audio_url", "cover_image_url", "media_url", "thumbnail_url", "file_url"]);
   const updates = columns.filter((column) => column !== conflictColumn).map((column) => `${column}=EXCLUDED.${column}`).join(",");
   const placeholders = columns.map((_, index) => `$${index + 1}`).join(",");
   const sql = `INSERT INTO ${table} (${columns.join(",")}) VALUES (${placeholders}) ON CONFLICT (${conflictColumn}) DO UPDATE SET ${updates}, updated_at=NOW()`;
@@ -74,7 +76,7 @@ const bundle = JSON.parse(await readFile(path.join(bundleDirectory, "content.jso
 if (bundle.version !== 1) throw new Error(`Unsupported content bundle version ${bundle.version}`);
 
 for (const table of Object.keys(tableDefinitions)) {
-  if (!Array.isArray(bundle.tables[table])) {
+  if (table !== "library_chapter_attachments" && !Array.isArray(bundle.tables[table])) {
     throw new Error(`Content bundle is missing the ${table} table.`);
   }
 }
@@ -101,6 +103,7 @@ try {
   await upsertRows(client, "library_courses", bundle.tables.library_courses ?? [], bundle.sourcePublicBaseUrl);
   await upsertRows(client, "library_course_modules", bundle.tables.library_course_modules ?? [], bundle.sourcePublicBaseUrl);
   await upsertRows(client, "library_modules", bundle.tables.library_modules ?? [], bundle.sourcePublicBaseUrl);
+  await upsertRows(client, "library_chapter_attachments", bundle.tables.library_chapter_attachments ?? [], bundle.sourcePublicBaseUrl);
   await client.query("COMMIT");
   console.log(`${replace ? "Replaced" : "Upserted"} target content from ${bundleDirectory}; uploaded ${bundle.assets.length} assets.`);
 } catch (error) {

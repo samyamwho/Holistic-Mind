@@ -15,6 +15,7 @@ const tableNames = [
   "library_courses",
   "library_course_modules",
   "library_modules",
+  "library_chapter_attachments",
 ] as const;
 
 function keyFromPublicUrl(value: unknown) {
@@ -57,6 +58,7 @@ try {
   for (const row of tables.exercise_audio) addKey(row.audio_object_key);
   for (const row of tables.library_courses) addKey(row.cover_object_key);
   for (const row of tables.library_modules) addKey(row.media_object_key);
+  for (const row of tables.library_chapter_attachments) addKey(row.object_key);
 
   const assets: AssetRecord[] = [];
   const missingAssets: string[] = [];
