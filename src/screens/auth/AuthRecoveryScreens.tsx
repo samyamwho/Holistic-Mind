@@ -4,7 +4,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { forgotPassword, resetPassword } from "../../services/auth/authApi";
 
-type Nav = { navigate: (screen: string, params?: Record<string, string>) => void; replace: (screen: string) => void; goBack: () => void };
+type Nav = {
+  navigate: (screen: string, params?: Record<string, string>) => void;
+  replace: (screen: string) => void;
+  reset: (state: { index: number; routes: { name: string }[] }) => void;
+  goBack: () => void;
+};
 
 function Shell({ title, subtitle, children, navigation }: { title: string; subtitle: string; children: React.ReactNode; navigation: Nav }) {
   return <View style={styles.root}><ImageBackground source={require("../../../assets/welcome/paper-background.png")} style={styles.background} resizeMode="cover">
@@ -46,7 +51,7 @@ export function ResetPasswordScreen({ navigation, route }: { navigation: Nav; ro
 
 export function VerifyEmailScreen({ navigation, route }: { navigation: Nav; route?: { params?: { emailDeliveryWarning?: string } } }) {
   const { user, verifyEmail, resendVerification, signOut } = useAuth(); const [code, setCode] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(route?.params?.emailDeliveryWarning ?? "");
-  const submit = async () => { if (!/^\d{6}$/.test(code)) return setMessage("Enter the six-digit code."); setBusy(true); setMessage(""); try { await verifyEmail(code); navigation.replace("Onboarding"); } catch (e) { setMessage(e instanceof Error ? e.message : "Verification failed."); } finally { setBusy(false); } };
+  const submit = async () => { if (!/^\d{6}$/.test(code)) return setMessage("Enter the six-digit code."); setBusy(true); setMessage(""); try { await verifyEmail(code); navigation.reset({ index: 0, routes: [{ name: "Onboarding" }] }); } catch (e) { setMessage(e instanceof Error ? e.message : "Verification failed."); } finally { setBusy(false); } };
   const resend = async () => { setBusy(true); setMessage(""); try { await resendVerification(); setMessage("A new code has been sent."); } catch (e) { setMessage(e instanceof Error ? e.message : "Could not resend the code."); } finally { setBusy(false); } };
   return <Shell navigation={{...navigation, goBack: async () => { await signOut(); navigation.replace("Login"); }}} title="Verify your email" subtitle={`Enter the code sent to ${user?.email ?? "your email"}.`}>
     <Field label="Six-digit code" value={code} onChangeText={(v) => setCode(v.replace(/\D/g, "").slice(0, 6))} keyboardType="number-pad" textContentType="oneTimeCode" placeholder="000000" />

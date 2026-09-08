@@ -15,8 +15,9 @@
     },
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.anonymous.holistic-mind",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -44,6 +45,7 @@
         }
       ],
       "expo-secure-store",
+      "expo-apple-authentication",
       "expo-asset",
       [
         "expo-file-system",

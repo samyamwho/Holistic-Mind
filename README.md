@@ -90,10 +90,33 @@ npx expo run:android
 The mobile app sends Google's ID token to the backend. The backend verifies its signature, issuer,
 expiry, and audience before creating a Holistic Mind session.
 
-New accounts verify their email with a six-digit code. Users can request a forgotten-password code,
-change their password from Profile, and permanently delete their account in the app. Google login
-is supported on iOS and Android when OAuth client IDs are configured. Apple login and email-address
-changes are not implemented yet.
+### Sign in with Apple
+
+The iOS login and signup screens also use Apple's native authorization control. Enable the Sign in
+with Apple capability for the App ID and provisioning profile in the Apple Developer portal, then
+set the backend token audience to the app's bundle identifier:
+
+```text
+# backend/.env
+APPLE_CLIENT_ID=com.anonymous.holistic-mind
+```
+
+Apple identity tokens are verified against Apple's public keys, issuer, expiry, and audience before
+the backend creates a session. Rebuild the native app after enabling the capability.
+
+Production privacy, terms, and support pages can be exposed from Profile with these build-time
+variables. Only HTTPS URLs are accepted:
+
+```text
+EXPO_PUBLIC_PRIVACY_POLICY_URL=https://your-domain.example/privacy
+EXPO_PUBLIC_TERMS_OF_USE_URL=https://your-domain.example/terms
+EXPO_PUBLIC_SUPPORT_URL=https://your-domain.example/support
+```
+
+New email/password accounts verify their email with a six-digit code. Users can request a
+forgotten-password code, change their password from Profile, and permanently delete their account
+in the app. Google login is supported on iOS and Android when OAuth client IDs are configured, and
+Sign in with Apple is supported on iOS. Email-address changes are not implemented.
 
 ## What You Need
 

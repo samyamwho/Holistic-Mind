@@ -60,6 +60,7 @@ const promptPacks: PromptPack[] = [
     locked: true,
   },
 ];
+const releasePromptPacks = promptPacks.filter((pack) => !pack.locked);
 
 function formatEntryTime(date: string) {
   return new Date(date).toLocaleDateString(undefined, {
@@ -71,7 +72,7 @@ function formatEntryTime(date: string) {
 export default function JournalScreen() {
   const navigation = useNavigation<any>();
   const { runAuthenticated } = useAuth();
-  const [selectedPackId, setSelectedPackId] = useState(promptPacks[0].id);
+  const [selectedPackId, setSelectedPackId] = useState(releasePromptPacks[0].id);
   const [draft, setDraft] = useState("");
   const [entries, setEntries] = useState<JournalEntry[]>([]);
 
@@ -86,7 +87,7 @@ export default function JournalScreen() {
   }, [runAuthenticated]));
 
   const selectedPack = useMemo(
-    () => promptPacks.find((pack) => pack.id === selectedPackId) ?? promptPacks[0],
+    () => releasePromptPacks.find((pack) => pack.id === selectedPackId) ?? releasePromptPacks[0],
     [selectedPackId]
   );
   const canSave = draft.trim().length > 0;
@@ -203,7 +204,7 @@ export default function JournalScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
             >
-              {promptPacks.map((pack) => {
+              {releasePromptPacks.map((pack) => {
                 const isSelected = selectedPack.id === pack.id;
 
                 return (

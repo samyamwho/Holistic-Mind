@@ -13,7 +13,8 @@ export async function getAuthUser(userId: string) {
         user_profiles.name,
         user_profiles.daily_reminder,
         user_profiles.practice_reminder,
-        user_profiles.haptics
+        user_profiles.haptics,
+        ARRAY(SELECT provider FROM auth_identities WHERE user_id = users.id ORDER BY provider) AS auth_providers
       FROM users
       INNER JOIN user_profiles ON user_profiles.user_id = users.id
       WHERE users.id = $1 AND users.status = 'active'
@@ -37,7 +38,8 @@ export async function getAuthUserByEmail(email: string) {
         user_profiles.name,
         user_profiles.daily_reminder,
         user_profiles.practice_reminder,
-        user_profiles.haptics
+        user_profiles.haptics,
+        ARRAY(SELECT provider FROM auth_identities WHERE user_id = users.id ORDER BY provider) AS auth_providers
       FROM users
       INNER JOIN user_profiles ON user_profiles.user_id = users.id
       WHERE users.email = $1 AND users.status = 'active'

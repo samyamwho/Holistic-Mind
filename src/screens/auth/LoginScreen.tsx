@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { getGoogleIdToken } from "../../services/auth/googleAuth";
+import { getAppleIdentity } from "../../services/auth/appleAuth";
+import AppleSignInButton from "../../components/auth/AppleSignInButton";
 
 type LoginScreenProps = {
   navigation: {
@@ -26,7 +29,26 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
+  const { signIn, signInWithApple, signInWithGoogle } = useAuth();
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+
+    let isActive = true;
+    void import("expo-apple-authentication")
+      .then((AppleAuthentication) => AppleAuthentication.isAvailableAsync())
+      .then((isAvailable) => {
+        if (isActive) setIsAppleAuthAvailable(isAvailable);
+      })
+      .catch(() => {
+        if (isActive) setIsAppleAuthAvailable(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const completeLogin = async () => {
     if (!email.trim() || !password) {
@@ -58,6 +80,18 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     } finally { setIsSubmitting(false); }
   };
 
+  const completeAppleLogin = async () => {
+    setErrorMessage(""); setIsSubmitting(true);
+    try {
+      const identity = await getAppleIdentity();
+      if (!identity) return;
+      const result = await signInWithApple(identity.identityToken, identity.fullName);
+      navigation.replace(result.isNewUser ? "Onboarding" : "MainTabs");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Apple sign-in could not be completed.");
+    } finally { setIsSubmitting(false); }
+  };
+
   return (
     <View style={styles.root}>
       <ImageBackground
@@ -66,6 +100,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         style={styles.background}
       >
         <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <View style={styles.header}>
               <Text style={styles.kicker}>Holistic Mind</Text>
@@ -92,10 +127,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 />
               </View>
 
-              <Pressable onPress={() => navigation.navigate("ForgotPassword")} accessibilityRole="button">
-                <Text style={styles.forgotLink}>Forgot password?</Text>
-              </Pressable>
-
               <View style={styles.field}>
                 <Text style={styles.label}>Password</Text>
                 <View style={styles.passwordInputWrap}>
@@ -119,6 +150,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                     <EyeIcon hidden={!showPassword} />
                   </Pressable>
                 </View>
+                <Pressable
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => navigation.navigate("ForgotPassword")}
+                  style={styles.forgotAction}
+                >
+                  <Text style={styles.forgotLink}>Forgot password?</Text>
+                </Pressable>
               </View>
 
               {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -140,6 +179,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               <Pressable accessibilityRole="button" disabled={isSubmitting} onPress={completeGoogleLogin} style={styles.googleButton}>
                 <Text style={styles.googleLetter}>G</Text><Text style={styles.googleButtonText}>Continue with Google</Text>
               </Pressable>
+              {Platform.OS === "ios" && isAppleAuthAvailable
+                ? <AppleSignInButton disabled={isSubmitting} onPress={completeAppleLogin} />
+                : null}
             </View>
 
             <Text style={styles.switchText}>
@@ -149,6 +191,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               </Text>
             </Text>
           </View>
+          </ScrollView>
         </SafeAreaView>
       </ImageBackground>
     </View>
@@ -203,10 +246,16 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   content: {
-    flex: 1,
+    width: "100%",
+    maxWidth: 520,
+    minHeight: "100%",
+    alignSelf: "center",
     paddingHorizontal: 28,
     paddingTop: 30,
     paddingBottom: 24,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     alignItems: "center",
@@ -404,9 +453,14 @@ const styles = StyleSheet.create({
   forgotLink: {
     color: "#673F3F",
     fontFamily: interFont,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     textAlign: "right",
+  },
+  forgotAction: {
+    alignSelf: "flex-end",
+    paddingLeft: 12,
+    paddingVertical: 2,
   },
   switchText: {
     marginTop: "auto",

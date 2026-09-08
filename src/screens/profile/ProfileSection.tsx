@@ -21,6 +21,8 @@ import {
   Clock3,
   ChevronRight,
   Info,
+  FileText,
+  LifeBuoy,
   KeyRound,
   LogOut,
   Pencil,
@@ -43,6 +45,7 @@ import {
   scheduleTestReminder,
   synchronizeReminderNotifications,
 } from "../../services/notifications/reminderNotifications";
+import { externalLinks, openExternalLink } from "../../config/externalLinks";
 
 type ProfileNavigator = {
   navigate: (screen: string) => void;
@@ -68,6 +71,7 @@ const fallbackProfile: UserProfile = {
   email: "Personal account",
   emailVerified: false,
   hasPassword: false,
+  authProviders: [],
 };
 
 export default function ProfileSection({ navigation }: ProfileScreenProps) {
@@ -145,6 +149,12 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
   };
 
   const showPrivacy = () => {
+    if (externalLinks.privacyPolicy) {
+      void openExternalLink(externalLinks.privacyPolicy).catch(() =>
+        Alert.alert("Link unavailable", "The privacy policy could not be opened.")
+      );
+      return;
+    }
     Alert.alert(
       "Privacy and data",
       "Your account session is encrypted on this device. Your profile preferences are stored under your account."
@@ -361,6 +371,18 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
                 label="Privacy and data"
                 onPress={showPrivacy}
               />
+              {externalLinks.termsOfUse ? <><View style={styles.separator} /><ActionRow
+                description="Read the terms that apply to this app"
+                icon={<FileText color="#665477" size={20} strokeWidth={2} />}
+                label="Terms of use"
+                onPress={() => void openExternalLink(externalLinks.termsOfUse!).catch(() => Alert.alert("Link unavailable", "The terms could not be opened."))}
+              /></> : null}
+              {externalLinks.support ? <><View style={styles.separator} /><ActionRow
+                description="Get help with Holistic Mind"
+                icon={<LifeBuoy color="#665477" size={20} strokeWidth={2} />}
+                label="Support"
+                onPress={() => void openExternalLink(externalLinks.support!).catch(() => Alert.alert("Link unavailable", "The support page could not be opened."))}
+              /></> : null}
               <View style={styles.separator} />
               <ActionRow
                 description="Version and app details"

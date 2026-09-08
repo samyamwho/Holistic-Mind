@@ -20,6 +20,7 @@ import {
   changePassword as changePasswordRequest,
   deleteAccount as deleteAccountRequest,
   loginWithGoogle,
+  loginWithApple,
   type AuthIdentity,
   type AuthTokens,
 } from "../services/auth/authApi";
@@ -35,6 +36,7 @@ export type UserProfile = {
   email: string;
   emailVerified: boolean;
   hasPassword: boolean;
+  authProviders: Array<"apple" | "google">;
 };
 
 export type ProfilePreferences = {
@@ -50,13 +52,14 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (name: string, email: string, password: string) => Promise<{ emailDeliveryWarning?: string }>;
   signInWithGoogle: (idToken: string) => Promise<{ isNewUser: boolean }>;
+  signInWithApple: (identityToken: string, fullName?: string) => Promise<{ isNewUser: boolean }>;
   signOut: () => Promise<void>;
   updateProfile: (profile: { name: string }) => Promise<void>;
   updatePreference: (key: keyof ProfilePreferences, enabled: boolean) => Promise<void>;
   verifyEmail: (code: string) => Promise<void>;
   resendVerification: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  deleteAccount: (confirmation: { password: string } | { googleIdToken: string }) => Promise<void>;
+  deleteAccount: (confirmation: { password: string } | { googleIdToken: string } | { appleIdentityToken: string }) => Promise<void>;
   runAuthenticated: <T>(operation: (accessToken: string) => Promise<T>) => Promise<T>;
 };
 
@@ -75,6 +78,7 @@ function getProfile(identity: AuthIdentity): UserProfile {
     email: identity.user.email,
     emailVerified: identity.user.emailVerified,
     hasPassword: identity.user.hasPassword,
+    authProviders: identity.user.authProviders ?? [],
   };
 }
 
@@ -215,6 +219,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { isNewUser: session.isNewUser };
   }, [applySession]);
 
+  const signInWithApple = useCallback(async (identityToken: string, fullName?: string) => {
+    const session = await loginWithApple(identityToken, fullName);
+    await applySession(session);
+    return { isNewUser: session.isNewUser };
+  }, [applySession]);
+
   const signOut = useCallback(async () => {
     const currentTokens = tokensRef.current;
     tokensRef.current = null;
@@ -268,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await runAuthenticated((accessToken) => changePasswordRequest(accessToken, currentPassword, newPassword));
   }, [runAuthenticated]);
 
-  const deleteAccount = useCallback(async (confirmation: { password: string } | { googleIdToken: string }) => {
+  const deleteAccount = useCallback(async (confirmation: { password: string } | { googleIdToken: string } | { appleIdentityToken: string }) => {
     await runAuthenticated((accessToken) => deleteAccountRequest(accessToken, confirmation));
     tokensRef.current = null;
     setUser(null);
@@ -284,6 +294,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       signInWithGoogle,
+      signInWithApple,
       signOut,
       updateProfile,
       updatePreference,
@@ -293,7 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       deleteAccount,
       runAuthenticated,
     }),
-    [changePassword, deleteAccount, isLoading, preferences, resendVerification, runAuthenticated, signIn, signInWithGoogle, signOut, signUp, updatePreference, updateProfile, user, verifyEmail]
+    [changePassword, deleteAccount, isLoading, preferences, resendVerification, runAuthenticated, signIn, signInWithApple, signInWithGoogle, signOut, signUp, updatePreference, updateProfile, user, verifyEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

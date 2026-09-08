@@ -26,12 +26,19 @@ export type PracticeActivity = {
 
 type PracticeActivityListener = (activity: PracticeActivity) => void;
 const practiceActivityListeners = new Set<PracticeActivityListener>();
+type FavoriteExerciseListener = (change: { exerciseId: string; favorite: boolean }) => void;
+const favoriteExerciseListeners = new Set<FavoriteExerciseListener>();
 
 export function subscribeToPracticeActivity(listener: PracticeActivityListener) {
   practiceActivityListeners.add(listener);
   return () => {
     practiceActivityListeners.delete(listener);
   };
+}
+
+export function subscribeToFavoriteExercises(listener: FavoriteExerciseListener) {
+  favoriteExerciseListeners.add(listener);
+  return () => favoriteExerciseListeners.delete(listener);
 }
 
 async function request<T>(path: string, accessToken: string, options: RequestInit = {}) {
@@ -57,6 +64,18 @@ export const getJournalEntries = (token: string) => request<StoredJournalEntry[]
 export const createJournalEntry = (token: string, entry: Omit<StoredJournalEntry, "id" | "createdAt">) =>
   request<StoredJournalEntry>("/journal", token, { method: "POST", body: JSON.stringify(entry) });
 export const getPracticeEvents = (token: string) => request<PracticeActivity[]>("/practice-events", token);
+export const getFavoriteExerciseIds = (token: string) =>
+  request<{ exerciseIds: string[] }>("/favorites", token).then((value) => value.exerciseIds);
+export const addFavoriteExercise = async (token: string, exerciseId: string) => {
+  const value = await request<{ exerciseId: string; favorite: boolean }>(`/favorites/${encodeURIComponent(exerciseId)}`, token, { method: "PUT" });
+  favoriteExerciseListeners.forEach((listener) => listener(value));
+  return value;
+};
+export const removeFavoriteExercise = async (token: string, exerciseId: string) => {
+  const value = await request<{ exerciseId: string; favorite: boolean }>(`/favorites/${encodeURIComponent(exerciseId)}`, token, { method: "DELETE" });
+  favoriteExerciseListeners.forEach((listener) => listener(value));
+  return value;
+};
 export const recordPracticeEvent = async (
   token: string,
   event: Omit<PracticeActivity, "id" | "createdAt">

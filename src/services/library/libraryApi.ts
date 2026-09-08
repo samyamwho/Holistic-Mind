@@ -1,5 +1,8 @@
 import { API_URL } from "../../config/environment";
 import type { LibraryCourse } from "../../data/libraryCatalog";
+import { ApiError } from "../auth/authApi";
+
+export type LibraryProgress = { completedChapterIds: string[] };
 
 function normalizeAssetUrl(value: string | null) {
   if (!value || !API_URL) return value;
@@ -64,4 +67,27 @@ export async function getLibraryCourse(courseId: string, signal?: AbortSignal) {
   const payload = (await response.json()) as { data?: unknown };
   if (!validateCourse(payload.data)) throw new Error("Course response is invalid");
   return normalizeCourse(payload.data);
+}
+
+async function progressRequest<T>(path: string, accessToken: string, options: RequestInit = {}) {
+  if (!API_URL) throw new ApiError("The backend API is not configured.", 0);
+  const response = await fetch(`${API_URL}/api/library${path}`, {
+    ...options,
+    headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}`, ...options.headers },
+  });
+  const payload = (await response.json().catch(() => ({}))) as { data?: T; error?: string };
+  if (!response.ok || payload.data === undefined) throw new ApiError(payload.error ?? "The request could not be completed.", response.status);
+  return payload.data;
+}
+
+export const getLibraryProgress = (accessToken: string) => progressRequest<LibraryProgress>("/progress/me", accessToken);
+export const completeLibraryChapter = (accessToken: string, chapterId: string) =>
+  progressRequest<{ chapterId: string; completed: boolean }>(`/progress/chapters/${encodeURIComponent(chapterId)}`, accessToken, { method: "PUT" });
+export const uncompleteLibraryChapter = (accessToken: string, chapterId: string) =>
+  progressRequest<{ chapterId: string; completed: boolean }>(`/progress/chapters/${encodeURIComponent(chapterId)}`, accessToken, { method: "DELETE" });
+
+export function getCourseProgress(course: LibraryCourse, completedChapterIds: ReadonlySet<string>) {
+  const chapterIds = course.modules.flatMap((module) => module.chapters.map((chapter) => chapter.id));
+  const completed = chapterIds.filter((id) => completedChapterIds.has(id)).length;
+  return { completed, total: chapterIds.length, percent: chapterIds.length ? Math.round((completed / chapterIds.length) * 100) : 0 };
 }

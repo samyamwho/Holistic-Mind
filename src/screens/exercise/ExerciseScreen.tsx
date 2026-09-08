@@ -6,6 +6,7 @@ import {
   Check,
   ChevronLeft,
   Clock3,
+  Heart,
   Pause,
   Play,
   ShieldCheck,
@@ -37,7 +38,7 @@ import {
 } from "../../services/recommendations/recommendationApi";
 import type { Exercise, ExercisePhase } from "../../types/wellness";
 import { useAuth } from "../../context/AuthContext";
-import { recordPracticeEvent } from "../../services/wellness/wellnessApi";
+import { addFavoriteExercise, getFavoriteExerciseIds, recordPracticeEvent, removeFavoriteExercise, subscribeToFavoriteExercises } from "../../services/wellness/wellnessApi";
 
 type ExerciseScreenProps = {
   navigation: {
@@ -234,6 +235,8 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
   const [remoteVideoUrl, setRemoteVideoUrl] = useState<string | null>(null);
   const [catalogExercise, setCatalogExercise] = useState<BackendExerciseCatalogItem | null>(null);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   const exercise = useMemo(
     () => {
       if (libraryExercise) {
@@ -262,6 +265,18 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
   const openedRecorded = useRef(false);
   const startedRecorded = useRef(false);
   const completedRecorded = useRef(false);
+
+  useEffect(() => {
+    if (!exercise?.id) return;
+    let active = true;
+    runAuthenticated(getFavoriteExerciseIds)
+      .then((ids) => { if (active) setIsFavorite(ids.includes(exercise.id)); })
+      .catch((error) => console.warn("Unable to load favorite status", error));
+    const unsubscribe = subscribeToFavoriteExercises((change) => {
+      if (change.exerciseId === exercise.id) setIsFavorite(change.favorite);
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [exercise?.id, runAuthenticated]);
 
   const recordEvent = useCallback(
     (eventType: "opened" | "started" | "completed" | "repeated") => {
@@ -417,6 +432,21 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
             ? "Audio practice"
             : "Guided practice";
 
+  const toggleFavorite = async () => {
+    if (isSavingFavorite) return;
+    const next = !isFavorite;
+    setIsFavorite(next);
+    setIsSavingFavorite(true);
+    try {
+      await runAuthenticated((token) => next ? addFavoriteExercise(token, exercise.id) : removeFavoriteExercise(token, exercise.id));
+    } catch (error) {
+      setIsFavorite(!next);
+      console.warn("Unable to update favorite", error);
+    } finally {
+      setIsSavingFavorite(false);
+    }
+  };
+
   const togglePractice = () => {
     if (isComplete) {
       recordEvent("repeated");
@@ -486,9 +516,14 @@ export default function ExerciseScreen({ navigation, route }: ExerciseScreenProp
                 <ChevronLeft color="#5F3B2B" size={26} strokeWidth={2.2} />
               </Pressable>
 
-              <View style={styles.durationBadge}>
-                <Clock3 color="#673F3F" size={16} strokeWidth={2} />
-                <Text style={styles.durationText}>{exercise.duration}</Text>
+              <View style={styles.topBarActions}>
+                <Pressable accessibilityLabel={isFavorite ? "Remove from favorites" : "Add to favorites"} accessibilityRole="button" accessibilityState={{ checked: isFavorite, disabled: isSavingFavorite }} disabled={isSavingFavorite} hitSlop={8} onPress={() => void toggleFavorite()} style={[styles.iconButton, isFavorite && styles.favoriteButton]}>
+                  <Heart color={isFavorite ? "#8D5361" : "#673F3F"} fill={isFavorite ? "#DFA2B1" : "transparent"} size={21} strokeWidth={2}/>
+                </Pressable>
+                <View style={styles.durationBadge}>
+                  <Clock3 color="#673F3F" size={16} strokeWidth={2} />
+                  <Text style={styles.durationText}>{exercise.duration}</Text>
+                </View>
               </View>
             </View>
 
@@ -650,6 +685,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.62)",
     backgroundColor: "rgba(255,255,255,0.5)",
   },
+  topBarActions: { flexDirection: "row", alignItems: "center", gap: 9 },
+  favoriteButton: { borderColor: "rgba(154,91,106,.20)", backgroundColor: "rgba(223,162,177,.18)" },
   durationBadge: {
     minHeight: 38,
     flexDirection: "row",

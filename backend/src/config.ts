@@ -59,6 +59,11 @@ const environmentSchema = z.object({
     .trim()
     .transform((val) => (val === "" ? undefined : val))
     .optional(),
+  APPLE_CLIENT_ID: z
+    .string()
+    .trim()
+    .transform((val) => (val === "" ? undefined : val))
+    .optional(),
 }).superRefine((environment, context) => {
   if (environment.EMAIL_DELIVERY_MODE === "resend" && !environment.RESEND_API_KEY) {
     context.addIssue({

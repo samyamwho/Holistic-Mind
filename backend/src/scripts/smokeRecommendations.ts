@@ -94,6 +94,8 @@ const scenarios = [
   },
 ];
 
+let focusRecommendations: string[] = [];
+
 for (const scenario of scenarios) {
   const generated = await requestLocalRecommendations({
     user_id: `smoke-${scenario.name}`,
@@ -107,7 +109,7 @@ for (const scenario of scenarios) {
   });
   const ids = generated.items.map((item) => item.exerciseId);
   const top = ids[0];
-  if (!generated.modelVersion.startsWith("hybrid-v2:") || generated.strategy !== "content-based-cold-start") {
+  if (!generated.modelVersion.startsWith("hybrid-v3:") || generated.strategy !== "content-based-cold-start") {
     throw new Error(`${scenario.name}: unexpected engine ${generated.modelVersion} (${generated.strategy})`);
   }
   if (ids.length !== 4 || new Set(ids).size !== ids.length) {
@@ -116,7 +118,47 @@ for (const scenario of scenarios) {
   if (!scenario.acceptableTop.has(top) || scenario.rejectedTop.has(top)) {
     throw new Error(`${scenario.name}: unexpected top recommendation ${top}; received ${ids.join(", ")}`);
   }
+  if (scenario.name === "safe focus support") focusRecommendations = ids;
   console.log(`${scenario.name}: ${ids.join(" -> ")}`);
 }
 
-console.log(`Recommendation smoke test passed for ${scenarios.length} scenarios.`);
+const rotatedFocus = await requestLocalRecommendations({
+  user_id: "smoke-safe-focus-rotation",
+  onboarding_goal: "Build a sustainable daily nervous-system practice",
+  check_in_answers: scenarios.find((scenario) => scenario.name === "safe focus support")?.answers,
+  journal_texts: [],
+  exercises,
+  interactions: [],
+  excluded_exercise_ids: [],
+  recent_recommendation_ids: focusRecommendations,
+  limit: 4,
+});
+const rotatedFocusIds = rotatedFocus.items.map((item) => item.exerciseId);
+const focusOverlap = rotatedFocusIds.filter((id) => focusRecommendations.includes(id)).length;
+if (focusOverlap === focusRecommendations.length) {
+  throw new Error(`focus rotation: all recommendations repeated; received ${rotatedFocusIds.join(", ")}`);
+}
+console.log(`safe focus rotation: ${rotatedFocusIds.join(" -> ")} (${focusOverlap}/4 repeated)`);
+
+const repeatedFocus = await requestLocalRecommendations({
+  user_id: "smoke-repeated-focus-rotation",
+  onboarding_goal: "Build a sustainable daily nervous-system practice",
+  check_in_answers: scenarios.find((scenario) => scenario.name === "safe focus support")?.answers,
+  journal_texts: [],
+  exercises,
+  interactions: [],
+  excluded_exercise_ids: [],
+  recent_recommendation_ids: [
+    ...rotatedFocusIds,
+    ...focusRecommendations,
+    ...focusRecommendations,
+  ],
+  limit: 4,
+});
+const repeatedFocusIds = repeatedFocus.items.map((item) => item.exerciseId);
+if (repeatedFocusIds.includes("box-breathing")) {
+  throw new Error(`repeated focus rotation: box-breathing remained after three consecutive appearances; received ${repeatedFocusIds.join(", ")}`);
+}
+console.log(`repeated focus rotation: ${repeatedFocusIds.join(" -> ")}`);
+
+console.log(`Recommendation smoke test passed for ${scenarios.length} scenarios plus recency rotation.`);

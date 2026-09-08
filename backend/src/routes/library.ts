@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool, type LibraryChapterAttachmentRow, type LibraryChapterRow, type LibraryCourseRow, type LibraryModuleRow } from "../db.js";
 import { requireAdmin } from "../middleware/adminAuth.js";
+import { authenticate } from "../middleware/authenticate.js";
 import { assertObjectExists, createAssetUploadUrl, deleteObject, getPublicObjectUrl } from "../storage.js";
 
 const idSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(150);
@@ -88,6 +89,41 @@ async function listCourses(includeUnpublished: boolean) {
 export const libraryRouter = Router();
 libraryRouter.get("/admin/all", requireAdmin, async (_req, res, next) => { try { res.set("Cache-Control", "no-store"); res.json({ data: await listCourses(true) }); } catch (e) { next(e); } });
 libraryRouter.get("/", async (_req, res, next) => { try { res.set("Cache-Control", "no-store"); res.json({ data: await listCourses(false) }); } catch (e) { next(e); } });
+libraryRouter.get("/progress/me", authenticate, async (_req, res, next) => {
+  try {
+    const result = await pool.query<{ chapter_id: string }>(
+      `SELECT progress.chapter_id
+       FROM library_chapter_progress progress
+       JOIN library_modules chapter ON chapter.id = progress.chapter_id
+       WHERE progress.user_id = $1 AND chapter.status = 'published'
+       ORDER BY progress.completed_at DESC`,
+      [res.locals.userId]
+    );
+    res.json({ data: { completedChapterIds: result.rows.map((row) => row.chapter_id) } });
+  } catch (error) { next(error); }
+});
+libraryRouter.put("/progress/chapters/:chapterId", authenticate, async (req, res, next) => {
+  const id = idSchema.safeParse(req.params.chapterId);
+  if (!id.success) return void res.status(400).json({ error: "Invalid chapter id" });
+  try {
+    const chapter = await pool.query("SELECT id FROM library_modules WHERE id=$1 AND status='published'", [id.data]);
+    if (!chapter.rows[0]) return void res.status(404).json({ error: "Chapter not found" });
+    await pool.query(
+      `INSERT INTO library_chapter_progress (user_id, chapter_id) VALUES ($1, $2)
+       ON CONFLICT (user_id, chapter_id) DO UPDATE SET completed_at=NOW(), updated_at=NOW()`,
+      [res.locals.userId, id.data]
+    );
+    res.json({ data: { chapterId: id.data, completed: true } });
+  } catch (error) { next(error); }
+});
+libraryRouter.delete("/progress/chapters/:chapterId", authenticate, async (req, res, next) => {
+  const id = idSchema.safeParse(req.params.chapterId);
+  if (!id.success) return void res.status(400).json({ error: "Invalid chapter id" });
+  try {
+    await pool.query("DELETE FROM library_chapter_progress WHERE user_id=$1 AND chapter_id=$2", [res.locals.userId, id.data]);
+    res.json({ data: { chapterId: id.data, completed: false } });
+  } catch (error) { next(error); }
+});
 libraryRouter.get("/:courseId", async (req, res, next) => { const id = idSchema.safeParse(req.params.courseId); if (!id.success) return void res.status(400).json({ error: "Invalid course id" }); try { const course = (await listCourses(false)).find((item) => item.id === id.data); if (!course) return void res.status(404).json({ error: "Course not found" }); res.json({ data: course }); } catch (e) { next(e); } });
 
 libraryRouter.post("/courses", requireAdmin, async (req, res, next) => { const p=courseSchema.safeParse(req.body); if(!p.success)return void res.status(400).json({error:"Invalid course"});const v=p.data;try{const r=await pool.query<LibraryCourseRow>(`INSERT INTO library_courses (id,title,subtitle,description,category,level,cover_image_url,status,display_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,[v.id,v.title,v.subtitle,v.description,v.category,v.level,v.coverImageUrl,v.status,v.displayOrder]);res.status(201).json({data:serializeCourse(r.rows[0])});}catch(e){if((e as {code?:string}).code==="23505")return void res.status(409).json({error:"Course id already exists"});next(e);}});

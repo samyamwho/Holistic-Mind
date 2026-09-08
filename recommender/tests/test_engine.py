@@ -189,6 +189,154 @@ def test_equally_relevant_results_include_category_variety():
     assert "different-category" in [item.exercise_id for item in items]
 
 
+def test_recent_recommendations_rotate_when_alternatives_are_equally_suitable():
+    context = RecommendationContext.model_validate(
+        {
+            "user_id": "current",
+            "check_in_answers": {"state": "Anxious", "support": "Calm down"},
+            "limit": 2,
+            "recent_recommendation_ids": ["recent-a", "recent-b"],
+            "exercises": [
+                {
+                    "id": "recent-a",
+                    "title": "Recent practice A",
+                    "category": "Breathwork",
+                    "support_goals": ["calm_down"],
+                    "intended_states": ["anxious"],
+                    "activation_level": "down_regulating",
+                },
+                {
+                    "id": "recent-b",
+                    "title": "Recent practice B",
+                    "category": "Grounding",
+                    "support_goals": ["calm_down"],
+                    "intended_states": ["anxious"],
+                    "activation_level": "down_regulating",
+                },
+                {
+                    "id": "fresh-a",
+                    "title": "Fresh practice A",
+                    "category": "Breathwork",
+                    "support_goals": ["calm_down"],
+                    "intended_states": ["anxious"],
+                    "activation_level": "down_regulating",
+                },
+                {
+                    "id": "fresh-b",
+                    "title": "Fresh practice B",
+                    "category": "Grounding",
+                    "support_goals": ["calm_down"],
+                    "intended_states": ["anxious"],
+                    "activation_level": "down_regulating",
+                },
+            ],
+        }
+    )
+    items, _, _ = recommend(context)
+    assert {item.exercise_id for item in items} == {"fresh-a", "fresh-b"}
+    assert all(item.score_components["recency_penalty"] == 0 for item in items)
+
+
+def test_recency_never_overrides_a_clear_high_activation_safety_match():
+    context = RecommendationContext.model_validate(
+        {
+            "user_id": "current",
+            "check_in_answers": {
+                "state": "Anxious",
+                "stress": "Very stressed",
+                "support": "Calm down",
+            },
+            "recent_recommendation_ids": ["safe-exhale"],
+            "exercises": [
+                {
+                    "id": "safe-exhale",
+                    "title": "Longer exhale",
+                    "category": "Breathwork",
+                    "support_goals": ["calm_down"],
+                    "intended_states": ["anxious", "very_stressed"],
+                    "activation_level": "down_regulating",
+                },
+                {
+                    "id": "breath-holds",
+                    "title": "Breath holds",
+                    "category": "Breathwork",
+                    "support_goals": ["focus"],
+                    "intended_states": ["scattered"],
+                    "breath_hold_required": True,
+                },
+            ],
+        }
+    )
+    items, _, _ = recommend(context)
+    assert items[0].exercise_id == "safe-exhale"
+
+
+def test_complete_previous_set_rotates_at_least_one_fresh_option():
+    context = RecommendationContext.model_validate(
+        {
+            "user_id": "current",
+            "check_in_answers": {"support": "Focus", "focus": "Scattered"},
+            "limit": 4,
+            "recent_recommendation_ids": ["recent-a", "recent-b", "recent-c", "recent-d"],
+            "exercises": [
+                {
+                    "id": exercise_id,
+                    "title": exercise_id,
+                    "category": "Focus",
+                    "support_goals": ["focus"],
+                    "intended_states": ["scattered"],
+                }
+                for exercise_id in ["recent-a", "recent-b", "recent-c", "recent-d"]
+            ] + [
+                {
+                    "id": "fresh",
+                    "title": "Present-moment orientation",
+                    "category": "Grounding",
+                    "description": "Focus support for scattered attention in the present moment",
+                }
+            ],
+        }
+    )
+    items, _, _ = recommend(context)
+    assert sum(item.exercise_id.startswith("recent-") for item in items) == 3, [
+        item.exercise_id for item in items
+    ]
+    assert "fresh" in [item.exercise_id for item in items]
+
+
+def test_overexposed_exercise_pauses_when_enough_suitable_options_exist():
+    recent = []
+    for request_number in range(3):
+        recent.extend([
+            "dominant",
+            f"old-{request_number}-a",
+            f"old-{request_number}-b",
+            f"old-{request_number}-c",
+        ])
+    context = RecommendationContext.model_validate(
+        {
+            "user_id": "current",
+            "check_in_answers": {"support": "Focus", "focus": "Scattered"},
+            "limit": 4,
+            "recent_recommendation_ids": recent,
+            "exercises": [
+                {
+                    "id": exercise_id,
+                    "title": f"Focus attention {exercise_id}",
+                    "category": f"Category {index}",
+                    "support_goals": ["focus"],
+                    "intended_states": ["scattered"],
+                }
+                for index, exercise_id in enumerate(
+                    ["dominant", "fresh-a", "fresh-b", "fresh-c", "fresh-d"]
+                )
+            ],
+        }
+    )
+    items, _, _ = recommend(context)
+    assert "dominant" not in [item.exercise_id for item in items]
+
+
 def test_uncomfortable_exercise_is_excluded():
     context = RecommendationContext.model_validate(
         {

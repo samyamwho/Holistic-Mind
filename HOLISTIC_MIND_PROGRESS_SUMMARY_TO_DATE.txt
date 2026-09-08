@@ -1,0 +1,299 @@
+HOLISTIC MIND
+DETAILED PROJECT PROGRESS SUMMARY TO DATE
+
+Student: Samyam Shrestha
+Project: The Holistic Mind: A Trauma-Informed, AI-Powered Mobile Application for Mental Health Self-Regulation
+Current reporting date: 2 September 2026
+
+
+INTRODUCTION
+
+Holistic Mind is a cross-platform mobile wellness application designed to provide users with a calm, private, and supportive environment for nervous-system self-regulation, emotional awareness, reflection, and psychoeducation. The project was originally motivated by the observation that many existing mental-health and wellbeing applications are either too clinical, too generic, or too crowded. When a person already feels anxious, overwhelmed, disconnected, or emotionally unsettled, searching through a large and confusing content catalogue can create further difficulty. Holistic Mind addresses this problem by first understanding the user's present state and then guiding the user towards an appropriate, manageable next step.
+
+The application combines several connected features rather than treating them as unrelated tools. These include secure account management, personalised onboarding, a six-question daily check-in, intelligent exercise recommendations, guided somatic and breathing practices, video and audio content, guided and free-form journaling, progress history, reminder preferences, and a structured educational Library. A separate browser-based administration platform allows authorised content managers to update the application's exercises, audio recordings, courses, modules, chapters, assessments, and media without rebuilding the mobile application each time content changes.
+
+The project has progressed far beyond the early prototype shown in the previous Interim Progress Review. At that stage, the main achievements were research, framework selection, an initial Firebase authentication setup, and the beginning of onboarding. Since then, the project architecture has been significantly redesigned and expanded. Firebase was replaced with a custom Node.js and PostgreSQL backend to provide greater control over authentication, user data, content management, recommendation logic, media, and deployment. The current system is an integrated mobile and cloud platform rather than a collection of prototype screens.
+
+The project remains within clear ethical boundaries. Holistic Mind is a wellness and educational support tool. It does not diagnose a mental-health condition, replace therapy, provide medical treatment, or act as a crisis-response service. Its role is to help users notice their current state, access appropriate self-regulation exercises, reflect privately, and develop a deeper understanding of their own wellbeing.
+
+
+1. RESEARCH, REQUIREMENTS, AND PROJECT PLANNING
+
+The first stage of the project focused on understanding the problem area and defining an achievable final-year-project scope. Research was conducted into trauma-informed design, emotional self-regulation, somatic practices, recommendation systems, user modelling, privacy, ethical considerations, and the needs of people who may experience anxiety, overwhelm, nervous-system dysregulation, childhood-trauma-related difficulties, or ADHD-related emotional challenges.
+
+This research influenced both the visual design and the technical behaviour of the application. The interface was deliberately planned to avoid clinical language, aggressive prompts, excessive information, and judgemental progress indicators. The project requirements were divided into functional and non-functional requirements. Functional requirements described what users should be able to do, including creating an account, completing onboarding, recording a check-in, receiving recommendations, completing practices, writing journal entries, browsing learning content, and managing their profile. Non-functional requirements covered security, privacy, maintainability, accessibility, responsiveness, cross-platform support, and a calm user experience.
+
+The system was divided into several layers: the React Native mobile application, the backend API, the PostgreSQL database, media object storage, the Python recommendation service, and the web administration dashboard. This separation helped make the project more maintainable and allowed each area to be developed and tested independently.
+
+
+2. EVOLUTION OF THE TECHNICAL ARCHITECTURE
+
+The previous review described Firebase as the backend and authentication platform. That was suitable for proving the early login concept, but the requirements became more complex as the project developed. The application needed relational user data, secure refresh sessions, daily check-in history, journal ownership, content publishing states, recommendation events, media associations, course hierarchies, and a full administration workflow. A custom architecture therefore became more appropriate.
+
+The current system uses:
+
+- Expo React Native and TypeScript for the iOS and Android mobile application.
+- Node.js, Express, and TypeScript for the main backend API.
+- PostgreSQL for user accounts, profiles, sessions, onboarding, check-ins, journals, exercises, recommendations, courses, modules, chapters, attachments, and related metadata.
+- A Python FastAPI service for the hybrid recommendation engine.
+- ONNX Runtime and a local sentence-embedding model for semantic relevance.
+- S3-compatible object storage for exercise artwork, audio, video, course covers, and PDFs.
+- React, Vite, and TypeScript for the web administration dashboard.
+- Docker Compose for the local PostgreSQL, MinIO, pgAdmin, and recommendation-service environment.
+- Railway for the deployed backend, PostgreSQL database, and recommendation service.
+- Cloudflare R2-compatible storage for deployed media.
+- Vercel for the deployed administration interface.
+
+This architectural change was one of the most important decisions in the project. It required more implementation work than relying entirely on Firebase, but it gave the project much greater control over security, database relationships, recommendation data, media management, and future expansion.
+
+
+3. MOBILE APPLICATION FOUNDATION AND DESIGN SYSTEM
+
+The mobile application was implemented as a cross-platform Expo React Native project using TypeScript. The codebase was organised into screens, navigation, contexts, API services, shared types, data, configuration, reusable components, and theme files. This structure separates presentation logic from backend communication and makes the application easier to maintain.
+
+A consistent visual identity was developed using a warm paper-textured background, muted natural colours, soft pastel accents, rounded cards, generous spacing, and supportive language. Considerable iteration was carried out to prevent screens from feeling congested. Font sizes, card proportions, folder dimensions, icon placement, text wrapping, bottom navigation, safe areas, and spacing were repeatedly adjusted using the iOS Simulator.
+
+The final main navigation contains four focused sections:
+
+- Home for check-ins, recommendations, and progress.
+- Explore for somatic exercises and audio practices.
+- Journal for guided and free-form reflection.
+- Library for structured courses, modules, and chapters.
+
+History was moved away from the main navigation and placed within the Profile area so that the bottom tab bar remains simple. A persistent compact audio player is displayed when audio is active, allowing the user to move through other areas without losing playback control.
+
+
+4. AUTHENTICATION AND ACCOUNT SECURITY
+
+A complete custom authentication system was developed. Users can register with an email address and password, verify their email through a six-digit verification flow, sign in, refresh their session, recover a forgotten password, change their password, log out, and permanently delete their account.
+
+Passwords are never stored as plain text. They are securely hashed before being inserted into PostgreSQL. The backend issues short-lived access tokens and longer-lived refresh sessions. Protected routes determine the user from the verified access token instead of trusting a user ID supplied by the mobile client. Logout revokes the relevant session, and account deletion removes the user's account through a deliberate confirmation flow.
+
+Authentication state is managed centrally in the mobile application. Session information is stored using secure native device storage so a returning user can remain signed in after restarting the application. Native Google authentication was also integrated for iOS and Android. The Google identity token is sent to the backend, where its signature, issuer, expiry, and audience are verified before a Holistic Mind session is created.
+
+Email verification and password-reset delivery were integrated with a production email provider. Local development can use controlled logging for verification codes, while the production environment requires real email delivery. Several security weaknesses found during development, including temporary verification bypass behaviour, were removed before deployment.
+
+
+5. PERSONALISED ONBOARDING
+
+The onboarding flow was redesigned into a short, visually supportive journey. It explains the purpose of Holistic Mind and asks the user what currently feels most important to care for, the user's age range, and when a gentle self-care reminder would be most helpful. A summary screen explains how check-ins, practices, and reflection work together.
+
+The wording is intentionally non-diagnostic. The user is not asked to describe trauma in detail or complete a clinical questionnaire. Instead, onboarding gathers only enough context to establish a broad support goal and appropriate pacing. Responses are stored securely against the authenticated user's account and later contribute to recommendation context.
+
+
+6. HOME DASHBOARD AND DAILY CHECK-IN
+
+The Home screen has become the primary daily engagement point. It contains a Daily Check-In card, recommendation cards with exercise artwork, and a concise progress summary. The layout was refined so recommendation cards have consistent heights and typography instead of becoming excessively long when titles or descriptions vary.
+
+The Daily Check-In captures six dimensions of the user's present experience:
+
+1. Current nervous-system state.
+2. Current body feeling.
+3. Energy level.
+4. Stress level.
+5. Ability to focus.
+6. The type of support that would help most.
+
+The user selects from gentle, understandable options such as anxious, calm, tense, tired, scattered, grounded, or needing support to calm down. The interaction includes progress feedback, back navigation, validation, saving states, and a completion message. A check-in is saved to PostgreSQL under the authenticated user and local date. The same day's check-in can be updated without creating uncontrolled duplicates.
+
+Before the user completes a check-in, Home shows commonly useful tools. After completion, the section changes to “For you right now” and displays recommendations shaped by the current answers. Exercise images remain visible on Home to make the recommendations inviting, while the Explore catalogue remains visually minimal.
+
+
+7. HYBRID RECOMMENDATION ENGINE
+
+The recommendation system has evolved significantly from the transparent rule-based prototype proposed in the earlier review. It is now a hybrid architecture that combines controlled suitability rules, semantic content matching, user history, collaborative signals when enough data is available, diversity control, and direct feedback.
+
+When recommendations are requested, the mobile application sends an authenticated request rather than sending a freely editable user ID. The backend then retrieves the correct user's onboarding goal, latest daily check-in, recent journal context, previous exercise interactions, feedback, and all eligible published exercises. Exercise records contain structured recommendation metadata, including support goals, intended states, activation level, physical intensity, contraindication tags, whether breath holding is required, position requirements, and environment requirements.
+
+The user's real database identifier is replaced with a pseudonymous HMAC-based identifier before information is passed to the separate Python service. The system does not depend on a third-party generative-AI chatbot. Semantic matching is performed within the project's own recommendation service using a local ONNX sentence-embedding model. A deterministic lexical fallback is available if the embedding model cannot be loaded.
+
+Suitability rules remain the largest part of the score. For example, a down-regulating, low-intensity practice can receive a stronger score when the user reports anxiety, overwhelm, tension, or high stress. High-intensity exercises can be penalised when the user reports low energy, and exercises involving breath holds can be penalised for highly anxious or overwhelmed states. Exercises previously marked as uncomfortable can be excluded for that user.
+
+The system stores each recommendation request, the ordered results, score information, and a human-readable reason. It can record impressions, opens, starts, completions, abandonment, repetitions, saves, and user feedback. Following a recommended practice, the user can report whether they feel better, the same, or worse. These signals create a foundation for future improvement and collaborative ranking when sufficient real interaction data becomes available.
+
+If the dedicated recommendation service is unavailable, the mobile application can use a simpler local recommendation fallback. This means the user is not left with an empty Home screen during a temporary service problem. The current design therefore balances personalisation, explainability, suitability, privacy, and resilience.
+
+
+8. EXPLORE AND SOMATIC EXERCISE LIBRARY
+
+Explore provides user-led discovery alongside recommendation-led discovery. The exercise library was redesigned several times to reduce visual noise. Large exercise images were removed from Explore, and content was organised into consistent folder-style category cards. All category folders use a unified colour treatment, stable dimensions, dedicated minimal icons, fixed spacing, and exercise counts so long category names cannot distort the layout.
+
+The catalogue includes areas such as Nervous System Reset, Breathwork, Whole Body, Hip and Pelvic work, Spine and Core, Upper Body, Sensory Regulation, and other practice categories. Users can switch between somatic exercises and audio practices, open a category, and search the catalogue.
+
+Inside a category, each exercise is presented in a clearly separated card with aligned text and navigation indicators. This resolved an earlier layout problem where exercise titles, metadata, and arrows appeared disconnected. The catalogue can load published records from the backend and has a bundled fallback for resilience.
+
+The Exercise screen supports several guidance formats:
+
+- Timed breathing practices with an animated visual breathing guide.
+- Movement exercises with hosted video demonstrations.
+- Guided practices with clear step-by-step instructions.
+- A countdown timer with start, pause, completion, and repeat behaviour.
+- Post-practice state feedback for recommended exercises.
+
+Practice activity is stored so the application can display completed activity and identify exercises that a user returns to frequently.
+
+
+9. AUDIO LIBRARY AND PERSISTENT PLAYER
+
+Audio was developed as a separate, first-class content experience rather than being treated as a simple external link. The Audio Library supports backend-managed recordings, categories, cover artwork, descriptions, durations, publishing status, and streaming URLs.
+
+The full audio player includes artwork, current time, duration, play and pause controls, timeline seeking, and fifteen-second skipping. A compact player remains visible above the bottom navigation when the user moves to another screen. This creates a more professional experience and allows guided recordings to continue while the user explores other parts of the application.
+
+Audio files and artwork can be uploaded through the admin dashboard and stored in object storage. The backend validates content type, associates the file with the correct exercise record, and exposes published recordings to the mobile application.
+
+
+10. GUIDED AND FREE-FORM JOURNALING
+
+The Journal originally began as a single guided prompt. It has now become a more flexible reflection system. Users can choose from guided prompt packs addressing themes such as emotional awareness, anxiety, self-compassion, younger-self reflection, and boundaries. These prompts help users who want to reflect but do not know where to begin.
+
+A separate free-writing flow was added for users who simply want to write what they are feeling. The plus button opens a clean editor containing a title field and an open writing area. Free-form entries and guided responses are stored through the protected backend under the authenticated user's ID.
+
+The Journal screen displays previous entries, timestamps, prompt or title context, loading states, error states, and a supportive empty state. Journal entries are private to their owner. Recent journal context can contribute a limited signal to the recommendation engine, allowing personalisation to reflect more than a single daily check-in.
+
+
+11. STRUCTURED EDUCATIONAL LIBRARY
+
+A major addition since the Interim Progress Review is the educational Library. This is separate from the somatic exercise catalogue and is not directly treated as recommendation-engine content. Its purpose is to support deeper psychoeducation and structured learning.
+
+The hierarchy is:
+
+Course folder -> Module -> Chapter
+
+Course folders use a minimal, consistent design that does not resize according to the course name. Each course can contain a different number of modules, and each module can contain a different number and combination of chapters. Modules expand like folders, preventing all chapter details from appearing at once and reducing visual congestion.
+
+Supported chapter formats now include:
+
+- Video lessons.
+- Audio lessons.
+- Standalone PDF documents.
+- Interactive question-and-answer chapters.
+- Multiple-choice chapters with immediate feedback and explanations.
+
+Video chapters can also contain one or more attached PDF resources, such as worksheets or reference materials. PDF content opens inside the application rather than handing the user to an external browser. The PDF viewer supports reading within the app, local caching, retry behaviour, and a Download PDF action for saving or sharing the document. Dedicated PDF icons and labels were introduced so PDF chapters are no longer incorrectly represented as videos.
+
+Previous and next chapter navigation creates a continuous learning flow. Course, module, and chapter status can be controlled independently, allowing draft learning material to remain hidden until it is ready.
+
+
+12. HISTORY, PROGRESS, PROFILE, AND REMINDERS
+
+History was integrated into the Profile area to keep the main navigation focused. It combines saved check-ins and journal reflections into a chronological view. Users can filter between all activity, reflections, and check-ins and can choose the current week, previous week, or all history.
+
+The History screen includes a seven-day nervous-system trend visualisation, a weekly check-in summary, and frequently used practices. This makes the user's small daily actions visible over time without presenting the information as a clinical diagnosis or performance score.
+
+The Profile area supports user details, reminder preferences, password changes, history access, logout, and account deletion. Local notifications were implemented for a daily check-in reminder and an evening practice reminder. Notification permission is requested through the native platform, and reminders can be cancelled or resynchronised when the user changes preferences.
+
+
+13. ADMINISTRATION DASHBOARD AND CONTENT MANAGEMENT
+
+A dedicated web administration dashboard was created using React, Vite, and TypeScript. Access is protected by a production administrator API key that is stored only in the current browser session rather than embedded in the mobile app.
+
+The dashboard contains separate workspaces for exercises, audio, and the educational Library. It allows an authorised administrator to search content, update titles and descriptions, manage categories and display order, change publishing status, and edit the metadata used by the recommendation system. Recommendation metadata includes intended states, support goals, activation effect, physical intensity, contraindications, required position, and environmental requirements.
+
+The audio workspace allows new recordings to be created and supports artwork and audio upload or deletion. The exercise workspace supports updating catalogue records and uploading or replacing demonstration videos. The Library workspace supports full create, read, update, and delete operations for courses, modules, and chapters. It also supports course-cover uploads, chapter media uploads, PDF chapter uploads, video PDF attachments, interactive content, ordering, and independent draft or published states.
+
+Media uploads use temporary signed upload URLs. This avoids passing large video, audio, image, or PDF files through the main application server and is more suitable for cloud object storage. The backend verifies uploaded objects before associating them with content records.
+
+
+14. DATABASE, DATA OWNERSHIP, AND PRIVACY
+
+The PostgreSQL schema now supports the complete product rather than only authentication. It contains related tables for users, profiles, sessions, verification and recovery actions, onboarding responses, daily check-ins, journal entries, practice activity, exercises, media, audio, recommendation requests, recommendation results, events, feedback, courses, modules, chapters, and PDF attachments.
+
+Private wellness routes are protected by authentication middleware. User-owned records are always queried using the server-verified user ID. This prevents one client from requesting another person's journal or check-in data simply by changing an identifier. Sensitive configuration values, database credentials, signing secrets, storage credentials, email keys, and administrator keys are managed through environment variables and excluded from version control.
+
+Large media files are not stored directly inside PostgreSQL. The database stores structured metadata and object references, while the file itself is stored in S3-compatible object storage. This separation reduces database load and supports efficient streaming and downloading.
+
+
+15. LOCAL DEVELOPMENT, CLOUD DEPLOYMENT, AND CONTENT PROMOTION
+
+The local development environment was containerised using Docker Compose. PostgreSQL stores application data, MinIO provides local S3-compatible media storage, pgAdmin supports database inspection, and the Python recommender runs as an independent service. Health and readiness endpoints were implemented to confirm whether the backend and database are available.
+
+The production backend, PostgreSQL database, and recommender are deployed through Railway. Production media is stored through Cloudflare R2-compatible object storage, and the administration dashboard is deployed through Vercel. The mobile release is configured to communicate with the HTTPS Railway backend instead of the local development address.
+
+A significant deployment issue was that database migration scripts create table structure but do not copy locally edited content. Running seed scripts would restore committed defaults and could remove the practical value of edits made through the local admin panel. To solve this, content export and import tools were developed. These tools create a portable bundle containing exercises, exercise media, audio, courses, modules, chapters, PDF attachments, and every referenced media object. They deliberately exclude users, passwords, sessions, journals, check-ins, and personal history.
+
+The latest content promotion successfully exported 69 local exercises, one exercise video record, one audio record, three courses, six course modules, eleven chapters, two PDF attachments, and fifteen referenced media objects. The bundle was securely imported into Railway using an upsert process. This updated matching production content while preserving user-owned data and unrelated production records. The deployed health endpoint and public content APIs were checked after migration.
+
+
+16. BETA IOS BUILD
+
+The native iOS project includes the modules required for authentication, secure storage, notifications, background audio, video playback, file downloading and sharing, Google sign-in, and native PDF rendering. The project was compiled as a full Release archive for a physical ARM64 iPhone.
+
+Beta 2 was created as version 1.0.0, build number 2, with the Railway production endpoint embedded in the application bundle. The IPA archive was checked for ZIP integrity, bundle identifier, build number, device architecture, Google callback URL scheme, and the embedded production endpoint. Because an Apple Developer signing identity is not currently available on the development Mac, the resulting IPA is unsigned and intended to be signed by the selected third-party installation service before installation on a physical device.
+
+
+17. TESTING AND QUALITY ASSURANCE
+
+Testing has been continuous throughout development rather than left until the end. The application has been repeatedly checked in the iOS Simulator for layout, navigation, safe-area behaviour, text wrapping, keyboard interaction, media playback, loading states, and error states.
+
+Technical verification has included:
+
+- TypeScript compilation for the mobile application.
+- Production builds of the backend and administration dashboard.
+- Database migration and readiness checks.
+- Authentication smoke testing.
+- Account-isolation checks using multiple users.
+- Recommendation workflow testing and fallback behaviour.
+- Exercise, audio, video, and PDF media validation.
+- Production API health and content checks.
+- iOS Release archive compilation.
+- IPA metadata, architecture, endpoint, and integrity checks.
+
+The project also contains technical documentation covering setup, architecture, deployment, recommendation-engine behaviour, feature requirements, content promotion, and the development process.
+
+
+18. IMPORTANT CHALLENGES AND HOW THEY WERE RESOLVED
+
+The project involved several substantial challenges.
+
+The first challenge was selecting an architecture that could grow with the project. Firebase helped create the early authentication prototype, but it became restrictive once the application needed relational wellness data, recommendation events, a flexible curriculum, and complete content management. Replacing it with a custom backend required additional learning and implementation, but it produced a more coherent system.
+
+The second challenge was maintaining a calm interface while the number of features increased. Early Library and Explore layouts became crowded, icons were misplaced, arrows became disconnected from cards, and long names changed folder dimensions. These problems were resolved through repeated visual testing, stable card dimensions, improved spacing, simpler labels, consistent icons, restrained colours, expandable modules, and clearer separation between catalogue and detail screens.
+
+The third challenge was designing courses without assuming that every course had the same number of modules or every module had the same number of chapters. The data model and admin interface were changed to support variable nested structures, independent ordering, and different chapter types.
+
+The fourth challenge was managing large media files. Images, audio, video, and PDFs required validation, storage, upload progress, replacement, deletion, and reliable public URLs. Signed direct-to-storage uploads and object verification were introduced to handle this more safely and efficiently.
+
+The fifth challenge was recommendation accuracy and safety. A purely simple rule system was understandable but limited, while an unrestricted AI approach would have been difficult to control and justify. The hybrid approach keeps suitability rules dominant, adds semantic relevance, uses collaborative data only when sufficient evidence exists, excludes uncomfortable exercises, and provides a local fallback.
+
+The sixth challenge was keeping local and production content consistent. Schema migrations and seed scripts did not preserve edits made through the admin dashboard. The content export/import workflow solved this by moving managed records and referenced media while explicitly protecting personal user data.
+
+The seventh challenge was iOS native integration and signing. Google authentication, notifications, secure storage, background audio, PDF rendering, keychain entitlements, simulator builds, physical-device builds, and unsigned distribution behave differently. Diagnosing these differences improved the build process and resulted in a verifiable Beta 2 artifact, although final third-party signing remains necessary before physical installation.
+
+
+19. CURRENT PROJECT STATUS
+
+The project is now at an advanced integrated beta stage. The principal mobile journeys are implemented, the backend and database are operational, the recommendation engine is connected, the administration platform manages live content, production deployment is active, current content has been promoted to the cloud, and a new iOS Beta 2 IPA has been built.
+
+The project is no longer limited to static screens or mock data. User accounts, onboarding, check-ins, journals, activity, exercises, recommendations, courses, media, PDFs, and administrative changes are connected through the complete system.
+
+The most important remaining work is not the creation of another major subsystem. It is focused validation and refinement. This includes structured usability testing with representative users, expert review of wellbeing content, systematic evaluation of recommendation relevance, accessibility review, broader device testing, final signed distribution, production monitoring, and analysis of real interaction data. Collaborative recommendation behaviour should only be evaluated after enough genuine and ethically collected user feedback exists.
+
+
+20. PERSONAL REFLECTION
+
+This project has changed considerably from what I presented in the earlier Interim Progress Review. At that point, I had completed the research foundation and produced an early authentication and onboarding prototype. I understood the overall idea, but I had not yet experienced how many connected technical and design decisions would be required to turn that idea into a functioning product. Looking at the application now, I can see a clear transition from a prototype into an integrated beta platform.
+
+One of my biggest areas of growth has been architectural decision-making. Initially, using Firebase seemed like the fastest and most practical route. As I implemented more features, I realised that convenience at the beginning does not always lead to the best long-term structure. The decision to replace Firebase with a custom Node.js, PostgreSQL, and token-based backend was difficult because it meant reworking features I had already started. However, it taught me that iteration is not failure. Changing direction can be the correct engineering decision when it is based on clearer requirements and evidence.
+
+I have also learned that user-interface quality depends on many small decisions. A screen can contain all the correct features and still feel unpleasant if the spacing, hierarchy, text length, icon placement, and card proportions are inconsistent. The repeated redesign of the Library and Explore folders was sometimes frustrating because the problems appeared minor in code but were obvious when viewed on a phone. This process taught me to test visually, listen carefully to feedback, and treat design as part of functionality rather than as decoration added at the end.
+
+The recommendation engine was one of the most intellectually valuable parts of the project. At first, I viewed personalisation mainly as matching check-in answers to tags. Developing the hybrid engine required me to think more carefully about explainability, sparse data, unsuitable exercises, user feedback, semantic similarity, diversity, fallbacks, and privacy. I learned that using more advanced technology does not automatically make a recommendation better. The logic needs controlled metadata, clear boundaries, and a method for learning from outcomes without claiming clinical authority.
+
+Working with authentication and personal wellness data strengthened my understanding of security responsibility. It was not enough for login to appear successful on the screen. I needed to consider password hashing, refresh-session storage, account verification, token expiry, route protection, user ownership, logout revocation, environment secrets, keychain behaviour, and safe account deletion. The project has made me more cautious about shortcuts, especially when handling information that users may consider private or emotionally sensitive.
+
+I also gained practical experience that goes beyond writing application code. I worked with Docker, PostgreSQL, object storage, signed uploads, Railway, Vercel, native iOS builds, media formats, PDF rendering, environment configuration, deployment health checks, database migration, content promotion, and release verification. Problems often occurred at the boundaries between systems rather than inside one isolated file. Learning to trace a problem from the mobile interface through the API, database, storage, deployment environment, and native build has improved my debugging ability and confidence as a developer.
+
+Another important lesson was the value of building tools for the people who manage a product. The mobile app could not scale if every exercise title, module, video, or PDF required a code change. Developing the admin dashboard and content-promotion workflow showed me that a complete product includes operational tools, not only the user-facing experience. This was especially clear when local content edits did not automatically exist in Railway. Solving that problem required understanding the difference between schema, seed data, production records, media objects, and user-owned information.
+
+There are still limitations, and I do not consider the project finished simply because the main features work. The recommendation system needs evaluation with real users, the wellbeing content would benefit from continued expert review, accessibility should be tested more systematically, and the iOS application still requires appropriate signing for straightforward distribution. I have also learned to distinguish a technically functioning feature from an evidence-based claim about user benefit. Holistic Mind should be presented confidently as a wellness support and educational application, but not as a replacement for clinical care.
+
+Overall, I am proud of the progress because I have not only added more screens. I have built connections between user input, private data, intelligent recommendations, guided action, reflection, learning content, history, administration, cloud infrastructure, and release delivery. The project demonstrates a much broader range of skills than the early prototype and has given me experience in planning, full-stack development, machine-learning integration, data modelling, deployment, visual design, security, testing, and reflective problem-solving.
+
+The most significant personal change is that I now approach development with a more complete view of the system. I think about how a feature will be managed, tested, deployed, protected, and experienced over time, rather than only how to make it appear on a screen. This is the main lesson I will carry forward from the Holistic Mind project.
+
+
+CONCLUSION
+
+Holistic Mind has progressed from an early research and authentication prototype into a deployed, content-managed, personalised mobile wellness platform. The current system includes secure accounts, trauma-informed onboarding, multidimensional daily check-ins, a hybrid recommendation engine, somatic and breathing exercises, hosted video and audio, guided and free journaling, structured educational courses, interactive chapters, in-app PDF support, progress history, reminders, a protected administration dashboard, cloud infrastructure, and an iOS Beta 2 build.
+
+The work completed to date demonstrates that the original project idea is technically feasible and capable of supporting a coherent user journey. The remaining stage should focus on evaluation, accessibility, content validation, recommendation relevance, signed distribution, and evidence-based refinement. The project has achieved its main implementation objective while also creating a strong foundation for continued academic evaluation and future product development.

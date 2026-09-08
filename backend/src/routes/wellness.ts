@@ -31,9 +31,46 @@ const onboardingSchema = z.object({
   age: z.string().trim().min(1).max(30),
   dailyTime: z.string().trim().min(1).max(30),
 });
+const favoriteExerciseIdSchema = z.string().trim().min(1).max(160);
 
 export const wellnessRouter = Router();
 wellnessRouter.use(authenticate);
+
+wellnessRouter.get("/favorites", async (_request, response, next) => {
+  try {
+    const result = await pool.query<{ exercise_id: string }>(
+      `SELECT exercise_id FROM exercise_favorites
+       WHERE user_id = $1 ORDER BY created_at DESC`,
+      [response.locals.userId]
+    );
+    response.json({ data: { exerciseIds: result.rows.map((row) => row.exercise_id) } });
+  } catch (error) { next(error); }
+});
+
+wellnessRouter.put("/favorites/:exerciseId", async (request, response, next) => {
+  const parsed = favoriteExerciseIdSchema.safeParse(request.params.exerciseId);
+  if (!parsed.success) { response.status(400).json({ error: "Invalid exercise id." }); return; }
+  try {
+    await pool.query(
+      `INSERT INTO exercise_favorites (user_id, exercise_id) VALUES ($1, $2)
+       ON CONFLICT (user_id, exercise_id) DO NOTHING`,
+      [response.locals.userId, parsed.data]
+    );
+    response.json({ data: { exerciseId: parsed.data, favorite: true } });
+  } catch (error) { next(error); }
+});
+
+wellnessRouter.delete("/favorites/:exerciseId", async (request, response, next) => {
+  const parsed = favoriteExerciseIdSchema.safeParse(request.params.exerciseId);
+  if (!parsed.success) { response.status(400).json({ error: "Invalid exercise id." }); return; }
+  try {
+    await pool.query(
+      "DELETE FROM exercise_favorites WHERE user_id = $1 AND exercise_id = $2",
+      [response.locals.userId, parsed.data]
+    );
+    response.json({ data: { exerciseId: parsed.data, favorite: false } });
+  } catch (error) { next(error); }
+});
 
 wellnessRouter.get("/onboarding", async (_request, response, next) => {
   try {

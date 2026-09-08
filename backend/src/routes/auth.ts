@@ -18,6 +18,7 @@ import { hashActionCode, storeActionCode } from "../auth/actionTokens.js";
 import { EmailDeliveryError, sendPasswordResetCode, sendVerificationCode } from "../auth/email.js";
 import { OAuth2Client } from "google-auth-library";
 import { config } from "../config.js";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const emailSchema = z.email().max(254).transform((email) => email.trim().toLowerCase());
 const passwordSchema = z.string().min(8).max(128);
@@ -43,6 +44,10 @@ const forgotPasswordSchema = z.object({ email: emailSchema });
 const resetPasswordSchema = z.object({ email: emailSchema, code: codeSchema, newPassword: passwordSchema });
 const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(128), newPassword: passwordSchema });
 const googleSchema = z.object({ idToken: z.string().min(100).max(10000) });
+const appleSchema = z.object({
+  identityToken: z.string().min(100).max(10000),
+  fullName: z.string().trim().min(1).max(80).optional(),
+});
 
 const profileUpdateSchema = z
   .object({
@@ -69,6 +74,16 @@ const authAttemptLimiter = rateLimit({
 
 export const authRouter = Router();
 const googleClient = new OAuth2Client();
+const appleKeys = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
+
+async function verifyAppleIdentityToken(identityToken: string) {
+  if (!config.APPLE_CLIENT_ID) throw new Error("APPLE_CLIENT_ID_NOT_CONFIGURED");
+  const { payload } = await jwtVerify(identityToken, appleKeys, {
+    issuer: "https://appleid.apple.com",
+    audience: config.APPLE_CLIENT_ID,
+  });
+  return payload;
+}
 
 function respondToEmailDeliveryFailure(
   response: Parameters<Parameters<typeof authRouter.post>[1]>[1],
@@ -139,6 +154,93 @@ authRouter.post("/google", authAttemptLimiter, async (request, response, next) =
     }
     next(error);
   } finally { client.release(); }
+});
+
+authRouter.post("/apple", authAttemptLimiter, async (request, response, next) => {
+  const parsed = appleSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ error: "Invalid Apple sign-in response." });
+    return;
+  }
+  if (!config.APPLE_CLIENT_ID) {
+    response.status(503).json({ error: "Sign in with Apple is not configured." });
+    return;
+  }
+
+  try {
+    const payload = await verifyAppleIdentityToken(parsed.data.identityToken);
+    if (!payload.sub) {
+      response.status(401).json({ error: "Apple sign-in could not be verified." });
+      return;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const identity = await client.query<{ user_id: string }>(
+        "SELECT user_id FROM auth_identities WHERE provider = 'apple' AND provider_subject = $1 FOR UPDATE",
+        [payload.sub]
+      );
+      let userId = identity.rows[0]?.user_id;
+      let createdNewUser = false;
+
+      if (!userId) {
+        const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+        const emailVerified = payload.email_verified === true || payload.email_verified === "true";
+        if (!email || !emailVerified) {
+          await client.query("ROLLBACK");
+          response.status(401).json({ error: "Apple did not provide a verified email address for this account." });
+          return;
+        }
+
+        const existing = await client.query<{ id: string }>(
+          "SELECT id FROM users WHERE email = $1 AND status = 'active' FOR UPDATE",
+          [email]
+        );
+        if (existing.rows[0]) {
+          userId = existing.rows[0].id;
+          await client.query(
+            "UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW() WHERE id = $1",
+            [userId]
+          );
+        } else {
+          createdNewUser = true;
+          const created = await client.query<{ id: string }>(
+            "INSERT INTO users (email, password_hash, email_verified_at) VALUES ($1, NULL, NOW()) RETURNING id",
+            [email]
+          );
+          userId = created.rows[0].id;
+          await client.query(
+            "INSERT INTO user_profiles (user_id, name) VALUES ($1, $2)",
+            [userId, parsed.data.fullName || email.split("@")[0] || "Holistic Mind Member"]
+          );
+        }
+
+        await client.query(
+          `INSERT INTO auth_identities (user_id, provider, provider_subject, provider_email)
+           VALUES ($1, 'apple', $2, $3)`,
+          [userId, payload.sub, email]
+        );
+      }
+
+      const tokens = await issueTokenPair(client, userId);
+      await client.query("COMMIT");
+      const user = await getAuthUser(userId);
+      if (!user) throw new Error("Apple user could not be loaded");
+      response.json({ data: { ...serializeSessionUser(user), tokens, isNewUser: createdNewUser } });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    if (error instanceof Error && /jwt|signature|issuer|audience|token|claim/i.test(error.message)) {
+      response.status(401).json({ error: "Apple sign-in could not be verified." });
+      return;
+    }
+    next(error);
+  }
 });
 
 authRouter.post("/signup", authAttemptLimiter, async (request, response, next) => {
@@ -471,6 +573,7 @@ authRouter.delete("/me", authAttemptLimiter, authenticate, async (request, respo
   const parsed = z.union([
     z.object({ password: z.string().min(1).max(128) }),
     z.object({ googleIdToken: z.string().min(100).max(10000) }),
+    z.object({ appleIdentityToken: z.string().min(100).max(10000) }),
   ]).safeParse(request.body);
   if (!parsed.success) { response.status(400).json({ error: "Confirm your identity to delete your account." }); return; }
   try {
@@ -485,6 +588,13 @@ authRouter.delete("/me", authAttemptLimiter, authenticate, async (request, respo
       const identity = subject ? await pool.query(
         "SELECT 1 FROM auth_identities WHERE user_id = $1 AND provider = 'google' AND provider_subject = $2",
         [user.id, subject]
+      ) : null;
+      confirmed = Boolean(identity?.rows[0]);
+    } else if ("appleIdentityToken" in parsed.data && config.APPLE_CLIENT_ID) {
+      const payload = await verifyAppleIdentityToken(parsed.data.appleIdentityToken);
+      const identity = payload.sub ? await pool.query(
+        "SELECT 1 FROM auth_identities WHERE user_id = $1 AND provider = 'apple' AND provider_subject = $2",
+        [user.id, payload.sub]
       ) : null;
       confirmed = Boolean(identity?.rows[0]);
     }

@@ -65,6 +65,7 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
       exerciseResult,
       interactionResult,
       excludedResult,
+      recentRecommendationResult,
     ] = await Promise.all([
       pool.query(
         `SELECT support_goal FROM onboarding_responses WHERE user_id = $1`,
@@ -137,6 +138,22 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
          WHERE user_id = $1 AND uncomfortable = TRUE`,
         [userId]
       ),
+      pool.query(
+        `SELECT item.exercise_id
+         FROM recommendation_requests request
+         JOIN recommendation_items item ON item.request_id = request.id
+         WHERE request.user_id = $1
+           AND request.created_at > NOW() - INTERVAL '14 days'
+           AND COALESCE(request.context_snapshot->>'checkInId', '') <>
+             COALESCE((
+               SELECT id::text FROM daily_check_ins
+               WHERE user_id = $1
+               ORDER BY check_in_date DESC LIMIT 1
+             ), '')
+         ORDER BY request.created_at DESC, item.position ASC
+         LIMIT 24`,
+        [userId]
+      ),
     ]);
 
     if (!checkInResult.rows[0]) {
@@ -160,6 +177,9 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
         value: Number(row.value),
       })),
       excluded_exercise_ids: excludedResult.rows.map((row) => row.exercise_id),
+      recent_recommendation_ids: recentRecommendationResult.rows.map(
+        (row) => row.exercise_id
+      ),
       limit: 4,
     });
 

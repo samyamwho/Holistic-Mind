@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
@@ -16,6 +16,7 @@ import { dailyCheckInQuestions, exerciseLibrary } from "../../data/wellnessConte
 import { generateRecommendations } from "../../services/recommendations/recommendationApi";
 import { getRecommendations as getLocalRecommendations } from "../../services/recommendations/recommendationEngine";
 import DailyCheckInCard from "./components/DailyCheckInCard";
+import CheckInStreak from "./components/CheckInStreak";
 import DailyCheckInFlow from "./components/DailyCheckInFlow";
 import ProgressSummary from "./components/ProgressSummary";
 import RecommendedTools from "./components/RecommendedTools";
@@ -26,7 +27,7 @@ import type {
 } from "../../types/wellness";
 import { useAuth } from "../../context/AuthContext";
 import {
-  getLatestCheckIn,
+  getCheckIns,
   getPracticeEvents,
   saveCheckIn,
   subscribeToPracticeActivity,
@@ -39,6 +40,32 @@ function getLocalDateKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function shiftDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day, 12);
+  date.setDate(date.getDate() + days);
+  return getLocalDateKey(date);
+}
+
+export function getCurrentCheckInStreak(checkIns: DailyCheckIn[], now = new Date()) {
+  const completedDates = new Set(checkIns.map((checkIn) => checkIn.date.slice(0, 10)));
+  const today = getLocalDateKey(now);
+  const yesterday = shiftDateKey(today, -1);
+  let cursor = completedDates.has(today)
+    ? today
+    : completedDates.has(yesterday)
+      ? yesterday
+      : null;
+  let streak = 0;
+
+  while (cursor && completedDates.has(cursor)) {
+    streak += 1;
+    cursor = shiftDateKey(cursor, -1);
+  }
+
+  return streak;
 }
 
 function getRecommendationKey(checkIn: DailyCheckIn) {
@@ -69,6 +96,7 @@ export default function HomeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Partial<DailyCheckInAnswers>>({});
   const [latestCheckIn, setLatestCheckIn] = useState<DailyCheckIn | null>(null);
+  const [checkIns, setCheckIns] = useState<DailyCheckIn[]>([]);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckInComplete, setIsCheckInComplete] = useState(false);
   const [isSavingCheckIn, setIsSavingCheckIn] = useState(false);
@@ -90,16 +118,17 @@ export default function HomeScreen() {
     let active = true;
     setGreeting(getTimeGreeting());
     runAuthenticated(async (token) => {
-      const [checkIn, practiceEvents] = await Promise.all([
-        getLatestCheckIn(token),
+      const [savedCheckIns, savedPracticeEvents] = await Promise.all([
+        getCheckIns(token),
         getPracticeEvents(token),
       ]);
       if (active) {
-        setLatestCheckIn(checkIn);
+        setCheckIns(savedCheckIns);
+        setLatestCheckIn(savedCheckIns[0] ?? null);
         setPracticeEvents((current) => {
-          const fetchedIds = new Set(practiceEvents.map((event) => event.id));
+          const fetchedIds = new Set(savedPracticeEvents.map((event) => event.id));
           return [
-            ...practiceEvents,
+            ...savedPracticeEvents,
             ...current.filter((event) => !fetchedIds.has(event.id)),
           ];
         });
@@ -118,6 +147,7 @@ export default function HomeScreen() {
 
   const todayKey = getLocalDateKey();
   const isCompleteToday = latestCheckIn?.date === todayKey;
+  const checkInStreak = useMemo(() => getCurrentCheckInStreak(checkIns), [checkIns]);
   const exercisesDoneToday = practiceEvents.filter((event) =>
     event.kind === "exercise" &&
     getLocalDateKey(new Date(event.createdAt)) === todayKey
@@ -217,6 +247,7 @@ export default function HomeScreen() {
       try {
         const saved = await runAuthenticated((token) => saveCheckIn(token, todayKey, completedAnswers));
         setLatestCheckIn(saved);
+        setCheckIns((current) => [saved, ...current.filter((checkIn) => checkIn.date !== saved.date)]);
       } catch (error) {
         console.warn("Unable to save check-in", error);
         setCheckInError(error instanceof Error ? error.message : "Your check-in could not be saved. Please try again.");
@@ -248,6 +279,7 @@ export default function HomeScreen() {
     setAnswers({});
     setCurrentIndex(0);
     setLatestCheckIn(null);
+    setCheckIns([]);
     setIsCheckingIn(false);
     setIsCheckInComplete(false);
     setIsSavingCheckIn(false);
@@ -277,29 +309,32 @@ export default function HomeScreen() {
                 </Text>
               </View>
 
-              <Pressable
-                accessibilityHint="Opens your profile and settings"
-                accessibilityLabel="Open profile"
-                accessibilityRole="button"
-                hitSlop={8}
-                onPress={openProfile}
-                style={styles.profileButton}
-              >
-                {supportsLiquidGlass ? (
-                  <GlassView
-                    glassEffectStyle="regular"
-                    isInteractive
-                    style={styles.profileButtonSurface}
-                    tintColor="rgba(255, 248, 238, 0.18)"
-                  >
-                    <UserRound color="#673F3F" size={25} strokeWidth={2.2} />
-                  </GlassView>
-                ) : (
-                  <View style={[styles.profileButtonSurface, styles.profileButtonFallback]}>
-                    <UserRound color="#673F3F" size={25} strokeWidth={2.2} />
-                  </View>
-                )}
-              </Pressable>
+              <View style={styles.headerActions}>
+                <CheckInStreak isCompleteToday={isCompleteToday} streak={checkInStreak} />
+                <Pressable
+                  accessibilityHint="Opens your profile and settings"
+                  accessibilityLabel="Open profile"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={openProfile}
+                  style={styles.profileButton}
+                >
+                  {supportsLiquidGlass ? (
+                    <GlassView
+                      glassEffectStyle="regular"
+                      isInteractive
+                      style={styles.profileButtonSurface}
+                      tintColor="rgba(255, 248, 238, 0.18)"
+                    >
+                      <UserRound color="#673F3F" size={25} strokeWidth={2.2} />
+                    </GlassView>
+                  ) : (
+                    <View style={[styles.profileButtonSurface, styles.profileButtonFallback]}>
+                      <UserRound color="#673F3F" size={25} strokeWidth={2.2} />
+                    </View>
+                  )}
+                </Pressable>
+              </View>
             </View>
 
             <DailyCheckInCard isCompleteToday={isCompleteToday} onBegin={beginCheckIn} />
@@ -377,6 +412,11 @@ const styles = StyleSheet.create({
   greetingCopy: {
     flex: 1,
     minWidth: 0,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   greeting: {
     color: "rgba(95, 59, 43, 0.6)",

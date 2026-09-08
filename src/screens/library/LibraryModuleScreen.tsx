@@ -5,8 +5,9 @@ import { ArrowLeft, ArrowRight, Check, Clock3, Download, FileText, Headphones, L
 import { Alert, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAudioPlayerController } from "../../context/AudioPlayerContext";
+import { useAuth } from "../../context/AuthContext";
 import { exampleLibraryCourses, type LibraryChapter, type LibraryCourse } from "../../data/libraryCatalog";
-import { getLibraryCourse } from "../../services/library/libraryApi";
+import { completeLibraryChapter, getLibraryCourse, getLibraryProgress, uncompleteLibraryChapter } from "../../services/library/libraryApi";
 import { downloadPdf } from "../../services/library/pdfFiles";
 import { appSansFont as sansFont, screenLayout } from "../../theme/typography";
 
@@ -45,11 +46,14 @@ function InteractiveChapter({ chapter }: { chapter: LibraryChapter }) {
 }
 
 export default function LibraryModuleScreen({ navigation, route }: { navigation: any; route: { params?: { courseId?: string; moduleId?: string } } }) {
+  const { runAuthenticated } = useAuth();
   const courseId = route.params?.courseId;
   const moduleId = route.params?.moduleId;
   const fallback = useMemo(() => exampleLibraryCourses.find((item) => item.id === courseId) ?? null, [courseId]);
   const [course, setCourse] = useState<LibraryCourse | null>(fallback);
   const [refreshing, setRefreshing] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [savingCompletion, setSavingCompletion] = useState(false);
   const audioPlayer = useAudioPlayerController();
 
   const refreshCourse = useCallback(async (signal?: AbortSignal) => {
@@ -61,8 +65,9 @@ export default function LibraryModuleScreen({ navigation, route }: { navigation:
   useFocusEffect(useCallback(() => {
     const controller = new AbortController();
     void refreshCourse(controller.signal).catch(() => undefined);
+    if (moduleId) runAuthenticated(getLibraryProgress).then((value) => setIsCompleted(value.completedChapterIds.includes(moduleId))).catch(() => undefined);
     return () => controller.abort();
-  }, [refreshCourse]));
+  }, [moduleId, refreshCourse, runAuthenticated]));
 
   const manuallyRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -90,6 +95,20 @@ export default function LibraryModuleScreen({ navigation, route }: { navigation:
     try { await downloadPdf(url, title); }
     catch { Alert.alert("Download failed", "We couldn’t save this PDF. Check your connection and try again."); }
   };
+  const toggleCompletion = async () => {
+    if (!module || savingCompletion) return;
+    const next = !isCompleted;
+    setIsCompleted(next);
+    setSavingCompletion(true);
+    try {
+      await runAuthenticated((token) => next ? completeLibraryChapter(token, module.id) : uncompleteLibraryChapter(token, module.id));
+    } catch {
+      setIsCompleted(!next);
+      Alert.alert("Unable to update progress", "Check your connection and try again.");
+    } finally {
+      setSavingCompletion(false);
+    }
+  };
 
   if (!course || !module) return <SafeAreaView style={styles.missing}><Text style={styles.missingTitle}>Chapter not found</Text><Pressable onPress={navigation.goBack}><Text style={styles.backText}>Go back</Text></Pressable></SafeAreaView>;
 
@@ -114,6 +133,8 @@ export default function LibraryModuleScreen({ navigation, route }: { navigation:
 
         {module.description ? <View style={styles.lessonCopy}><Text style={styles.aboutLabel}>About this chapter</Text><Text style={styles.description}>{module.description}</Text></View> : null}
 
+        <View style={[styles.completionCard,isCompleted&&styles.completionCardDone]}><View style={[styles.completionIcon,isCompleted&&styles.completionIconDone]}><Check color={isCompleted?"#FFF8EE":"#70454A"} size={20} strokeWidth={2.2}/></View><View style={styles.completionCopy}><Text style={styles.completionTitle}>{isCompleted?"Chapter complete":"Finished this chapter?"}</Text><Text style={styles.completionText}>{isCompleted?"This is included in your course progress.":"Mark it complete when you’re ready."}</Text></View><Pressable accessibilityRole="button" accessibilityState={{checked:isCompleted,disabled:savingCompletion}} disabled={savingCompletion} onPress={()=>void toggleCompletion()} style={[styles.completionButton,isCompleted&&styles.completionButtonDone]}><Text style={[styles.completionButtonText,isCompleted&&styles.completionButtonTextDone]}>{isCompleted?"Undo":"Mark complete"}</Text></Pressable></View>
+
         <View style={styles.lessonNavigation}>
           <Pressable disabled={!previous} onPress={() => previous && goTo(previous)} style={({ pressed }) => [styles.navButton, !previous && styles.navButtonDisabled, pressed && previous && styles.pressed]}><ArrowLeft color={previous ? "#673F3F" : "rgba(95,59,43,.24)"} size={18} /><View><Text style={styles.navEyebrow}>Previous chapter</Text><Text numberOfLines={1} style={[styles.navTitle, !previous && styles.navTitleDisabled]}>{previous?.title ?? "First chapter"}</Text></View></Pressable>
           <Pressable disabled={!next} onPress={() => next && goTo(next)} style={({ pressed }) => [styles.navButton, styles.navButtonNext, !next && styles.navButtonDisabled, pressed && next && styles.pressed]}><View style={styles.nextCopy}><Text style={styles.navEyebrow}>Next chapter</Text><Text numberOfLines={1} style={[styles.navTitle, !next && styles.navTitleDisabled]}>{next?.title ?? "Course complete"}</Text></View><ArrowRight color={next ? "#673F3F" : "rgba(95,59,43,.24)"} size={18} /></Pressable>
@@ -133,6 +154,7 @@ const styles = StyleSheet.create({
   audioButton: { minHeight: 240, flexDirection: "row", alignItems: "center", gap: 15, padding: 18 }, audioArtwork: { position: "relative", width: 80, height: 118, overflow: "hidden", alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "#A26C74" }, audioOrb: { position: "absolute", width: 72, height: 72, top: -25, right: -24, borderRadius: 36, backgroundColor: "rgba(246,227,197,.34)" }, audioCopy: { flex: 1 }, audioKicker: { color: "#9A5B6A", fontSize: 9, fontWeight: "900", letterSpacing: .8, textTransform: "uppercase" }, audioLabel: { marginTop: 6, color: "#5F3B2B", fontSize: 16, lineHeight: 21, fontWeight: "800" }, audioHint: { marginTop: 5, color: "rgba(95,59,43,.50)", fontSize: 10, lineHeight: 15 }, playCircle: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "#70454A" },
   mediaPlaceholder: { minHeight: 240, alignItems: "center", justifyContent: "center", padding: 24 }, placeholderArtwork: { position: "relative", width: 70, height: 70, overflow: "hidden", alignItems: "center", justifyContent: "center", borderRadius: 24, backgroundColor: "#A26C74" }, placeholderOrb: { position: "absolute", width: 55, height: 55, top: -18, right: -17, borderRadius: 28, backgroundColor: "rgba(246,227,197,.34)" }, placeholderKicker: { marginTop: 14, color: "#9A5B6A", fontSize: 9, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" }, placeholderTitle: { marginTop: 5, color: "#673F3F", fontSize: 17, fontWeight: "800" }, placeholderText: { maxWidth: 275, marginTop: 7, color: "rgba(95,59,43,.53)", fontSize: 11, lineHeight: 17, textAlign: "center" },
   lessonCopy: { marginTop: 20, padding: 19, borderRadius: 20, backgroundColor: "rgba(255,251,244,.58)" }, aboutLabel: { color: "#9A5B6A", fontSize: 9, fontWeight: "900", letterSpacing: 1.1, textTransform: "uppercase" }, description: { marginTop: 8, color: "rgba(95,59,43,.68)", fontSize: 14, lineHeight: 22 },
+  completionCard:{minHeight:86,flexDirection:"row",alignItems:"center",gap:12,marginTop:20,padding:14,borderRadius:20,borderWidth:1,borderColor:"rgba(112,69,74,.14)",backgroundColor:"rgba(255,251,244,.70)"},completionCardDone:{borderColor:"rgba(84,115,91,.24)",backgroundColor:"rgba(183,201,177,.18)"},completionIcon:{width:38,height:38,flexShrink:0,alignItems:"center",justifyContent:"center",borderRadius:19,borderWidth:1,borderColor:"rgba(112,69,74,.18)"},completionIconDone:{borderColor:"#70856E",backgroundColor:"#70856E"},completionCopy:{minWidth:0,flex:1},completionTitle:{color:"#5F3B2B",fontSize:13,fontWeight:"800"},completionText:{marginTop:4,color:"rgba(95,59,43,.50)",fontSize:9,lineHeight:14,fontWeight:"600"},completionButton:{minHeight:38,alignItems:"center",justifyContent:"center",paddingHorizontal:13,borderRadius:19,backgroundColor:"#70454A"},completionButtonDone:{borderWidth:1,borderColor:"rgba(84,115,91,.24)",backgroundColor:"transparent"},completionButtonText:{color:"#FFF8EE",fontSize:9,fontWeight:"800"},completionButtonTextDone:{color:"#54735B"},
   interactiveCard:{marginTop:24,padding:21,borderRadius:22,borderWidth:1,borderColor:"rgba(95,59,43,.11)",backgroundColor:"rgba(255,251,244,.78)"},interactiveHeading:{flexDirection:"row",alignItems:"center",gap:9},interactiveLabel:{color:"#70454A",fontSize:10,fontWeight:"900",letterSpacing:.9,textTransform:"uppercase"},question:{marginTop:20,color:"#5F3B2B",fontSize:20,lineHeight:28,fontWeight:"700"},revealButton:{minHeight:50,marginTop:22,flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingHorizontal:16,borderRadius:16,borderWidth:1,borderColor:"rgba(112,69,74,.18)"},revealText:{color:"#70454A",fontSize:12,fontWeight:"800"},answerBox:{marginTop:14,padding:16,borderRadius:16,backgroundColor:"rgba(183,201,177,.18)"},answerLabel:{color:"#5D715E",fontSize:9,fontWeight:"900",letterSpacing:.8,textTransform:"uppercase"},answerText:{marginTop:7,color:"#4F5548",fontSize:13,lineHeight:20},options:{gap:10,marginTop:20},option:{minHeight:58,flexDirection:"row",alignItems:"center",gap:12,padding:12,borderRadius:16,borderWidth:1,borderColor:"rgba(95,59,43,.11)",backgroundColor:"rgba(255,255,255,.35)"},optionCorrect:{borderColor:"rgba(84,115,91,.38)",backgroundColor:"rgba(183,201,177,.20)"},optionWrong:{borderColor:"rgba(154,91,106,.32)",backgroundColor:"rgba(223,162,177,.14)"},optionMarker:{width:30,height:30,alignItems:"center",justifyContent:"center",borderRadius:15,borderWidth:1,borderColor:"rgba(112,69,74,.18)"},markerCorrect:{borderColor:"#54735B",backgroundColor:"#54735B"},markerWrong:{borderColor:"#9A5B6A",backgroundColor:"#9A5B6A"},optionLetter:{color:"#70454A",fontSize:10,fontWeight:"800"},optionText:{flex:1,color:"#5F3B2B",fontSize:13,lineHeight:19,fontWeight:"600"},feedback:{marginTop:15,paddingTop:15,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:"rgba(95,59,43,.12)"},feedbackTitle:{color:"#5F3B2B",fontSize:13,fontWeight:"800"},feedbackText:{marginTop:6,color:"rgba(95,59,43,.62)",fontSize:12,lineHeight:18},
   lessonNavigation: { gap: 10, marginTop: 25 }, navButton: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 15, borderRadius: 18, borderWidth: 1, borderColor: "rgba(95,59,43,.11)", backgroundColor: "rgba(255,251,244,.68)" }, navButtonNext: { justifyContent: "flex-end" }, navButtonDisabled: { opacity: .52 }, nextCopy: { flex: 1, alignItems: "flex-end" }, navEyebrow: { color: "rgba(95,59,43,.44)", fontSize: 8, fontWeight: "900", letterSpacing: .75, textTransform: "uppercase" }, navTitle: { maxWidth: 270, marginTop: 4, color: "#673F3F", fontSize: 11, fontWeight: "800" }, navTitleDisabled: { color: "rgba(95,59,43,.35)" }, pressed: { opacity: .76 },
   missing: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F6E3C5" }, missingTitle: { color: "#5F3B2B", fontSize: 22, fontWeight: "700" }, backText: { marginTop: 15, color: "#9A5B6A", fontWeight: "800" },

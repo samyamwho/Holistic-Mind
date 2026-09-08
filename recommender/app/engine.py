@@ -19,7 +19,10 @@ RULE_WEIGHT = 0.65
 CURRENT_CONTENT_WEIGHT = 0.20
 HISTORY_CONTENT_WEIGHT = 0.05
 COLLABORATIVE_WEIGHT = 0.10
-DIVERSITY_PENALTY = 0.045
+DIVERSITY_PENALTY = 0.08
+RECENT_REQUEST_PENALTY = 0.18
+RECENT_REQUEST_DECAY = 0.72
+MAX_RECENCY_PENALTY = 0.42
 
 
 @lru_cache(maxsize=1)
@@ -272,6 +275,60 @@ def _collaborative_scores(
     return scores, len(neighbours)
 
 
+def _recency_penalties(context: RecommendationContext) -> dict[str, float]:
+    """Penalise recent impressions gently so suitable results can rotate."""
+    penalties: dict[str, float] = defaultdict(float)
+    request_size = max(context.limit, 1)
+    for index, exercise_id in enumerate(context.recent_recommendation_ids):
+        request_age = index // request_size
+        penalty = RECENT_REQUEST_PENALTY * (RECENT_REQUEST_DECAY ** request_age)
+        penalties[exercise_id] = min(
+            MAX_RECENCY_PENALTY,
+            penalties[exercise_id] + penalty,
+        )
+    return penalties
+
+
+def _is_plausible_exploration(
+    exercise: Exercise,
+    context: RecommendationContext,
+    item: RecommendedItem,
+) -> bool:
+    """Keep the rotating slot aligned with the user's primary support need."""
+    support = _normalize_signal(context.check_in_answers.get("support", ""))
+    document = _normalize_signal(_exercise_document(exercise))
+    if support == "focus":
+        return any(
+            phrase in document
+            for phrase in (
+                "focus",
+                "attention",
+                "concentration",
+                "mental",
+                "present moment",
+                "orient",
+                "external",
+                "notic",
+                "steady",
+            )
+        )
+    if support == "calm down":
+        return exercise.activation_level == "down_regulating"
+    if support == "feel grounded":
+        return any(
+            phrase in document
+            for phrase in ("ground", "sensory", "contact", "orient", "present moment", "body connection")
+        )
+    if support == "get energy":
+        return exercise.activation_level == "up_regulating"
+    if support == "learn":
+        return any(
+            phrase in document
+            for phrase in ("awareness", "noticing", "reflection", "learn", "body scan", "emotion naming")
+        )
+    return item.score_components["rules"] >= 0.10
+
+
 def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], str, str]:
     excluded = set(context.excluded_exercise_ids)
     seen_ids: set[str] = set()
@@ -298,6 +355,7 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
         context.interactions,
     )
     collaborative_active = neighbour_count >= MIN_COLLABORATIVE_NEIGHBORS
+    recency_penalties = _recency_penalties(context)
 
     ranked: list[tuple[Exercise, RecommendedItem]] = []
     for index, exercise in enumerate(candidates):
@@ -318,6 +376,8 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
                 + 0.23 * current_content
                 + 0.05 * history_content
             )
+        recency_penalty = recency_penalties.get(exercise.id, 0.0)
+        final_score = max(0.0, final_score - recency_penalty)
 
         ranked.append((
             exercise,
@@ -332,6 +392,7 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
                     if collaborative_active
                     else 0.0,
                     "rules": round(rules, 6),
+                    "recency_penalty": round(recency_penalty, 6),
                 },
                 reason=_reason_for(exercise, context, matched_fields),
             )
@@ -340,7 +401,24 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
     ranked.sort(key=lambda pair: (-pair[1].score, pair[1].exercise_id))
     selected: list[RecommendedItem] = []
     category_counts: dict[str, int] = defaultdict(int)
-    remaining = ranked.copy()
+    support_aligned = [
+        (exercise, item)
+        for exercise, item in ranked
+        if _is_plausible_exploration(exercise, context, item)
+    ]
+    candidate_pool = (
+        support_aligned if len(support_aligned) >= context.limit else ranked
+    )
+    not_overexposed = [
+        (exercise, item)
+        for exercise, item in candidate_pool
+        if item.score_components["recency_penalty"] < MAX_RECENCY_PENALTY * 0.9
+    ]
+    remaining = (
+        not_overexposed
+        if len(not_overexposed) >= context.limit
+        else candidate_pool
+    ).copy()
     while remaining and len(selected) < context.limit:
         best_index = max(
             range(len(remaining)),
@@ -352,6 +430,39 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
         exercise, item = remaining.pop(best_index)
         selected.append(item)
         category_counts[exercise.category] += 1
+
+    # If yesterday's complete set would repeat, reserve only the final slot for
+    # a semantically plausible unseen option. The first three remain driven by
+    # suitability and safety, while the exploration slot prevents stagnation.
+    most_recent_ids = set(context.recent_recommendation_ids[:context.limit])
+    if (
+        most_recent_ids
+        and len(selected) == context.limit
+        and all(item.exercise_id in most_recent_ids for item in selected)
+    ):
+        selected_ids = {item.exercise_id for item in selected}
+        fresh_candidates = [
+            (exercise, item)
+            for exercise, item in ranked
+            if exercise.id not in most_recent_ids
+            and exercise.id not in selected_ids
+            and _is_plausible_exploration(exercise, context, item)
+        ]
+        if fresh_candidates:
+            retained_category_counts: dict[str, int] = defaultdict(int)
+            exercise_by_id = {exercise.id: exercise for exercise, _ in ranked}
+            for item in selected[:-1]:
+                retained_category_counts[exercise_by_id[item.exercise_id].category] += 1
+            _, exploration_item = max(
+                fresh_candidates,
+                key=lambda pair: (
+                    pair[1].score
+                    - DIVERSITY_PENALTY
+                    * retained_category_counts[pair[0].category]
+                ),
+            )
+            exploration_item.exploration = True
+            selected[-1] = exploration_item
 
     strategy = "hybrid" if collaborative_active else "content-based-cold-start"
     return selected, strategy, embedding_backend

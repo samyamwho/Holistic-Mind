@@ -19,6 +19,7 @@ import { saveOnboardingResponses } from "../../services/wellness/wellnessApi";
 type OnboardingScreenProps = {
   navigation: {
     replace: (screen: string) => void;
+    reset: (state: { index: number; routes: { name: string }[] }) => void;
   };
 };
 
@@ -134,7 +135,7 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
       setIsSaving(true);
       try {
         await runAuthenticated((token) => saveOnboardingResponses(token, { support, age, dailyTime }));
-        navigation.replace("MainTabs");
+        navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
       } catch {
         Alert.alert("Unable to save", "Please check your connection and try again.");
       } finally {
@@ -155,7 +156,7 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
   };
 
   const skip = () => {
-    navigation.replace("MainTabs");
+    navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
   };
 
   const selectAnswer = (key: string, value: string) => {

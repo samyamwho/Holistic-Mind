@@ -7,6 +7,7 @@ export type AuthUser = {
   createdAt: string;
   emailVerified: boolean;
   hasPassword: boolean;
+  authProviders: Array<"apple" | "google">;
 };
 
 export type AuthPreferences = {
@@ -91,6 +92,13 @@ export function loginWithGoogle(idToken: string) {
   });
 }
 
+export function loginWithApple(identityToken: string, fullName?: string) {
+  return request<AuthenticatedSession & { isNewUser: boolean }>("/api/auth/apple", {
+    method: "POST",
+    body: JSON.stringify({ identityToken, fullName }),
+  });
+}
+
 export function refreshSession(refreshToken: string) {
   return request<AuthenticatedSession>("/api/auth/refresh", {
     method: "POST",
@@ -159,7 +167,7 @@ export function changePassword(accessToken: string, currentPassword: string, new
   });
 }
 
-export function deleteAccount(accessToken: string, confirmation: { password: string } | { googleIdToken: string }) {
+export function deleteAccount(accessToken: string, confirmation: { password: string } | { googleIdToken: string } | { appleIdentityToken: string }) {
   return request<void>("/api/auth/me", {
     method: "DELETE",
     headers: { authorization: `Bearer ${accessToken}` },

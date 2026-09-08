@@ -119,7 +119,11 @@ export default function AppNavigator() {
                 <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
                 <Stack.Screen name="Welcome" component={WelcomeScreen} />
                 <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-                <Stack.Screen name="MainTabs" component={Tabs} />
+                <Stack.Screen
+                    name="MainTabs"
+                    component={Tabs}
+                    options={{ gestureEnabled: false }}
+                />
                 <Stack.Screen
                     name="Profile"
                     component={ProfileScreen}

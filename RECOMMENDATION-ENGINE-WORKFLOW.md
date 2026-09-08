@@ -234,6 +234,13 @@ Answer labels and metadata are normalized before matching, so values such as
 give today's explicit support request and current state the strongest influence,
 while recent journals and longer-term goals remain secondary.
 
+The final ranking also considers exercise impressions from the previous 14 days.
+Recently displayed exercises receive a capped, time-decaying repetition penalty.
+If an otherwise identical set of four would repeat from the most recent request,
+the fourth position is reserved for one new semantically plausible exercise. The
+first three positions remain suitability-led, so rotation cannot displace the
+strongest safety matches.
+
 ## Step 11 — Exercises Are Filtered and Ranked
 
 Before producing the final result, the engine:

@@ -112,6 +112,7 @@ export type AuthUserRow = {
   daily_reminder: boolean;
   practice_reminder: boolean;
   haptics: boolean;
+  auth_providers: Array<"apple" | "google">;
   created_at: Date;
   updated_at: Date;
 };
@@ -289,6 +290,13 @@ export async function ensureSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS exercise_favorites (
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      exercise_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, exercise_id)
+    );
+
     CREATE TABLE IF NOT EXISTS library_courses (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -336,6 +344,14 @@ export async function ensureSchema() {
       display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS library_chapter_progress (
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      chapter_id TEXT NOT NULL REFERENCES library_modules(id) ON DELETE CASCADE,
+      completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, chapter_id)
     );
 
     ALTER TABLE exercises
@@ -436,6 +452,8 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS practice_events_user_created_idx ON practice_events(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS practice_events_user_exercise_idx ON practice_events(user_id, exercise_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS exercises_status_order_idx ON exercises(status, display_order, title);
+    CREATE INDEX IF NOT EXISTS exercise_favorites_user_created_idx
+      ON exercise_favorites(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS library_courses_status_order_idx
       ON library_courses(status, display_order, title);
     ALTER TABLE library_modules
@@ -472,6 +490,8 @@ export async function ensureSchema() {
       ON library_modules(course_id, status, display_order, title);
     CREATE INDEX IF NOT EXISTS library_modules_module_order_idx
       ON library_modules(course_module_id, status, display_order, title);
+    CREATE INDEX IF NOT EXISTS library_chapter_progress_user_completed_idx
+      ON library_chapter_progress(user_id, completed_at DESC);
     CREATE INDEX IF NOT EXISTS library_chapter_attachments_chapter_order_idx
       ON library_chapter_attachments(chapter_id, display_order, created_at);
     CREATE INDEX IF NOT EXISTS recommendation_requests_user_created_idx
@@ -492,6 +512,7 @@ export function serializeAuthUser(row: AuthUserRow) {
       email: row.email,
       emailVerified: row.email_verified_at !== null,
       hasPassword: row.password_hash !== null,
+      authProviders: row.auth_providers,
       name: row.name,
       createdAt: row.created_at.toISOString(),
     },
