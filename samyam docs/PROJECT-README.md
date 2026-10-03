@@ -1,5 +1,8 @@
 # Holistic Mind
 
+Documentation now lives in `samyam docs`. Start with [the documentation index](README.md).
+All shell commands and inline project paths in this guide are relative to the repository root, not this folder.
+
 Holistic Mind is an Expo React Native wellness app with a Node.js backend.
 
 The app currently includes backend authentication, per-user onboarding, daily check-ins, persistent journals, personalized recommendations, a backend-managed exercise library, a separate curriculum library with audio/video modules, guided breathing, hosted media, an admin dashboard, and a profile screen.
@@ -217,6 +220,9 @@ Open another terminal and run:
 ```bash
 cd /Users/samyamshrestha/Holistic-Mind
 npm run start:local
+
+npx expo start --dev-client --clear
+
 ```
 
 Press `i` in the Expo terminal to open the iOS Simulator.
@@ -330,7 +336,8 @@ Right-click a table, choose **View/Edit Data > All Rows**, and pgAdmin displays 
 | `auth_sessions` | Refresh sessions and expiration times |
 | `onboarding_responses` | Support goal, age range, and preferred daily time per user |
 | `daily_check_ins` | Dated check-in answers per user |
-| `journal_entries` | Journal prompt, content, and timestamps per user |
+| `journal_entries` | Encrypted journal envelopes and timestamps; legacy text until device migration |
+| `journal_vaults` | Public key ID and encrypted key check; no secret keys |
 | `exercises` | Backend-managed Explore catalog, images, visibility, order, and tags |
 | `exercise_media` | Uploaded video location and media metadata |
 | `exercise_audio` | Uploaded audio location, format, duration, and readiness |
@@ -345,9 +352,9 @@ All private wellness records use the authenticated user's server-verified `user_
 - A daily check-in creates or updates the user's record for that date.
 - Journal entries create separate `journal_entries` rows owned by that user.
 - The mobile API only returns journal entries and check-ins belonging to the logged-in user.
-- Recommendations combine the support goal, latest check-in answers, and themes detected from up to ten recent journal entries.
+- Recommendations combine the support goal, latest check-in answers, comfort preferences, and exercise interactions. Journal text and embeddings are not sent to the recommender.
 
-Journal text is currently stored as readable PostgreSQL text. Do not log journal request bodies or expose direct database access to app users.
+New journal titles and text are encrypted on the user’s device before upload. The user must save a recovery key; existing plaintext entries require an unlocked device migration. See [journal privacy and rollout](<journal-privacy.md>) for recovery, backup-retention limits, and verification. This source change has not migrated deployed journals.
 
 ## Managing Exercises In The Admin Dashboard
 
@@ -482,7 +489,10 @@ Authenticated user endpoints require `Authorization: Bearer <access-token>`:
 | `GET` / `PUT` | `/api/wellness/onboarding` | Read or save onboarding answers |
 | `GET` | `/api/wellness/check-ins/latest` | Latest user check-in |
 | `PUT` | `/api/wellness/check-ins` | Save the user's dated check-in |
-| `GET` / `POST` | `/api/wellness/journal` | List or create the user's journal entries |
+| `GET` / `POST` | `/api/wellness/journal` | List or create encrypted journal entries |
+| `GET` / `PUT` | `/api/wellness/journal/vault` | Read or create the immutable encrypted key check |
+| `GET` | `/api/wellness/journal/legacy` | Read remaining plaintext entries for device migration |
+| `PUT` | `/api/wellness/journal/:id/encrypt` | Replace one legacy entry with verified device ciphertext |
 
 Administrator endpoints require the `x-admin-key` header:
 
@@ -655,13 +665,15 @@ Restart the backend and mobile app. Explore keeps a bundled fallback catalog, bu
 | `src/screens/exercise/ExerciseScreen.tsx` | Exercise and video player |
 | `src/services/exercises/exerciseCatalogApi.ts` | Fetches the backend exercise catalog |
 | `src/services/exercises/exerciseMediaApi.ts` | Fetches video information |
-| `src/services/wellness/wellnessApi.ts` | Onboarding, check-in, and journal APIs |
+| `src/services/wellness/wellnessApi.ts` | Authenticated wellness transport and APIs |
+| `src/context/JournalContext.tsx` | Device encryption, recovery, and migration orchestration |
 | `src/services/recommendations/recommendationEngine.ts` | Combines wellness signals into recommendations |
 | `admin/src/App.tsx` | Exercise administrator interface |
 | `admin/src/api.ts` | Admin catalog and media requests |
 | `backend/src/routes/auth.ts` | Signup, login, session, and profile API |
 | `backend/src/auth/` | Password hashing and token management |
-| `backend/src/routes/wellness.ts` | Per-user onboarding, check-in, and journal API |
+| `backend/src/routes/wellness.ts` | Per-user onboarding and check-in API |
+| `backend/src/routes/journal.ts` | Ciphertext storage and legacy migration API |
 | `backend/src/routes/exercises.ts` | Public exercise catalog and protected admin API |
 | `backend/src/routes/exerciseMedia.ts` | Video upload and media API |
 | `backend/src/scripts/seedExercises.ts` | Imports the starter catalog into PostgreSQL |
@@ -682,7 +694,7 @@ Holistic Mind uses a local Python recommendation service rather than an external
 AI API. The service combines:
 
 - semantic content similarity from `sentence-transformers/all-MiniLM-L6-v2`;
-- onboarding goals, the latest check-in, and up to ten recent journal entries;
+- onboarding goals, the latest check-in, and up to three recent journal entries (1,200 characters each);
 - rule-based suitability signals from exercise metadata; and
 - pseudonymised completion and helpfulness data for collaborative filtering.
 
@@ -715,3 +727,49 @@ The authenticated mobile flow calls `POST /api/recommendations/generate`. The
 backend collects the user's context, requests a local ranking, stores the ranked
 items and score components, and returns the recommendation request ID used for
 interaction and helpfulness feedback.
+
+
+## Recommendation benchmark and dashboard
+
+Open `recommender/evaluation/evaluation_results.html` in a browser for the lexical
+benchmark, or `recommender/evaluation/evaluation_results_onnx.html` for real MiniLM
+embeddings. These are self-contained offline reports with model comparisons,
+searchable persona heatmaps, per-run exercise labels, metric explanations, and
+JSON/CSV downloads. The PNG/SVG files beside them are charts for reports or slides.
+
+From the project root:
+
+```bash
+# Re-run the reproducible lexical benchmark and regenerate HTML, PNG and SVG.
+npm run benchmark
+
+# Run the actual ONNX model (fails instead of silently falling back).
+npm run benchmark:onnx
+
+# Regression tests and Python type checking.
+npm run recommender:test
+npm run recommender:typecheck
+```
+
+See [the evaluation guide](<RECOMMENDATION-BENCHMARK.md>) for methodology,
+limitations, environment setup, and interpretation of remaining label violations.
+
+
+## Daily comfort preferences
+
+The final check-in question includes optional choices to avoid self-touch, breath
+holds, head/eye scanning, and inward body scans. They apply to that check-in and
+are stored in the existing per-user `daily_check_ins.answers` JSON as
+`comfortPreferences`; no database migration is required. Earlier check-ins without
+this field remain valid. Preferences are mapped by the shared
+`backend/src/data/comfortPreferences.ts` policy into Python exclusions/signals and
+are also enforced by the mobile fallback. Exercise metadata and existing
+uncomfortable-feedback exclusions continue to apply on the server.
+
+Run `npm run test:comfort` to test the preference path. The original authored
+benchmark stays unchanged so its scores remain comparable.
+
+New journal content is encrypted on the user’s device before upload. The backend
+no longer sends journal text or embeddings to the recommender. Older plaintext
+entries require migration on an unlocked user device. See
+[the journal privacy guide](journal-privacy.md) for recovery and rollout limits.

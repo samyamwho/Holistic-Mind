@@ -42,18 +42,42 @@ export class ApiError extends Error {
   }
 }
 
+function backendUnavailableMessage() {
+  return `Cannot reach the app server at ${API_URL}. Start the backend and check this address. On a physical device, use your computer’s LAN address instead of 127.0.0.1.`;
+}
+
+export async function assertAuthServerReady() {
+  if (!API_URL) throw new ApiError("The backend API is not configured.", 0);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${API_URL}/ready`, { signal: controller.signal });
+    if (!response.ok) throw new ApiError("The app server is starting. Try again in a moment.", response.status);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(backendUnavailableMessage(), 0);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}) {
   if (!API_URL) {
     throw new ApiError("The backend API is not configured.", 0);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "content-type": "application/json",
-      ...options.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "content-type": "application/json",
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new ApiError(backendUnavailableMessage(), 0);
+  }
 
   if (response.status === 204) {
     return undefined as T;

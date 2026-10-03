@@ -1,8 +1,10 @@
 import hashlib
+import logging
 import os
 import re
 from collections import defaultdict
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 
@@ -12,7 +14,12 @@ MODEL_NAME = os.getenv(
     "SENTENCE_TRANSFORMER_MODEL",
     "sentence-transformers/all-MiniLM-L6-v2",
 )
-MODEL_PATH = os.getenv("SENTENCE_TRANSFORMER_PATH", "/models/all-MiniLM-L6-v2")
+_CONTAINER_MODEL_PATH = Path("/models/all-MiniLM-L6-v2")
+_LOCAL_MODEL_PATH = Path(__file__).resolve().parent.parent / ".python/models/all-MiniLM-L6-v2"
+MODEL_PATH = os.getenv(
+    "SENTENCE_TRANSFORMER_PATH",
+    str(_CONTAINER_MODEL_PATH if _CONTAINER_MODEL_PATH.exists() else _LOCAL_MODEL_PATH),
+)
 MIN_COLLABORATIVE_NEIGHBORS = int(os.getenv("MIN_COLLABORATIVE_NEIGHBORS", "2"))
 MIN_COMMON_INTERACTIONS = int(os.getenv("MIN_COMMON_INTERACTIONS", "2"))
 RULE_WEIGHT = 0.65
@@ -73,7 +80,9 @@ def encode(texts: list[str]) -> tuple[np.ndarray, str]:
                 [item.type_ids for item in encoded],
                 dtype=np.int64,
             )
-        output = session.run(None, inputs)[0]
+        output = np.asarray(session.run(None, inputs)[0], dtype=np.float32)
+        if output.ndim not in {2, 3} or output.shape[0] != len(texts):
+            raise ValueError("Unexpected embedding model output shape")
         if output.ndim == 3:
             mask = attention_mask[..., None].astype(np.float32)
             embeddings = (output * mask).sum(axis=1) / np.maximum(mask.sum(axis=1), 1e-8)
@@ -82,10 +91,19 @@ def encode(texts: list[str]) -> tuple[np.ndarray, str]:
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
         embeddings = embeddings / np.maximum(norms, 1e-8)
         return embeddings.astype(np.float32), f"{MODEL_NAME}:onnx"
-    except Exception:
+    except Exception as error:
         if os.getenv("ALLOW_LEXICAL_FALLBACK", "true").lower() != "true":
             raise
+        _report_embedding_fallback(type(error).__name__)
         return _lexical_embeddings(texts), "lexical-fallback"
+
+
+@lru_cache(maxsize=8)
+def _report_embedding_fallback(error_type: str) -> None:
+    # Never include input documents or exception payloads in logs.
+    logging.getLogger(__name__).warning(
+        "Embedding model unavailable (%s); using lexical fallback", error_type
+    )
 
 
 def _exercise_document(exercise: Exercise) -> str:
@@ -208,6 +226,41 @@ def _rule_score(exercise: Exercise, context: RecommendationContext) -> float:
     return _rule_evaluation(exercise, context)[0]
 
 
+def contraindication_reasons(exercise: Exercise, context: RecommendationContext) -> list[str]:
+    """Enforce existing metadata and breath-hold constraints before ranking.
+
+    Journal similarity is not a reliable detector of contraindications. Only
+    explicitly supplied signals are used; unknown risks remain unknown.
+    """
+    answers = {key: _normalize_signal(value) for key, value in context.check_in_answers.items()}
+    signals = set(answers.values()) | {_normalize_signal(value) for value in context.contraindication_signals}
+    tags = {_normalize_signal(value) for value in exercise.contraindication_tags}
+    signals.discard("")
+    tags.discard("")
+    reasons = sorted(signals & tags)
+    if exercise.breath_hold_required and (
+        answers.get("state") in {"anxious", "overwhelmed"}
+        or answers.get("stress") == "very stressed"
+    ):
+        reasons.append("breath hold during high activation")
+    return reasons
+
+
+def eligible_candidates(context: RecommendationContext, enforce_suitability: bool = True) -> list[Exercise]:
+    """Share candidate deduplication/exclusions with evaluation baselines."""
+    excluded = set(context.excluded_exercise_ids)
+    seen: set[str] = set()
+    candidates = []
+    for exercise in context.exercises:
+        if exercise.id in excluded or exercise.id in seen:
+            continue
+        seen.add(exercise.id)
+        if enforce_suitability and contraindication_reasons(exercise, context):
+            continue
+        candidates.append(exercise)
+    return candidates
+
+
 def _reason_for(
     exercise: Exercise,
     context: RecommendationContext,
@@ -289,12 +342,12 @@ def _recency_penalties(context: RecommendationContext) -> dict[str, float]:
     return penalties
 
 
-def _is_plausible_exploration(
+def _is_support_aligned(
     exercise: Exercise,
     context: RecommendationContext,
     item: RecommendedItem,
 ) -> bool:
-    """Keep the rotating slot aligned with the user's primary support need."""
+    """Align the candidate pool and rotating slot with the primary support need."""
     support = _normalize_signal(context.check_in_answers.get("support", ""))
     document = _normalize_signal(_exercise_document(exercise))
     if support == "focus":
@@ -330,14 +383,7 @@ def _is_plausible_exploration(
 
 
 def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], str, str]:
-    excluded = set(context.excluded_exercise_ids)
-    seen_ids: set[str] = set()
-    candidates: list[Exercise] = []
-    for item in context.exercises:
-        if item.id in excluded or item.id in seen_ids:
-            continue
-        seen_ids.add(item.id)
-        candidates.append(item)
+    candidates = eligible_candidates(context)
     if not candidates:
         return [], "no-candidates", MODEL_NAME
 
@@ -401,14 +447,12 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
     ranked.sort(key=lambda pair: (-pair[1].score, pair[1].exercise_id))
     selected: list[RecommendedItem] = []
     category_counts: dict[str, int] = defaultdict(int)
+    # Preserve primary-support alignment when there are enough eligible options.
     support_aligned = [
-        (exercise, item)
-        for exercise, item in ranked
-        if _is_plausible_exploration(exercise, context, item)
+        (exercise, item) for exercise, item in ranked
+        if _is_support_aligned(exercise, context, item)
     ]
-    candidate_pool = (
-        support_aligned if len(support_aligned) >= context.limit else ranked
-    )
+    candidate_pool = support_aligned if len(support_aligned) >= context.limit else ranked
     not_overexposed = [
         (exercise, item)
         for exercise, item in candidate_pool
@@ -446,7 +490,7 @@ def recommend(context: RecommendationContext) -> tuple[list[RecommendedItem], st
             for exercise, item in ranked
             if exercise.id not in most_recent_ids
             and exercise.id not in selected_ids
-            and _is_plausible_exploration(exercise, context, item)
+            and _is_support_aligned(exercise, context, item)
         ]
         if fresh_candidates:
             retained_category_counts: dict[str, int] = defaultdict(int)

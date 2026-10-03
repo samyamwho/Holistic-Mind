@@ -330,6 +330,16 @@ export default function ProfileSection({ navigation }: ProfileScreenProps) {
               />
             </View>
 
+            <Text style={styles.sectionLabel}>Journal privacy</Text>
+            <View style={styles.sectionSurface}>
+              <ActionRow
+                description="Recovery key, encryption, and lock"
+                icon={<KeyRound color="#70454A" size={20} strokeWidth={2} />}
+                label="Journal security"
+                onPress={() => rootNavigation.navigate("JournalSecurity")}
+              />
+            </View>
+
             <Text style={styles.sectionLabel}>Reminders and feel</Text>
             <View style={styles.sectionSurface}>
               <PreferenceRow

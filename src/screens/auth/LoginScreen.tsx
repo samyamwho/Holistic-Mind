@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -12,9 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { assertAuthServerReady } from "../../services/auth/authApi";
 import { getGoogleIdToken } from "../../services/auth/googleAuth";
-import { getAppleIdentity } from "../../services/auth/appleAuth";
-import AppleSignInButton from "../../components/auth/AppleSignInButton";
 
 type LoginScreenProps = {
   navigation: {
@@ -29,26 +28,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
-  const { signIn, signInWithApple, signInWithGoogle } = useAuth();
-
-  useEffect(() => {
-    if (Platform.OS !== "ios") return;
-
-    let isActive = true;
-    void import("expo-apple-authentication")
-      .then((AppleAuthentication) => AppleAuthentication.isAvailableAsync())
-      .then((isAvailable) => {
-        if (isActive) setIsAppleAuthAvailable(isAvailable);
-      })
-      .catch(() => {
-        if (isActive) setIsAppleAuthAvailable(false);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+  const { signIn, signInWithGoogle } = useAuth();
 
   const completeLogin = async () => {
     if (!email.trim() || !password) {
@@ -71,24 +51,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const completeGoogleLogin = async () => {
     setErrorMessage(""); setIsSubmitting(true);
     try {
+      await assertAuthServerReady();
       const idToken = await getGoogleIdToken();
       if (!idToken) return;
       const result = await signInWithGoogle(idToken);
       navigation.replace(result.isNewUser ? "Onboarding" : "MainTabs");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Google sign-in could not be completed.");
-    } finally { setIsSubmitting(false); }
-  };
-
-  const completeAppleLogin = async () => {
-    setErrorMessage(""); setIsSubmitting(true);
-    try {
-      const identity = await getAppleIdentity();
-      if (!identity) return;
-      const result = await signInWithApple(identity.identityToken, identity.fullName);
-      navigation.replace(result.isNewUser ? "Onboarding" : "MainTabs");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Apple sign-in could not be completed.");
     } finally { setIsSubmitting(false); }
   };
 
@@ -179,9 +148,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               <Pressable accessibilityRole="button" disabled={isSubmitting} onPress={completeGoogleLogin} style={styles.googleButton}>
                 <Text style={styles.googleLetter}>G</Text><Text style={styles.googleButtonText}>Continue with Google</Text>
               </Pressable>
-              {Platform.OS === "ios" && isAppleAuthAvailable
-                ? <AppleSignInButton disabled={isSubmitting} onPress={completeAppleLogin} />
-                : null}
             </View>
 
             <Text style={styles.switchText}>

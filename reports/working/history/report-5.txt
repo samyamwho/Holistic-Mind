@@ -1,0 +1,120 @@
+SOURCE: Sunway Final Progress Review.pdf
+
+--- PAGE 1 ---
+25–26 Final Progress Review
+CMP6200/DIG6200
+Individual Undergraduate Project (FYP)
+Final Progress Review
+The Holistic Mind: A Trauma-Informed, AI-Powered Mobile
+Application for Mental Health Self-Regulation
+Student Name: Samyam Shrestha
+Student ID: 23189645
+Course: Individual Honours Project
+Supervisor: Rabin Ghimire
+Reporting Date: 2 September 2026
+--- PAGE 2 ---
+Final Progress Review
+Contents
+1 Progress to Date – Summary 2
+2 Artefact Design and Development 2
+2.1 2.2 Implementation and Current State . . . . . . . . . . . . . . . . . . . 2
+Analysis and Reflection . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+3 Updated Planning for Project Completion 8
+3.1 Draft Outline of Final Report . . . . . . . . . . . . . . . . . . . . . . 9
+1
+--- PAGE 3 ---
+Final Progress Review
+1 Progress to Date – Summary
+Holistic Mind has moved from a research prototype to a fully deployed beta plat-
+form. The project now offers account management, personalised onboarding, daily
+check-ins across six dimensions exercise recommendations, somatic and breathing
+practices, video and audio content, guided and free-form journaling structured psy-
+choeducational courses, a record of progress reminders and an administration dash-
+board. Firebase was replaced by a custom backend written in Node.js, PostgreSQL
+and TypeScript. A separate Python recommendation service and cloud-based media
+storage support the system. All main mobile paths, backend APIs, the database,
+the recommendation engine, the administration platform and the production de-
+ployment are now working.
+2 Artefact Design and Development
+2.1 Implementation and Current State
+The mobile app is built with Expo React Native and TypeScript. It uses an clear
+visual style with soft colours, rounded cards and minimal clutter. Navigation is
+arranged around Home, Explore, Journal and Library with History inside the Pro-
+file. Authentication includes email verification, password recovery, secure sessions,
+Google sign-in, logout and account deletion.
+2
+--- PAGE 4 ---
+Final Progress Review
+Figure 1: Holistic Mind Home screen.
+The recommendation engine uses a method that mixes suitability rules, semantic
+matching, user history, feedback, diversity and collaborative signals when enough
+data is available. A local ONNX sentence-embedding model helps with relevance.
+Deterministic fallback logic keeps the system stable. The recommendation engine
+draws on onboarding data check-in records, limited journal context and exercise
+metadataanditavoidspracticesthat’reunsuitableorhavecauseddiscomfortbefore.
+Explore offers categorized exercises, such as timed breathing, movement, guided
+practices and post-practice feedback. The Audio Library lets users stream audio
+seek and keeps a player always on. The Journal allows guided packs and private
+free writing. The educational Library follows a structure and includes video, audio,
+PDF interactive and multiple-choice material.
+3
+--- PAGE 5 ---
+Final Progress Review
+Figure 2: Holistic Mind Explore page. Figure 3: Holistic Mind Journal and
+Library interfaces.
+4
+--- PAGE 6 ---
+Final Progress Review
+Figure 4: Holistic Mind Profile screen. Figure 5: Holistic Mind History screen.
+5
+--- PAGE 7 ---
+Final Progress Review
+AReact/Vite/TypeScriptadministrationdashboardhandlesexercises,audio,courses,
+modules, chapters, media and publishing states. Signed uploads and object stor-
+age allow media files. Local Docker services, Railway, Vercel and Cloudflare R2
+help with deployment. Content export and import tools moved managed content to
+production while keeping personal user data out.
+Figure 6: Holistic Mind system architecture showing the mobile application, application
+core, persistent data, recommendation service, media storage, communication, and device
+services.
+6
+--- PAGE 8 ---
+Final Progress Review
+Figure 7: End-to-end Holistic Mind user workflow from authentication and onboarding
+through daily check-in, recommendations, practice, feedback, and optional exploration.
+Figure 8: Recommendation generation and feedback workflow showing the controlled
+hybrid ranking pipeline and feedback loop.
+7
+--- PAGE 9 ---
+Final Progress Review
+Figure 9: Content administration and deployment workflow showing content
+management, protected transfer, production import, and the privacy boundary.
+2.2 Analysis and Reflection
+A key learning point was that technical features must be matched by privacy, safety,
+usability and maintainability. Replacing Firebase needed a lot of redevelopment. It
+gave stronger control over relational data, authentication, recommendations and
+content management. Repeated interface testing showed that small spacing, card
+size, icon and text-wrapping problems have an impact on usability. The recom-
+mendation engine also showed that advanced AI is not always better; controlled
+suitability rules, explainability, privacy and fallback behaviour are essential. Work-
+ing on authentication, storage, deployment and iOS integration improved full-stack
+debugging and systems thinking.
+3 Updated Planning for Project Completion
+• Conduct structured tests for usability and accessibility on a range of devices.
+• Get review and validation of the wellbeing and psychoeducational content.
+• Check the relevance and safety of the recommendation engine, with interac-
+tion data.
+• Finish iOS signing and wider production testing.
+8
+--- PAGE 10 ---
+Final Progress Review
+• Monitor deployment, analyse user feedback improve the system. Finish the
+dissertation.
+3.1 Draft Outline of Final Report
+1. Context, objectives and requirements.
+2. Literature and ethical foundations of trauma-informed wellbeing.
+3. System architecture, data modelling, security and privacy.
+4. Mobile application, administration platform and content management.
+5. Hybrid recommendation engine, implementation and evaluation.
+6. Testing, reflection, limitations, conclusion and future work.
+9

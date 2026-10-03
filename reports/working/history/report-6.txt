@@ -1,0 +1,444 @@
+SOURCE: Sunway Interim Report.pdf
+
+--- PAGE 1 ---
+CMP6200 / DIG6200
+Individual Undergraduate Project (FYP)
+Project Interim Report
+The Holistic Mind: A Trauma-Informed,
+AI-Powered Mobile Application for Mental
+Health Self-Regulation
+Student Name: Samyam Shrestha
+Student ID: 23189645
+Supervisor: Rabin Ghimire
+Date: April 27th 2026
+--- PAGE 2 ---
+Contents
+1 Introduction and Context 2
+1.1 Problem Statement . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2 Review of Existing Knowledge 3
+2.1 2.2 Critical Analysis and Gap Identification . . . . . . . . . . . . . . . . 5
+Project Justification . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+3 Project Aims, Objectives, and Scope 6
+3.1 3.2 3.3 Project Aim . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+Project Objectives . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+Project Scope . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+4 Project Design 7
+4.1 4.3 Design and Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+4.2 Justification of Methods . . . . . . . . . . . . . . . . . . . . . . . . . 9
+Project Timeline . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+5 Feasibility, Risks, and Ethical Aspects 11
+5.1 5.2 5.3 Feasibility . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+Risk Analysis and Mitigation . . . . . . . . . . . . . . . . . . . . . . 12
+Ethical Considerations . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+1
+--- PAGE 3 ---
+1 Introduction and Context
+Presently, Mental health stands as one of the most heavy difficult situations for
+public wellness in this current hundred-year period. Although forward movements
+in clinical psychiatry and psychology have occurred, the way of obtaining timely
+and right Mental health assistance stays deeply not balanced. Many experts claim
+that fewer than half of mature individuals living with a diagnosable Mental health
+condition obtained any form of medical care in 2024 (Grand View Research, 2025).
+Research indicates that a small portion of under 3% of Mental health applications
+are constructed using evidence-based structural systems (Linardon et al., 2019), and
+that the majority rely on generic, one-size-fits-all content that fails to address the
+specific needs of vulnerable user populations.
+Certainmatureindividualswhomanagethelong-termresultingoutcomesofchildhood
+trauma and ADHD are among the most neglected groups. Many people believe that
+over 63.9% of mature individuals in the United States mention at least one Adverse
+Childhood Experience (ACE), which ranges from abuse and neglect to household
+dysfunction (Centers for Disease Control and Prevention, 2023). These difficult
+experiences are seen to leave a measurable mark on the nervous system because they
+build patterns of emotional dysregulation, hypervigilance, and dissociation. Yet no
+mainstream wellness application currently treats nervous system dysregulation as a
+core design concern, leaving a significant and unmet demand for tools that are not
+merely helpful in general, but specifically designed for this population.
+Thegoalofthisprjectistofillthatexactgap. The Holistic Mind isatrauma-informed,
+AI-powered cross-platform mobile application designed to support adults affected
+by childhood trauma and ADHD in self-regulating their nervous system between
+therapy sessions. The application integrates a personalized recommendation engine,
+a daily emotional check-in system, and a curated library of somatic, breathwork, and
+psychoeducation tools.
+1.1 Problem Statement
+Despite the existence of over 10,000 mental health applications on major digital plat-
+forms, fewer than 3% are built around evidence-based trauma frameworks (Linardon
+et al., 2019). Because millions of people are left without assistance between or com-
+pletely outside of formal therapy, fewer than half of mature individuals with Mental
+health conditions received any medical care in 2024 (Grand View Research, 2025).
+This empty space is particularly large for trauma survivors when over 63.9% of mature
+individuals mention at least one Adverse Childhood Experience (Centers for Disease
+Control and Prevention, 2023). It has been observed that no mainstream wellness
+2
+--- PAGE 4 ---
+application considers nervous system dysregulation as a main planning focus.There
+is a clear and unmet demand for a personalised, trauma-informed application that
+adapts to a user’s emotional state in real time.
+2 Review of Existing Knowledge
+Personalised recommendation systems are being increasingly proposed as a solution
+to improve relevance, engagement, and clinical outcome in the digital world of mental
+health platforms. One of the more recent definitions of these systems is that they
+can provide individuals with custom materials for coping, such as articles to read,
+exercises to complete, or therapy sessions to attend, based on an individual’s history
+and actions within the application (Al-Sarhan et al., 2023).
+Methods like content-based filtering are often employed within these systems, though
+collaborative filtering approaches and knowledge-driven logic are also used depending
+on context. Hybrid models appear too, especially where flexibility matters most.
+Each method adjusts carefully to the unique demands of mental health information
+(Al-Muqrin et al., 2024).
+Matthews et al.’s framework provides a useful lens through which to understand per-
+sonalisation in mental health tools, categorising approaches as rule-driven, evolving,
+or guided by people. By providing individuals with suggestions based upon clearly
+outlined reasoning within these applications, systems can tailor the type of coping
+mechanism or goal-based activities presented to each individual according to their
+personal aims (Matthews et al., 2025). At the same time, these works caution that
+personalisation must be grounded in clinical models, not only in usage data, to avoid
+exposing users to potentially harmful or irrelevant content.
+Existing Recommendation-Based Mental Health Platforms
+Emerging uses of recommender systems in mental health show early signs of boosting
+how people interact with tailored support. Systems like Ginger1 ask individuals
+to input information regarding their goals, mood, and interactions in order to
+provide customised recommendations over time (Al-Sarhan et al., 2023). In another
+case, NarraGive2, part of the NEON ecosystem, recommends stories for individuals
+based upon similarities between named items and individual behaviours within the
+1Ginger was a US-based on-demand mental health platform offering coaching, therapy, and
+psychiatry services via a mobile application. In 2021, Ginger merged with Headspace to form
+Headspace Health. See https://www.headspace.com.
+2NarraGive is a recommender system developed within the NEON (Narrative Experiences Online)
+project, designed to match users with peer mental health recovery narratives based on behavioural
+similarity and item relevance (Rek et al., 2024).
+3
+--- PAGE 5 ---
+application (Rek et al., 2024). Meanwhile, overarching models including the one
+proposed by Al-Muqrin and colleagues push for clearer ethics, focusing on secure
+data handling while steering users gently toward appropriate applications (Al-Muqrin
+et al., 2024).
+Although not labelled as recommenders, several mental health applications adjust
+guidance using real-time inputs, shifting focus depending on patterns in daily entries,
+physiological signals, or usage frequency. Systematic reviews of mobile health
+(mHealth) applications have begun to reveal their growing use of methodologies
+such as mood tracking, ecological momentary assessment (EMA), and just-in-time
+adaptive interventions (JITAIs) to provide users with tailored health interventions
+(Larsen et al., 2020; Almuqrin et al., 2025).
+User Modelling and Context-Aware Adaptation
+An essential enabling factor for personalised recommendation and self-regulation
+support is user modelling from multiple digital data sources. The recent study on
+digital mental health provides examples of how user models can be derived from
+self-report information, mood monitoring records, and passive sensing data including
+physical activity, sleep quality, and location to estimate current affective states and
+behaviour trends (Larsen et al., 2020; Gosetto et al., 2023). These models enable
+adaptive feedback mechanisms, timely reminders, and interventions consistent with
+the concept of the context-aware recommender system for mental health (Larsen
+et al., 2020; Gosetto et al., 2023).
+For instance, Gosetto et al. developed a protocol for the customisation of mobile
+applications to encourage users to exhibit healthy behaviours through user modelling
+principles (Gosetto et al., 2023). Although developed with general health behaviours
+in mind, these techniques could be applied to mental health through the correlation
+between individuals’ mobile application profiles and methods for self-regulating
+nervous system states. Furthermore, frameworks for mobile applications that adapt
+to users according to contextual data suggest that mHealth applications could utilise
+sensor data to provide self-regulation techniques at the appropriate moment to
+mitigate symptoms of stress or low mood (Barreto et al., 2023).
+Ethical, Technical, and Design Challenges
+Despite promising advances in the field, several challenges persist in integrating
+recommendation systems into mental health applications. Among these are data
+privacy, security, and safety concerns, particularly regarding the sensitive personal
+health data that these systems collect (Al-Muqrin et al., 2024). There is also a need
+4
+--- PAGE 6 ---
+for clinical validation, as many current recommendation methods do not account for
+the full range of mental health conditions that may affect users (Almuqrin et al.,
+2025; Matthews et al., 2025). Finally, the sensor and connectivity capabilities of
+smartphones remain underutilised in most mental health applications, representing a
+missed opportunity to deliver more responsive, state-aware support (Larsen et al.,
+2020; Gosetto et al., 2023).
+2.1 Critical Analysis and Gap Identification
+In the present context, there are alot of research reagrading recomendation system
+in mental heal yet there are several missing pieces. Experts claim that the majority
+of these academic writings explored the basic structure of recommendation systems
+as a simple idea. These recommendation systems were only studied through certain
+digital systems because generalisable design principles were not developed.(Al-Sarhan
+et al., 2023; Matthews et al., 2025; Mukhiya et al., 2025). Second, there is limited
+work that explicitly integrates self-regulation theory including emotion regulation
+frameworks, coping strategy selection, and nervous system state modelling into the
+design of recommendation algorithms for mental health applications. Most existing
+systems route users to content based on general preferences or historical engagement,
+rather than moment-to-moment physiological and affective state.
+Third, and most critically for this project, no existing application has been designed
+specifically around the intersection of childhood trauma and ADHD, despite the high
+co-occurrence of these conditions and the distinct interaction patterns and content
+needs they produce. (Al-Muqrin et al., 2024; Almuqrin et al., 2025).
+2.2 Project Justification
+This project addresses the identified gaps by designing, building, and evaluating a
+trauma-informed mobile application that integrates user modelling, context-aware
+adaptation, and explicit recommendation logic for coping tools and psychoeducation
+content. Unlike existing platforms, The Holistic Mind places nervous system state
+captured through a daily five-option check-in at the centre of its recommendation
+engine. The engine combines rule-based logic (mapping check-in state to exercise
+type) with preference learning (updating weights based on user ratings) to produce
+personalised tool recommendations that are both clinically grounded and responsive
+to moment-to-moment need.
+5
+--- PAGE 7 ---
+3 Project Aims, Objectives, and Scope
+3.1 Project Aim
+The aim of this project is to design, develop, and evaluate a trauma-informed, AI-
+powered cross-platform mobile application that enables adults affected by childhood
+trauma and ADHD to self-regulate their nervous system between therapy sessions
+through personalised tool recommendations.
+3.2 Project Objectives
+This SMART objectives organize the delivery of this project across the nine-month
+timeline:
+1. Design and Develop (Months 1–3): Creating the structure for the mo-
+bile application which works on different platforms happens first because the
+architecture needs a check-in system for five states of the nervous system.
+Because the application requires support, three groups of content are added:
+Breathwork (10 exercises), Somatic Tools (18 exercises across three nervous
+system zones), and a Psychoeducation Audio Library (2 series, 14 episodes in
+total). It has been observed that the project needs every screen and user flow
+to be written down and given supervisor approval when Month 3 finishes. The
+mobile application architecture is developed by the designer during this time.
+2. Implement (Months 3–6): Development of an AI recommendation engine
+takes place so that the machine connects the emotional states of the user
+to the correct tools by using a model for rules and preferences. The AI
+recommendation engine is tested by the internal team before Month 6 ends.
+Because the pipeline must be functional, this stage ensures the system works
+correctly.
+3. Evaluate (Months 6–8): Carry out a study with at least five individuals
+with trauma or ADHD allows the researcher to check if the tool suggestions are
+useful. While the study measures how easy the tools are to use and how the
+nervous system is controlled, the researcher uses questionnaires and interview
+information. Many people believe that the study results show the value of the
+digital system. The data is gathered by the researcher before the end of Month
+8.
+4. Reflect and Report (Months 8–9): Analyzing the results and the problems
+that occurred is the final step because trauma-informed design principles have
+a large effect on making digital tools for mental health. The final research
+6
+--- PAGE 8 ---
+report is submitted when Month 9 concludes. All findings are placed into the
+document so that the project ends properly.
+3.3 Project Scope
+Table 1: Project Scope Definition
+In Scope Out of Scope
+• Cross-platform (iOS and Android)
+mobile application using React Na-
+tive or Flutter
+• Rule-based AI recommendation en-
+gine with preference learning
+• Content library: breathwork, somatic
+tools, journaling, anxiety tools, psy-
+choeducation (Phase 1)
+• Five-state nervous system check-in
+system
+• User study (minimum 5 participants)
+evaluating relevance, usability, and
+outcomes
+• Trauma-informed design across inter-
+face and content
+• Phase 2 content modules (Inner Child,
+IFS, ADHD tools, trauma deep-dive,
+relationships toolkit)
+• Clinical diagnosis, therapy, or crisis-
+response functionality
+• Wearable or passive sensing integra-
+tion (e.g., HRV, accelerometer)
+• Large-scale randomised controlled tri-
+als
+• Subscription/payment infrastructure
+and full commercial deployment
+4 Project Design
+4.1 Design and Methods
+This project adopts a Design Science Research (DSR) methodology (Hevner
+et al., 2004), its well for tasks that create and test a unique created tool, a mobile
+application is utilized as the main research contribution. Experts claim that Design
+Science Research (DSR) methodology.
+Experts claim that Design Science Research (DSR) methodology ((Hevner et al.,
+2004)) requires repeated cycles of planning, building, and checking. These cycles give
+knowledge for future choices in the building process. A user-centred design (UCD)
+philosophy Norman (1988) works beside this approach. The project is structured in
+three interlocking phases:
+Phase 1 Design: Necessary needs are gathered from the examination of published
+7
+--- PAGE 9 ---
+academic writings and careful study of current mental health software. This stage
+creates a full detailed technical description for the mobile application. Many people
+believe that this detailed technical description must include screen-by-screen user
+paths, content arrangement, reasoning for suggestions, and a data structure.
+Phase 2 Development: Construction of the mobile application is performed
+through a cross-platform software platform (React Native or Flutter). Firebase
+serves as the inner system for identity verification, data storage, and live updates.
+Scholars have observed that Firebase provides the necessary features for real-time
+synchronization.
+Phase 3 Evaluation: A structured user study is conducted with a minimum of five
+participants who self-identify as managing the effects of childhood trauma and/or
+ADHD. Mixed methods are used: a post-session questionnaire adapted from the
+System Usability Scale (SUS) (Brooke, 1996) assesses usability; user-rated relevance
+scores (collected in-app after each recommendation) measure recommendation quality;
+and semi-structured interviews capture qualitative data on perceived self-regulation
+support and unmet needs. Results are compared against a non-personalised baseline
+condition in which participants receive random tool suggestions.
+Figure 1: System architecture diagram
+8
+--- PAGE 10 ---
+4.2 Justification of Methods
+Design Science Research was selected over purely empirical approaches (e.g., ran-
+domised controlled trials) because the primary contribution of this project is an
+artefact (the application) rather than a measurement of population-level treatment
+efficacy. DSR explicitly legitimises artefact construction as a research activity, pro-
+vided the artefact is evaluated rigorously (Hevner et al., 2004). This is consistent
+with the FYP scope and with similar work in the digital mental health literature
+(Gosetto et al., 2023; Barreto et al., 2023).
+A rule-based recommendation engine with preference learning was chosen over more
+complex machine learning approaches (e.g., collaborative filtering, deep reinforcement
+learning) for two reasons. First, the user base at evaluation stage is small, making
+data-hungry approaches inappropriate. Second, rule-based logic is interpretable like
+a critical requirement in mental health contexts where recommendation transparency
+is ethically important (Al-Muqrin et al., 2024; Matthews et al., 2025).
+Mixed methods evaluation was preferred over purely quantitative measurement
+because the target population (trauma and ADHD) may find lengthy question-
+naires cognitively taxing, and because qualitative data captures the nuance of lived
+experience that Likert-scale instruments cannot.
+4.3 Project Timeline
+The timeline of this project is 9 months. The timeline below is the summary of
+major milestones and Figure 2 represents the full Gantt chart throughtout the whole
+timeline.
+9
+--- PAGE 11 ---
+Table 2: Project Milestone Summary
+Month Development Activities Research / Writing Activities
+1 App foundations, lo-
+gin/registration, onboarding
+flow, home dashboard shell, Fire-
+base setup
+Literature review finalisation; re-
+search design document
+2 Breathwork section, somatic tools
+section, rule-based recommenda-
+tion engine
+Interim report writing; onboarding
+content review.
+3 Audio library player, journal-
+ing section, anxiety tools section,
+free/premium gating
+Interim report submission; ethics
+application submission
+4 Preference-learning layer integra-
+tion, push notifications, subscrip-
+tion scaffolding, full app testing
+Participant recruitment; consent
+forms and study materials prepara-
+tion
+5 User testing builds (Test-
+Flight/Play Store beta), bug
+fixes, usability testing
+User study data collection (mini-
+mum 5 participants)
+6 Final bug fixes, Android build pol-
+ish, app store submission prepara-
+tion
+Data analysis (SUS scores, rel-
+evance ratings, interview tran-
+scripts)
+7 Phase 2 planning; minor feature
+iteration based on study findings
+Results write-up; discussion draft-
+ing
+8 — Final report drafting; supervisor
+review and feedback
+9 — Final report submission; presenta-
+tion preparation
+10
+--- PAGE 12 ---
+Figure 2: Project Gantt Chart (9-Month Timeline)
+5 Feasibility, Risks, and Ethical Aspects
+5.1 Feasibility
+This project is a self-developed (or self-executed) mobile project; using mature
+and proven technologies such as React Native (or Flutter) Firebase rule based
+recommendations engine, etc. will enable the project to be fully launched in 9
+months. The team will minimize project risks through experience accumulated in
+mobile development and JS/TS programming, and a full set of important tools
+ecosystem. During phase I, the project will develop core features, implement parallel
+scheduling for content generating and software developing (production focus), and
+fully complete all the recording work in 2—4 months to prevent process bottleneck.
+11
+--- PAGE 13 ---
+5.2 Risk Analysis and Mitigation
+Table 3: Risk Assessment and Mitigation
+Risk L I Mitigation
+Content recording delays Med High Scripts prepared early; parallel dev; place-
+holder audio used
+Participant recruitment difficulty Med High Early recruitment; multiple channels; ex-
+tend window if needed
+Preference-learning complexity Med Med Rule-based model as baseline; learning
+layer optional
+User distress during study Low High Exit options; debrief protocol; non-
+clinical disclaimer
+App Store rejection Low Med Use TestFlight / internal testing only
+Firebase cost overrun Low Low Free tier sufficient; billing alerts enabled
+5.3 Ethical Considerations
+This research is going to include a particularly vulnerable group, that is why it
+requires ethical design and management.
+Vulnerable population. The users in the current application consists of adults
+with past traumatic experiences from their childhood. No diagnosis statements will
+be included within the application so that to ensure transparent ways of leaving the
+platform and promote it as a self-regulatory application rather than a replacement
+for therapy.
+Informed consent. All participants give their written informed consent before
+taking part in the experiment. It contains the description of the study, including its
+purpose and procedure, as well as information about how data will be used and the
+opportunity to leave the study at any point.
+Data privacy and confidentiality. Participant’s data will be safely stored on
+Firebase. The app doesn’t analyse journal notes and doesn’t use them for modelling.
+All participants will remain anonymous during the entire experiment. All participant
+data will be permanently deleted according to GDPR guidelines.
+12
+--- PAGE 14 ---
+References
+Al-Muqrin, M. H. et al. (2024), ‘Development of a mental health apps recommender’.
+Retrieved from PubMed.
+URL: https://pubmed.ncbi.nlm.nih.gov/39176856/
+Al-Sarhan, M. et al. (2023), ‘Content recommendation systems in web-based mental
+health care: A case study in Ginger’, JMIR Formative Research 7, e38831.
+URL: https://formative.jmir.org/2023/1/e38831
+Almuqrin, M. H. et al. (2025), ‘Smartphone apps for mental health: A systematic
+review of the literature and five recommendations for clinical translation’, BMJ
+Open 15(2), e093932.
+URL: https://bmjopen.bmj.com/content/15/2/e093932
+Barreto, A. et al. (2023), ‘AwarNS: A framework for developing context-aware reactive
+mobile applications’, Journal of Biomedical Informatics 142, 104375.
+URL: https://www.sciencedirect.com/science/article/pii/S1532046423000801
+Brooke, J. (1996), SUS: A quick and dirty usability scale, Technical report, Digital
+Equipment Corporation. Reprinted in: Usability Evaluation in Industry, Taylor &
+Francis, London.
+Centers for Disease Control and Prevention (2023), ‘Prevalence of adverse childhood
+experiences among U.S. adults’, MMWR.
+URL: https://www.cdc.gov/mmwr/volumes/72/wr/mm7226a2.htm
+Gosetto, L. et al. (2023), ‘Personalization of mobile apps for health behavior change:
+Protocol for a user-centered study’, JMIR Research Protocols 12, e38603.
+URL: https://www.researchprotocols.org/2023/1/e38603
+Grand View Research (2025), ‘Mental health apps market size, share & industry
+report’.
+market-report
+URL: https://www.grandviewresearch.com/industry-analysis/mental-health-apps-
+Hevner, A. R., March, S. T., Park, J. and Ram, S. (2004), ‘Design science in
+information systems research’, MIS Quarterly 28(1), 75–105.
+Larsen, M. E. et al. (2020), ‘Smartphone apps for the treatment of mental disorders:
+A systematic review and meta-analysis’, JMIR mHealth and uHealth 8(4), e14897.
+URL: https://mhealth.jmir.org/2020/4/e14897
+Linardon, J., Cuijpers, P., Carlbring, P., Messer, M. and Fuller-Tyszkiewicz, M.
+(2019), ‘The efficacy of app-supported smartphone interventions for mental health
+13
+--- PAGE 15 ---
+problems: a meta-analysis of randomized controlled trials’, World Psychiatry
+18(3), 325–336.
+Matthews, P. et al. (2025), ‘Personalisation and recommendation for mental health
+apps’, Behaviour & Information Technology 44(5), 1–15.
+URL: https://www.tandfonline.com/doi/full/10.1080/0144929X.2024.2356630
+Mukhiya, R. et al. (2025), ‘Personalized mental health apps for non-clinical samples:
+A systematic review’, Health Communication . Advance online publication.
+URL: https://www.tandfonline.com/doi/full/10.1080/15228835.2025.2491347
+Norman, D. A. (1988), The Psychology of Everyday Things, Basic Books, New York.
+Rek, B. et al. (2024), ‘NarraGive: A hybrid recommender system for mental health
+recovery narratives’, JMIR Mental Health 11, e45754.
+URL: https://mental.jmir.org/2024/1/e45754
+14

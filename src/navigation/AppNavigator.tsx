@@ -14,6 +14,7 @@ import { HistoryScreen } from "../screens/history";
 import { CourseScreen, LibraryModuleScreen, LibraryScreen, PdfViewerScreen } from "../screens/library";
 import { OnboardingScreen } from "../screens/onboarding";
 import { ProfileScreen } from "../screens/profile";
+import JournalSecurityScreen from "../screens/profile/JournalSecurityScreen";
 import { WelcomeScreen, WelcomeV2Screen } from "../screens/welcome";
 import { AudioPlayerScreen } from "../screens/audio";
 import CompactAudioPlayer from "../components/audio/CompactAudioPlayer";
@@ -117,6 +118,7 @@ export default function AppNavigator() {
                 <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
                 <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
                 <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+                <Stack.Screen name="JournalSecurity" component={JournalSecurityScreen} />
                 <Stack.Screen name="Welcome" component={WelcomeScreen} />
                 <Stack.Screen name="Onboarding" component={OnboardingScreen} />
                 <Stack.Screen

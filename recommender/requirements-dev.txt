@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest==8.3.5
+pyright==1.1.405
+matplotlib==3.10.3

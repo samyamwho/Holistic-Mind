@@ -1,0 +1,9 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/recommender/.venv312/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/recommender"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/recommender"
+  ]
+}

@@ -1,6 +1,7 @@
 import { API_URL } from "../../config/environment";
 import { ApiError } from "../auth/authApi";
 import type { DailyCheckIn, DailyCheckInAnswers } from "../../types/wellness";
+import type { JournalMedia } from "../journal/journalCrypto";
 
 export type StoredJournalEntry = {
   id: string;
@@ -8,6 +9,7 @@ export type StoredJournalEntry = {
   prompt: string;
   text: string;
   createdAt: string;
+  attachments?: JournalMedia[];
 };
 export type OnboardingResponses = {
   support: string;
@@ -41,7 +43,7 @@ export function subscribeToFavoriteExercises(listener: FavoriteExerciseListener)
   return () => favoriteExerciseListeners.delete(listener);
 }
 
-async function request<T>(path: string, accessToken: string, options: RequestInit = {}) {
+export async function wellnessRequest<T>(path: string, accessToken: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}/api/wellness${path}`, {
     ...options,
     headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}`, ...options.headers },
@@ -53,26 +55,23 @@ async function request<T>(path: string, accessToken: string, options: RequestIni
   return payload.data;
 }
 
-export const getLatestCheckIn = (token: string) => request<DailyCheckIn | null>("/check-ins/latest", token);
-export const getCheckIns = (token: string) => request<DailyCheckIn[]>("/check-ins", token);
-export const getOnboardingResponses = (token: string) => request<OnboardingResponses | null>("/onboarding", token);
+export const getLatestCheckIn = (token: string) => wellnessRequest<DailyCheckIn | null>("/check-ins/latest", token);
+export const getCheckIns = (token: string) => wellnessRequest<DailyCheckIn[]>("/check-ins", token);
+export const getOnboardingResponses = (token: string) => wellnessRequest<OnboardingResponses | null>("/onboarding", token);
 export const saveOnboardingResponses = (token: string, answers: Omit<OnboardingResponses, "updatedAt">) =>
-  request<OnboardingResponses>("/onboarding", token, { method: "PUT", body: JSON.stringify(answers) });
+  wellnessRequest<OnboardingResponses>("/onboarding", token, { method: "PUT", body: JSON.stringify(answers) });
 export const saveCheckIn = (token: string, date: string, answers: DailyCheckInAnswers) =>
-  request<DailyCheckIn>("/check-ins", token, { method: "PUT", body: JSON.stringify({ date, answers }) });
-export const getJournalEntries = (token: string) => request<StoredJournalEntry[]>("/journal", token);
-export const createJournalEntry = (token: string, entry: Omit<StoredJournalEntry, "id" | "createdAt">) =>
-  request<StoredJournalEntry>("/journal", token, { method: "POST", body: JSON.stringify(entry) });
-export const getPracticeEvents = (token: string) => request<PracticeActivity[]>("/practice-events", token);
+  wellnessRequest<DailyCheckIn>("/check-ins", token, { method: "PUT", body: JSON.stringify({ date, answers }) });
+export const getPracticeEvents = (token: string) => wellnessRequest<PracticeActivity[]>("/practice-events", token);
 export const getFavoriteExerciseIds = (token: string) =>
-  request<{ exerciseIds: string[] }>("/favorites", token).then((value) => value.exerciseIds);
+  wellnessRequest<{ exerciseIds: string[] }>("/favorites", token).then((value) => value.exerciseIds);
 export const addFavoriteExercise = async (token: string, exerciseId: string) => {
-  const value = await request<{ exerciseId: string; favorite: boolean }>(`/favorites/${encodeURIComponent(exerciseId)}`, token, { method: "PUT" });
+  const value = await wellnessRequest<{ exerciseId: string; favorite: boolean }>(`/favorites/${encodeURIComponent(exerciseId)}`, token, { method: "PUT" });
   favoriteExerciseListeners.forEach((listener) => listener(value));
   return value;
 };
 export const removeFavoriteExercise = async (token: string, exerciseId: string) => {
-  const value = await request<{ exerciseId: string; favorite: boolean }>(`/favorites/${encodeURIComponent(exerciseId)}`, token, { method: "DELETE" });
+  const value = await wellnessRequest<{ exerciseId: string; favorite: boolean }>(`/favorites/${encodeURIComponent(exerciseId)}`, token, { method: "DELETE" });
   favoriteExerciseListeners.forEach((listener) => listener(value));
   return value;
 };
@@ -80,7 +79,7 @@ export const recordPracticeEvent = async (
   token: string,
   event: Omit<PracticeActivity, "id" | "createdAt">
 ) => {
-  const recorded = await request<PracticeActivity>("/practice-events", token, {
+  const recorded = await wellnessRequest<PracticeActivity>("/practice-events", token, {
     method: "POST",
     body: JSON.stringify(event),
   });

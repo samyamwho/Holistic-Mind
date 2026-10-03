@@ -1,3 +1,4 @@
+import type { ComfortPreference } from "../../backend/src/data/comfortPreferences";
 import type { ImageSourcePropType } from "react-native";
 
 export type NervousSystemState =
@@ -15,7 +16,9 @@ export type CheckInAnswerKey =
   | "focus"
   | "support";
 
-export type DailyCheckInAnswers = Record<CheckInAnswerKey, string>;
+export type DailyCheckInAnswers = Record<CheckInAnswerKey, string> & {
+  comfortPreferences?: ComfortPreference[];
+};
 
 export type DailyCheckIn = {
   id: string;

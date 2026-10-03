@@ -1,5 +1,7 @@
 # How I Implemented the Holistic Mind Recommendation Engine
 
+> Earlier project documentation, retained for reference. For the current journal encryption, recommendation inputs, and rollout status, read [How the functionality works](HOW-THE-FUNCTIONALITY-WORKS.md) and [Recent changes](RECENT-CHANGES.md). In particular, the app no longer sends journal text to the recommender.
+
 ## Simple Overview
 
 I implemented the recommendation engine to suggest three wellness exercises that are suitable for the user's current situation.

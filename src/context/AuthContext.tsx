@@ -1,3 +1,4 @@
+import { deleteDeviceJournalKey } from "../services/journal/keyStorage";
 import React, {
   createContext,
   useCallback,
@@ -280,11 +281,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAccount = useCallback(async (confirmation: { password: string } | { googleIdToken: string } | { appleIdentityToken: string }) => {
     await runAuthenticated((accessToken) => deleteAccountRequest(accessToken, confirmation));
+    // Account deletion also removes this device's key; sign-out retains it for the next login.
+    if (user?.id) await deleteDeviceJournalKey(user.id).catch(() => undefined);
     tokensRef.current = null;
     setUser(null);
     setPreferences(defaultPreferences);
     await clearAuthSession();
-  }, [runAuthenticated]);
+  }, [runAuthenticated, user?.id]);
 
   const value = useMemo(
     () => ({

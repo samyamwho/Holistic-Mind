@@ -1,5 +1,7 @@
 # Holistic Mind — Comprehensive Features & Requirements Specification
 
+> Earlier project documentation, retained for reference. For the current journal encryption, recommendation inputs, and rollout status, read [How the functionality works](HOW-THE-FUNCTIONALITY-WORKS.md) and [Recent changes](RECENT-CHANGES.md). In particular, the app no longer sends journal text to the recommender.
+
 > **Document Version:** 1.0.0  
 > **Date:** September 2026  
 > **Project:** Holistic Mind — Mobile Wellness & Somatic Regulation Platform  

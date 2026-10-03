@@ -3,22 +3,11 @@ import { z } from "zod";
 import { pool } from "../db.js";
 import { authenticate } from "../middleware/authenticate.js";
 
-const answersSchema = z.object({
-  state: z.string().min(1).max(80),
-  body: z.string().min(1).max(80),
-  energy: z.string().min(1).max(80),
-  stress: z.string().min(1).max(80),
-  focus: z.string().min(1).max(80),
-  support: z.string().min(1).max(80),
-});
+import { answersSchema } from "../checkIn.js";
+
 const checkInSchema = z.object({
   date: z.iso.date(),
   answers: answersSchema,
-});
-const journalSchema = z.object({
-  pack: z.string().trim().min(1).max(80),
-  prompt: z.string().trim().min(1).max(500),
-  text: z.string().trim().min(1).max(20000),
 });
 const practiceEventSchema = z.object({
   exerciseId: z.string().trim().min(1).max(160),
@@ -161,31 +150,6 @@ wellnessRouter.put("/check-ins", async (request, response, next) => {
     );
     const row = result.rows[0];
     response.json({ data: { id: row.id, date: row.date, answers: row.answers, createdAt: row.created_at.toISOString() } });
-  } catch (error) { next(error); }
-});
-
-wellnessRouter.get("/journal", async (_request, response, next) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, pack, prompt, content AS text, created_at
-       FROM journal_entries WHERE user_id = $1 ORDER BY created_at DESC`,
-      [response.locals.userId]
-    );
-    response.json({ data: result.rows.map((row) => ({ ...row, createdAt: row.created_at.toISOString(), created_at: undefined })) });
-  } catch (error) { next(error); }
-});
-
-wellnessRouter.post("/journal", async (request, response, next) => {
-  const parsed = journalSchema.safeParse(request.body);
-  if (!parsed.success) { response.status(400).json({ error: "Invalid journal entry." }); return; }
-  try {
-    const result = await pool.query(
-      `INSERT INTO journal_entries (user_id, pack, prompt, content)
-       VALUES ($1, $2, $3, $4) RETURNING id, pack, prompt, content AS text, created_at`,
-      [response.locals.userId, parsed.data.pack, parsed.data.prompt, parsed.data.text]
-    );
-    const row = result.rows[0];
-    response.status(201).json({ data: { id: row.id, pack: row.pack, prompt: row.prompt, text: row.text, createdAt: row.created_at.toISOString() } });
   } catch (error) { next(error); }
 });
 

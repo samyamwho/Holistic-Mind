@@ -1,0 +1,3833 @@
+
+--- PAGE 1 ---
+CMP6200 Individual Honours Project 20252026
+A Semantic Approach to Tourist
+Recommendation
+in Nepal
+Abhash Rai
+23140736
+Supervisor: Sumanta Silwal
+BSc (Hons) Computer and Data Science
+School of Computing and Digital Technology
+Faculty of Computing, Engineering and the Built Environment
+Birmingham City University
+Submitted June 2026
+A dissertation submitted in partial fulfilment of the requirements
+for the degree of BSc (Hons) in Computer and Data Science.
+--- PAGE 2 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Abstract
+Independent travellers planning a trip to Nepal today must research, filter, and reconcile informa-
+tion scattered across static informational sites, tour-operator pages, and informal blogs, with the
+practical localised information they need often sparse or out of date. This project addresses the
+planning problem through AI agents driven travel concierge that turns a free-form chat message
+into a personalised day-by-day Kathmandu Valley itinerary, guiding user through place selection
+from semantic retrieval based place recommendations, hotel slection from DBSCAN based
+spatial cluster group hotel recommendations, and finally itinerary generation. The retrieval
+foundation is all-MiniLM-L6-v2, a small bi-encoder fine-tuned on 5,500 synthetic query-to-fact
+pairs generated with the help of large language models, scored against a knowledge base in
+which every place is decomposed into atomic single-claim facts, with each place ranked by
+averaging the similarity of its top three matching facts. The artefact is orchestrated as four
+phase-isolated AI agents with backend tools that return short acknowledgements, so the panel
+state the user sees comes from the backend rather than from AI agent text. Evaluation against
+three off-the-shelf retrieval baselines, latency profiling over thirty controlled trips, and a small
+user acceptance test show that Recall@5 climbs from 0.77 on the off-the-shelf MiniLM baseline
+to 0.94 on the fine-tuned retriever, a 15.6% lift over the strongest sparse baseline, with the
+retrieval pipeline execution holding a median of 87.9 ms and the day-by-day itinerary with a
+14.8 s median and 18.1 s at 90th percentile.
+Keywords: Nepal tourism, AI travel concierge, multi-agent AI, semantic retrieval, fine-tuned
+bi-encoder, knowledge base, synthetic query generation
+Page I
+--- PAGE 3 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Acknowledgement
+I would like to express my sincere thanks to my supervisor, Sumanta Silwal, whose support
+throughout this project I am genuinely grateful for. His knowledge of Nepal’s tourism sector was
+invaluable in helping me frame, scope, and position the work, and the patience with which he
+shared that perspective is something I will not forget.
+Abhash Rai
+Page II
+--- PAGE 4 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Contents
+Abstract I
+Acknowledgement II
+Glossary XI
+1.0 Introduction 1
+1.1 Problem Statement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+1.2 Research Questions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+2.0 Review of Existing Knowledge 2
+2.1 Addressing the Cold Start Problem . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.2 Evolution from Static Filtering . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.3 Shift towards Semantic Based and Sequential Recommendations . . . . . . . . . 5
+2.4 Context-Aware and Environmental Integration . . . . . . . . . . . . . . . . . . . . 5
+2.5 Critical Analysis and Gap Identification . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.6 Project Justification . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+3.0 Project Aims, Objectives, and Scope 7
+3.1 Project Aim . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+3.2 Objectives . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+3.3 Project Scope . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+3.3.1 In Scope . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+3.3.2 Out of Scope . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+4.0 Project Design 9
+4.1 Design and Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+4.2 Justification of Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+4.3 Dataset Construction Methodology . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+4.4 Evaluation Plan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+5.0 Artefact Design 12
+5.1 Design Specifications . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+5.1.1 User Identification . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+5.1.2 User Requirements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+5.1.3 User Roles . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+5.1.4 Use Cases . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+5.2 Artefact Structure and Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+5.2.1 Phase Decomposition . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+Page III
+--- PAGE 5 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+5.2.2 Design Options and Justifications . . . . . . . . . . . . . . . . . . . . . . . 17
+5.2.3 System Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+5.2.4 Component Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+6.0 Implementation 26
+6.1 Construction of the Artefact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+6.1.1 Knowledge Base Curation . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+6.1.2 Fine-tuning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+6.1.3 Backend on Django and PostgreSQL . . . . . . . . . . . . . . . . . . . . . 34
+6.1.4 AI Agents on Google ADK . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+6.1.5 Frontend on React . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+6.1.6 Containerisation and Deployment . . . . . . . . . . . . . . . . . . . . . . . 46
+6.2 Validation and Testing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 49
+6.2.1 Black-Box Functional Testing . . . . . . . . . . . . . . . . . . . . . . . . . . 49
+6.2.2 Retrieval Quality Measurement . . . . . . . . . . . . . . . . . . . . . . . . 63
+6.2.3 System Performance Measurement . . . . . . . . . . . . . . . . . . . . . . 64
+6.2.4 Validation Against User Requirements . . . . . . . . . . . . . . . . . . . . . 67
+6.2.5 Validation Against Project Objectives . . . . . . . . . . . . . . . . . . . . . 68
+6.2.6 User Acceptance Testing . . . . . . . . . . . . . . . . . . . . . . . . . . . . 69
+7.0 Critical Evaluation 75
+7.1 Comparison with General-Purpose Planners . . . . . . . . . . . . . . . . . . . . . 75
+7.2 Impact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 76
+7.2.1 Reducing Information Fragmentation for Independent Travellers . . . . . . 76
+7.2.2 Delivering Localised, Nepal-Specific Information . . . . . . . . . . . . . . . 76
+7.2.3 Addressing the Persistent Up-to-Date Information Gap . . . . . . . . . . . 77
+7.2.4 Wider Impact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 77
+8.0 Conclusion 77
+8.1 Achievement of Objectives . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 78
+8.2 Answers to Research Questions . . . . . . . . . . . . . . . . . . . . . . . . . . . . 79
+8.3 Limitations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 80
+8.4 Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 81
+References 83
+Appendices 86
+A Project Timeline . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 86
+B Feasibility, Risks, and Ethical Aspects . . . . . . . . . . . . . . . . . . . . . . . . . . 87
+B.1 Feasibility . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 88
+Page IV
+--- PAGE 6 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+B.2 Risk Analysis and Mitigation . . . . . . . . . . . . . . . . . . . . . . . . . . . 88
+B.3 Ethical Considerations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 89
+C Evaluation Queries . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 90
+D Raw UAT Responses . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 93
+E UAT Participant Information Sheet and Consent Form . . . . . . . . . . . . . . . . . 96
+Page V
+--- PAGE 7 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+List of Figures
+5.1 Use case diagram for the Nepal Travel Concierge . . . . . . . . . . . . . . . . . 16
+5.2 System architecture and external services . . . . . . . . . . . . . . . . . . . . . . 21
+5.3 Three-phase pipeline and agent flow . . . . . . . . . . . . . . . . . . . . . . . . . 22
+5.4 Knowledge base schema . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+5.5 Semantic retrieval flow . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+5.6 Hotel clustering and filtering pipeline . . . . . . . . . . . . . . . . . . . . . . . . . 25
+6.1 Repository structure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+6.2 Phase 1 chat turn sequence . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+6.3 Phase 2 chat turn sequence . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+6.4 Phase 3 chat turn sequence . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+6.5 Seed bootstrap directory structure . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+6.6 Fine-tune training directory structure . . . . . . . . . . . . . . . . . . . . . . . . . 32
+6.7 Sample query-to-fact pairings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+6.8 Sample fact rows, each carrying one atomic claim . . . . . . . . . . . . . . . . . 32
+6.9 Query-to-fact pairings resolved to its underlying claim . . . . . . . . . . . . . . . 33
+6.10 Fine-tune training curve, with held-out Recall@5 climbing as training loss falls . . 34
+6.11 Backend directory structure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
+6.12 Agent layer directory structure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41
+6.13 Frontend directory structure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 45
+6.14 Dev and production deployment topologies . . . . . . . . . . . . . . . . . . . . . 47
+6.15 Preflight gate flow . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 48
+6.16 TC-01, new session with place-agent greeting and empty side panel . . . . . . . 55
+6.17 TC-02, traveller profile form with nationality, dates, party size and interest tags
+filled in . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+6.18 TC-03, ranked place cards rendered after a semantic search query . . . . . . . . 56
+6.19 TC-04, place cards in their selected state with the confirm-activities button available 56
+6.20 TC-05, place panel after a chat refinement turn with prior selections preserved . 57
+6.21 TC-06, hotel panel populated with cluster-grouped cards immediately after con-
+firming activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+6.22 TC-07, hotel panel after a chat-driven amenity filter for free Wi-Fi and parking . . 58
+6.23 TC-08, hotel cards in their selected state with the confirm-hotels button available 58
+6.24 TC-09, itinerary panel populated after confirming hotels with the auth modal open
+over it . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+6.25 TC-10, sign-up form in the auth modal with all fields filled in . . . . . . . . . . . . 59
+6.26 TC-10, itinerary panel remaining visible under the new account after claim . . . . 60
+6.27 TC-11, itinerary panel after a chat refinement turn showing the updated day plan 60
+6.28 TC-12, dedicated itinerary view page rendering the finalised plan with hotels and
+budget . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 61
+Page VI
+--- PAGE 8 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+6.29 TC-13, Django booking status page rendered for a confirmed hotel . . . . . . . . 61
+6.30 TC-14, exported itinerary PDF open in a viewer showing the day plan and budget 62
+6.31 TC-15, sign-in modal showing a fetch error while the backend is offline, with the
+chat interface preserved . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 62
+6.32 Recall at 1, 5, and 10 per model on the same held-out queries . . . . . . . . . . 63
+6.33 Retrieval time distribution by turn type . . . . . . . . . . . . . . . . . . . . . . . . 65
+6.34 Agent-turn time distribution per phase and turn type . . . . . . . . . . . . . . . . 66
+6.35 Speedup ratio distribution across 60 searches . . . . . . . . . . . . . . . . . . . . 67
+6.36 Demographic spread of the UAT panel across trip-planning method, travel fre-
+quency, and AI chat tool familiarity . . . . . . . . . . . . . . . . . . . . . . . . . . 71
+6.37 Per-participant SUS scores against the sample mean and the 68 industry benchmark 72
+6.38 Mean SUS rating per item, with positive-phrased and negative-phrased items
+distinguished . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 73
+A.1 Project timeline as a Gantt chart . . . . . . . . . . . . . . . . . . . . . . . . . . . 87
+Page VII
+--- PAGE 9 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+List of Tables
+1.1 Research question reasoning and investigation method . . . . . . . . . . . . . . 2
+2.1 Summary of related work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+3.1 In scope items . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+3.2 Out of scope items . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+4.1 Methods used to address each project objective . . . . . . . . . . . . . . . . . . 9
+4.2 Alternatives considered and reasons for the chosen method per objective . . . . 10
+4.3 Evaluation plan by axis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+5.1 Functional user-level requirements with MoSCoW priorities . . . . . . . . . . . . 13
+5.2 Non-functional requirements with MoSCoW priorities . . . . . . . . . . . . . . . . 13
+5.3 Roles supported by the system . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+5.4 Planning-workflow use cases and traceability . . . . . . . . . . . . . . . . . . . . 15
+5.5 Phase decomposition of the planning workflow . . . . . . . . . . . . . . . . . . . 17
+5.6 Retrieval model options weighed for the place-search layer . . . . . . . . . . . . 18
+5.7 Architectures weighed for the conversational layer . . . . . . . . . . . . . . . . . 18
+5.8 Web frameworks considered for the backend . . . . . . . . . . . . . . . . . . . . 19
+5.9 Storage architectures weighed for the data layer . . . . . . . . . . . . . . . . . . 20
+5.10 Frontend stacks considered for the user interface . . . . . . . . . . . . . . . . . . 21
+5.11 Agents hosted on the ADK server . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+5.12 Three gated phases of a session . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+6.1 Construction subsection map . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+6.2 Fine-tune configuration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
+6.3 Backend tooling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+6.4 Backend HTTP endpoint families . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+6.5 Backend data models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+6.6 Backend service modules . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+6.7 Agent layer tooling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+6.8 Phase agents and their underlying models . . . . . . . . . . . . . . . . . . . . . . 42
+6.9 Per-agent file layout . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42
+6.10 Phase agent tools . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43
+6.11 Agent integration patterns . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43
+6.12 Frontend tooling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+6.13 Frontend runtime patterns . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 46
+6.14 Docker Compose modes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 46
+6.15 Black-box functional test cases . . . . . . . . . . . . . . . . . . . . . . . . . . . . 50
+6.16 Retrieval recall on held-out queries, fine-tuned model versus three baselines . . 63
+6.17 Retrieval pipeline timing (ms) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 65
+6.18 Agent-turn timing by phase and turn type (ms) . . . . . . . . . . . . . . . . . . . . 66
+6.19 Parallel narrator fan-out versus sequential baseline (n=60) . . . . . . . . . . . . 67
+Page VIII
+--- PAGE 10 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+6.20 Traceability of user requirements to validation evidence . . . . . . . . . . . . . . 68
+6.21 Traceability of project objectives to achieved values and validation evidence . . . 69
+6.22 UAT participant demographics (n=10) . . . . . . . . . . . . . . . . . . . . . . . . 70
+6.23 Per-participant SUS scores . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 71
+6.24 Per-item SUS mean ratings (1 = Strongly Disagree, 5 = Strongly Agree) . . . . . 72
+6.25 Qualitative themes from the open-ended responses . . . . . . . . . . . . . . . . 74
+7.1 High-level feature comparison against two general-purpose planners . . . . . . . 75
+7.2 Latency for comparable steps, observed against the two reference planners . . . 76
+8.1 Achievement status of the project objectives . . . . . . . . . . . . . . . . . . . . . 78
+8.2 Answers to the research questions . . . . . . . . . . . . . . . . . . . . . . . . . . 79
+8.3 Major limitations of the system, their impact, and how each was handled . . . . . 80
+8.4 Future work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 81
+A.1 Sprint breakdown . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 86
+B.1 Risk assessment and mitigation . . . . . . . . . . . . . . . . . . . . . . . . . . . . 88
+D.1 Raw demographic responses per participant . . . . . . . . . . . . . . . . . . . . 93
+D.2 Raw SUS ratings per participant (1 = Strongly Disagree, 5 = Strongly Agree) . . 94
+D.3 Raw open-ended responses per participant . . . . . . . . . . . . . . . . . . . . . 95
+Page IX
+--- PAGE 11 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+List of Listings
+6.1 Environment configuration template . . . . . . . . . . . . . . . . . . . . . . . . . 49
+C.1 Retrieval timing extraction query . . . . . . . . . . . . . . . . . . . . . . . . . . . 91
+C.2 Agent-turn timing extraction query . . . . . . . . . . . . . . . . . . . . . . . . . . 92
+C.3 Parallel fan-out vs sequential baseline extraction query . . . . . . . . . . . . . . 93
+Page X
+--- PAGE 12 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Glossary
+ADK Agent Development Kit
+AI Artificial Intelligence
+API Application Programming Interface
+ASGI Asynchronous Server Gateway Interface
+BCU Birmingham City University
+BM25 Best Match 25
+CSS Cascading Style Sheets
+CSV Comma-Separated Values
+DBSCAN Density-Based Spatial Clustering of Applications with Noise
+DNF Digital Nepal Framework
+GDP Gross Domestic Product
+HNSW Hierarchical Navigable Small World
+HTML Hypertext Markup Language
+HTTP Hypertext Transfer Protocol
+ICT Information and Communication Technology
+IVFFlat Inverted File Flat
+JS JavaScript
+JSON JavaScript Object Notation
+KB Knowledge Base
+LLM Large Language Model
+Page XI
+--- PAGE 13 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+MoSCoW Must have, Should have, Could have, Won’t have
+NPR Nepalese Rupee
+ORM Object-Relational Mapper
+PDF Portable Document Format
+PO Project Objective
+RAG Retrieval-Augmented Generation
+RQ Research Question
+SAARC South Asian Association for Regional Cooperation
+SQL Structured Query Language
+SUS System Usability Scale
+TC Test Case
+TRS Tourism Recommender System
+UAT User Acceptance Testing
+UI User Interface
+URL Uniform Resource Locator
+UUID Universally Unique Identifier
+Page XII
+--- PAGE 14 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+1.0 Introduction
+Tourism is a huge industry in Nepal contributing to about 7% to GDP of Nepal with around
+16% employable generation working in the industry (Awale, 2025). The usage of internet
+has shifted the way travelers gather their information. In the context of Nepal, about 94% of
+tourists visiting Nepal utilize ICT, with 62% learning about Nepal from the internet (Kharel, 2024).
+Leveraging ICT tools and technologies is a promising approach to boost the tourism industry in
+Nepal. Among the modern technologies, AI powered travel planners are recognized as the next
+transformative change in the travel and tourism industry which can bring comfort, efficiency, and
+personalization to travelers (Honmane, 2025). This is supported by Digital Nepal Framework 2.0
+which recommends AI initiatives to boost tourist satisfaction in Nepal (Ministry of Communication
+and Information Technology, 2025b).
+1.1 Problem Statement
+Travel related information in Nepal is fragmented (Shrestha et al., 2024) across static informa-
+tional websites or tour operator websites. As tourists often prefer independent travel without
+having their tours managed (Dahal et al., 2024), substantial time is spent on manually research-
+ing, analyzing and filtering travel information which has created a crucial need for personalized
+tourism recommendations for travellers (Honmane, 2025; Shrestha et al., 2021).
+Furthermore, travellers in Nepal face challenges in accessing reliable localized information
+regarding health and hygiene, safety instructions, travel guides, transportation, accommodation,
+internet, cost, and general travel logistics (Shrestha et al., 2021), highlighting need for an
+integrated platform to deliver localized information in an accessible manner.
+Additionally, Digital Nepal Framework 1.0 (Ministry of Communication and Information Tech-
+nology, 2019) presented a persistent issue raised by tourists visiting Nepal regarding lack of
+up-to-date information on destinations, weather conditions, and local activities (Kharel, 2024;
+Ministry of Communication and Information Technology, 2025a; Paudel, 2025). Despite the
+subsequent emphasis on data infrastructure under key initiatives for the tourism sector in the
+more recent Digital Nepal Framework 2.0 (Ministry of Communication and Information Technol-
+ogy, 2025b), the issue continues to exist, emphasizing a need for real-time, data-driven, and
+adaptive travel solutions.
+1.2 Research Questions
+Three research questions guide the project, each addressing a distinct dimension: retrieval,
+multi-agent orchestration, and usability.
+RQ1 How well can a small retrieval model fine-tuned on a synthetic Nepal-specific dataset
+perform against established off-the-shelf retrieval alternatives?
+Page 1
+--- PAGE 15 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+RQ2 How well can phase-isolated multi-agent orchestration collaborate to turn natural-language
+travel queries into a personalised itinerary?
+RQ3 How well does an AI-powered chat-driven travel planner support independent travellers
+planning a Nepal trip?
+Each question pairs a specific dimension of the artefact with a measurable angle of investigation,
+so that the answers land on different parts of the evaluation rather than overlapping. Table 1.1
+sets out the reasoning behind each question and how its answer is investigated.
+Table 1.1: Research question reasoning and investigation method
+QID Reason Investigated by
+RQ1 Tests whether synthetic data and domain fine-tuning can
+compensate for the lack of real labelled data in a
+low-resource tourism corpus
+Literature Review,
+Empirical Evaluation
+RQ2 Tests whether multi-agent coordination can deliver a
+complete structured plan from free-form input where most
+chat-based planners produce only text
+Empirical Evaluation
+RQ3 Tests whether the artefact genuinely supports the user’s
+planning workflow rather than only serving as a technical
+demonstration
+Usability Study
+2.0 Review of Existing Knowledge
+This chapter reviews the prior work that surrounds the project across four themes: tourism
+recommender systems and the cold-start problem (Section 2.1), the arc from collaborative filter-
+ing to semantic and sequential methods (Section 2.2), context-aware and live-data-integrated
+recommendation (Section 2.3), and multi-agent LLM architectures for conversational recommen-
+dation (Section 2.4). Section 2.5 draws the gap that the project sets out to close, and Section 2.6
+justifies the project against that gap. Table 2.1 summarises the six most directly comparable
+studies and how each one informed the design of the artefact.
+Page 2
+--- PAGE 16 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 2.1: Summary of related work
+ID Title Author Content 01 A Tourist
+Destination
+Recommender
+System for Nepali
+Tourism Industry
+Dahal et al.
+(2024)
+Hybrid recommender
+for Nepal using
+content-based filtering
+with vectors and
+collaborative filtering
+with KNN and Matrix
+Factorization
+02 Personalized
+Tourist
+Recommender
+System: A
+Data-Driven and
+Machine-Learning
+Approach
+Shrestha
+et al. (2024)
+Surveys 2,400
+domestic and
+international tourists in
+Pokhara, training
+supervised learning
+algorithms on
+sub-divisions of the
+data and refining
+results with a
+parametric weighted
+algorithm
+03 Personalized
+Recommendation
+Method for Cultural
+Creative Products
+in Tourism Cities
+Based on User
+Profiles
+Huang
+(2024)
+Uses BERT4Rec to
+fuse dynamic user
+behavioural actions
+with static user profiles
+to enhance
+recommendations
+04 A Hybrid
+Recommendation
+System Based on
+Bidirectional
+Encoder
+Representations
+Islek and
+Oguducu
+(2020)
+Fine-tunes BERT to
+generate vector
+embeddings of
+unstructured item
+descriptions,
+integrating SASRec
+and GRU4Rec to
+outperform baseline
+models
+Relevance to project
+Justifies the need for a
+hybrid system in Nepal
+Identifies the specific
+feature sets and
+attributes relevant to
+tourists in Nepal that
+can be used in
+contextual scoring
+Validates that
+transformer
+architectures capture
+complex user interests,
+supporting
+augmentation of text for
+deeper semantic
+matching
+Validates that
+fine-tuned models
+producing dense text
+representations yield
+higher accuracy than
+standard NLP methods
+Page 3
+--- PAGE 17 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 2.1: Summary of related work (continued)
+ID Title Author Content Relevance to project
+05 A sequential neural
+recommendation
+system exploiting
+BERT and LSTM
+on social media
+posts
+Noorian
+et al. (2023)
+Hybrid framework
+combining BERT for
+semantics and LSTM
+for contextualised
+representations in user
+similarity, with
+asymmetric similarity,
+contextual filtering, and
+DBSCAN clustering for
+AOI and POI finding
+Provides logic for
+merging semantic
+recommendation with
+contextual data
+06 COLPOUSIT: A
+Hybrid Model for
+Tourist Place
+Recommendation
+based on Machine
+Learning
+Algorithms
+M and C
+(2021)
+Implements weighted
+hybridisation combining
+User-Based CF,
+Item-Based CF,
+Popularity-Based, and
+ArcGIS for
+recommendation in
+Jaipur City
+Justifies a linear
+combination strategy
+with weights
+2.1 Addressing the Cold Start Problem
+A consistent challenge highlighted across the surveyed literature is the “cold start” problem.
+Shrestha et al. (2024) highlight that reliance on interaction data is futile in low-resource regions
+such as Nepal and instead propose machine learning models trained on survey data that generate
+recommendations solely from static user attributes. Islek and Oguducu (2020) propose the
+use of fixed-dimension vector embeddings generated from text descriptions of places, allowing
+recommendations immediately without prior interaction history. While Shrestha et al. (2024)
+achieve high accuracy, their reliance on static and labour-intensive survey data raises scalability
+questions compared to the automated semantic extraction methods used by Islek and Oguducu
+(2020). A more scalable solution is proposed by Dahal et al. (2024), where a content-based
+recommendation is formulated by calculating cosine distance between a genre-bin vector of
+places and a user preference vector derived from preference data collected during initial login.
+Similarly, a more advanced solution to the cold start problem is implemented by Noorian et al.
+(2023), where instead of relying on interaction history an asymmetric similarity schema derived
+from social media posts is utilised.
+Page 4
+--- PAGE 18 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+2.2 Evolution from Static Filtering
+The literature shows that the domain of TRS has evolved noticeably from static filtering techniques
+towards hybrid architectures. Heavy reliance on a single algorithm often failed to capture the
+multifaceted nature of tourist decision making. To address this, M and C (2021) proposes a
+weighted hybridisation of recommendations from User-Based CF, Item-Based CF, a popularity-
+based model, and ArcGIS, suggesting that the disadvantages of individual algorithms could
+be overcome by another. Similarly, Dahal et al. (2024) proposes a hybrid approach combining
+Collaborative Filtering (CF) and Content-Based Filtering (CBF) based on cosine similarities
+of weighted user and place vectors, where the intersection of the two sets is surfaced as
+top recommendations. While M and C (2021) focused on Jaipur city, Dahal et al. (2024)
+contextualised the approach for Nepal by collecting a dataset from online sources and highlighting
+the necessity of such a system in regions where digital footprints are fragmented. Shrestha et al.
+(2024) further supports this stance, demonstrating through survey-based demographic profiling
+of 2,400 international and domestic tourists in Pokhara that refinement of place recommendations
+from trained machine learning algorithms using a novel parametric weighted algorithm produces
+better recommendations than systems such as Google Maps.
+2.3 Shift towards Semantic Based and Sequential Recommendations
+Despite the success of hybrid architectures, they still fail to account for the semantic and
+sequential nature of travel. Recognising every trip as a narrative rather than a set of isolated
+choices, the literature shows a shift towards deep learning approaches. Islek and Oguducu
+(2020) advances semantic processing by fine-tuning BERT models to transform text descriptions
+into dense vectors. Huang (2024) critiques traditional CBF, CF, and CNN algorithms for their
+inability to identify long-range dependencies effectively, proposing the BERT4Rec model for a
+more profound understanding of sequential user behaviour. Building on this sequential paradigm,
+Noorian et al. (2023) introduces a BERT model for identifying sequential Points of Interest (POI)
+from raw Top-N recommended POIs. Instead of relying solely on rating numbers, the authors
+implement LSTM for feature extraction by transforming unstructured review texts into structured
+fixed-dimension semantic vectors used to compute more accurate similarity scores between
+users, strengthening the collaborative filtering approach to capture the multifaceted nature of
+opinions expressed in reviews.
+2.4 Context-Aware and Environmental Integration
+Static recommendation approaches are increasingly viewed as obsolete as the integration of
+context such as geolocation and environmental factors is emerging as a critical determinant of
+tourism recommendation accuracy. Noorian et al. (2023) demonstrated that integrating weather,
+temperature, and visit-time contexts significantly enhances the relevance of recommendations
+compared to non-contextual approaches. This aligns with the work of M and C (2021), who
+Page 5
+--- PAGE 19 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+integrated the ArcGIS API for spatial context and argued that proximity is a weighted factor of
+equal importance to user preferences. However, Shrestha et al. (2024) expands the definition of
+‘context’ beyond the physical, incorporating planning attributes, budget constraints, preference
+signals, and satisfaction signals. A clear theoretical split is observed in which some researchers
+treat context as environmental or physical while others view it as situational and socio-economic.
+2.5 Critical Analysis and Gap Identification
+The existing literature reveals that hybrid frameworks yield better recommendations than stan-
+dalone methods. However, hybrid frameworks rely on linear combinations (M and C, 2021) and,
+when not integrated with deep learning layers, fail to capture semantic nuances. Although deep
+learning architectures are capable of capturing semantic nuances and sequential dependencies
+(Huang, 2024; Islek and Oguducu, 2020; Noorian et al., 2023), they introduce high computational
+overhead to train and deploy, especially in resource-limited environments. Furthermore, the
+solutions in Nepal proposed by Shrestha et al. (2024) and M and C (2021) rely on static datasets
+and fail to account for the dynamic nature of travel such as environmental changes. This creates
+an apparent dilemma, since large transformer models typically require vast volumes of data to
+avoid overfitting (Noorian et al., 2023), yet local data remains fragmented; recent work on small,
+domain-fine-tuned sentence transformers suggests that a few thousand curated pairs can be
+sufficient for a focused tourism domain, narrowing this gap. Consequently, there is a distinct
+lack of research applying context-aware, semantic transformer-based recommendation to the
+fragmented travel data available in Nepal, and no published work that combines such retrieval
+with a multi-agent conversational planner.
+2.6 Project Justification
+Addressing the critical gap of localised solutions in Nepal failing to account for the dynamic
+nature of travel, this project proposes an AI-agent-driven travel concierge that combines a
+domain-fine-tuned semantic retriever with live external context tools at the itinerary stage. To
+address the distinct lack of research applying semantic transformer-based recommendation
+to fragmented travel data in Nepal, the project fine-tunes a small BERT-family bi-encoder
+(sentence-transformers all-MiniLM-L6-v2) on synthetic query-to-fact pairs drawn from a hand-
+curated Kathmandu Valley knowledge base, with each place decomposed into atomic single-
+claim facts so the retriever matches on one facet of a place without being diluted by unrelated
+content. To close the additional gap around multi-agent conversational planning in low-resource
+tourism domains, the system is organised as four phase-isolated agents (place, hotel, itinerary,
+narrator) on Google ADK, with environmental and live context (weather, festivals, permits, news)
+integrated at the itinerary generation step rather than into the place ranking itself. By combining
+a deep semantic retriever with phase-isolated agent orchestration and live context grounding,
+the project addresses the cold-start problem inherent to the domain and delivers a responsive
+tool capable of surfacing lesser-known places through semantic alignment and live context,
+Page 6
+--- PAGE 20 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+instead of relying on static metrics such as popularity or collaborative filtering.
+3.0 Project Aims, Objectives, and Scope
+This chapter sets out the goal the artefact is built towards, breaks that goal into measurable
+objectives, and draws the boundaries within which the work is delivered.
+3.1 Project Aim
+The aim of this project is to design, build, and evaluate AI agents driven travel concierge that
+walks an independent traveller from a free-form chat message through personalised place and
+hotel recommendations to a day-by-day Kathmandu Valley itinerary, grounded in a localised
+knowledge base curated for Nepal.
+3.2 Objectives
+The objectives below break down the work needed to answer the research questions in Sec-
+tion 1.2, with each question addressed by one or more concrete deliverables.
+PO1 To build a synthetic query-to-fact dataset of 5,000 to 20,000 entries covering at least 100
+Kathmandu Valley attractions, by 13 January 2026.
+PO2 To fine-tune a retrieval model on the Kathmandu tourism dataset and reach a Recall@5 of
+at least 80% on a held-out test set, by 4 February 2026.
+PO3 To build a semantic recommendation system for attractions that turns natural-language
+input into a ranked list within 500 milliseconds, by 18 February 2026.
+PO4 To build an external grounding system capable of collecting real-time travel context covering
+at least three categories, by 4 March 2026.
+PO5 To build an itinerary generator system capable of crafting day-by-day travel plans within
+30 seconds based on user requirements, places, hotels, and travel context, by 18 March
+2026.
+PO6 To build a responsive frontend and an asynchronous backend that connects AI agents,
+relational database, and vector datastore, by 22 April 2026.
+3.3 Project Scope
+The project scope sets out the boundaries of the work delivered in this dissertation, with the in-
+scope capabilities and measurements that are committed to listed first and the explicit exclusions
+that follow drawn around them.
+Page 7
+--- PAGE 21 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+3.3.1 In Scope
+The functional and evaluative deliverables committed to by the project are summarised in
+Table 3.1, with each row identifying a single concrete capability or measurement the artefact
+must support.
+Table 3.1: In scope items
+Item Description
+Language English only
+Geography Kathmandu Valley and the outward seed locations
+Knowledge base A curated Kathmandu Valley catalogue covering at least 100 places
+as targeted by PO1 in Section 3.2, alongside place images and an
+accompanying set of curated hotels
+Output formats Dedicated itinerary view page, and PDF export
+Accounts Lightweight user registration and login with an
+anonymous-to-registered session claim flow
+Live context Weather, festival, permit, and disruption lookups
+3.3.2 Out of Scope
+The capabilities listed in Table 3.2 are explicitly excluded from this project so that the in-scope
+work can be delivered and evaluated within the available time.
+Table 3.2: Out of scope items
+Item Reason
+Non-English support No Nepali or other language interface is provided
+Multi-country trips The knowledge base, pricing tiers, and live context tools are
+Nepal-specific
+Hotel bookings The system presents a draft booking status page rather than
+integrating with a live reservation channel
+Transport bookings No train, bus, or flight API integration is attempted
+Native mobile apps Delivered as a responsive web application; no iOS or Android build
+is produced
+Page 8
+--- PAGE 22 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 3.2: Out of scope items (continued)
+Item Reason
+Horizontal scaling Backend runs as a single process with an in-memory session
+manager and process-local auth tokens, suitable for development
+and small-panel testing rather than production
+Payments and
+financial transactions
+The system does not process any payment, refund, or financial
+settlement; the draft booking status page is informational only
+Non-text input
+modality
+User interaction is restricted to text input; no voice or image input is
+supported
+4.0 Project Design
+This chapter sets out the methodology behind the project: the method used to address each
+of the six project objectives in Section 3.2, the justification for those method choices against
+credible alternatives, the way the supervision dataset was constructed, and the plan against
+which the result is evaluated.
+4.1 Design and Methods
+The project was approached as a build-and-measure development exercise in the design science
+research tradition (Peffers et al., 2007) rather than a literature-only study, since the research
+questions in Section 1.2 can only be answered with an artefact that can be measured. Each of
+the six project objectives in Section 3.2 was addressed through a specific method outlined in
+Table 4.1.
+Table 4.1: Methods used to address each project objective
+PO Method
+PO1 LLM assisted curation of a Nepal-tourism knowledge base from public online
+sources
+PO2 Supervised fine-tuning of a small bi-encoder with MultipleNegativesRankingLoss on
+query-to-fact pairs, scored against three baselines on a held-out fact split
+PO3 Cosine similarity retrieval with an approximate-nearest-neighbour index at the fact
+level, aggregated to per-place scores by averaging the top three fact similarities
+PO4 Integration of external APIs with graceful failure handling within tools assigned to AI
+agents.
+Page 9
+--- PAGE 23 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+PO Method
+PO5 Structured itinerary generation by an AI agent that composes user requirements,
+confirmed places, selected hotels, and live travel context into a day-by-day plan.
+PO6 Sprint-based iterative development across the three application layers (backend
+with its data layer, agent server, and frontend)
+4.2 Justification of Methods
+Every method named in Section 4.1 was weighed against at least one credible alternative before
+being adopted. Table 4.2 sets out the alternative considered for each objective and the reason
+the chosen method was kept.
+Table 4.2: Alternatives considered and reasons for the chosen method per objective
+PO Alternative
+considered
+Reasoning
+PO1 Fully manual curation of
+the knowledge base
+without LLM assistance
+Manual-only curation cannot reach the dataset scale
+required by PO1 within the project timeline, whereas
+LLM-assisted curation lets the same student-led effort
+cover at least 100 attractions and several thousand
+entries while keeping every entry under human review
+PO2 Use a large hosted
+language model directly
+as the retriever
+A small fine-tuned bi-encoder is cheaper per query,
+deterministically sub-second, and reproducible offline,
+whereas a hosted retriever would breach the PO3 latency
+target and bind the project to a vendor
+PO3 Sequential per-fact
+similarity scan without a
+vector index
+The approximate-nearest-neighbour index keeps the
+median query well under the 500 ms target and scales as
+the knowledge base grows, while a sequential scan
+would only hold under a few hundred facts
+PO4 Hard-coded static
+lookup tables for
+weather and seasonal
+events
+Static tables go stale and recreate the
+up-to-date-information gap raised in Section 1.1, whereas
+live API integration keeps the answers current at request
+time
+PO5 Rule-based itinerary
+planner with
+hand-coded scheduling
+logic
+A rule-based planner cannot effectively compose
+open-ended user preferences in chat into a day plan,
+whereas AI agents can absorb preferences alongside any
+structured inputs into a single coherent plan
+Page 10
+--- PAGE 24 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+PO Alternative
+considered
+Reasoning
+PO6 Waterfall development
+with a single
+end-of-project
+integration
+Sprint-based iterative development bounded rework risk
+by leaving each layer runnable before the next was
+started, so integration mistakes can be caught early
+4.3 Dataset Construction Methodology
+The retrieval model was trained on a hand-curated set of 5,500 query-to-fact pairs. The knowl-
+edge base behind those pairs is 156 places, each decomposed into single-claim atomic facts
+for a total of 546 facts. Queries were written by hand in the keyword-bag style that the place
+agent emits at run time, so the training distribution matches what the system actually receives
+rather than the free-form questions a tourist might type. The split holds out facts rather than
+queries: 10% of facts are reserved for validation, and any query linked to a held-out fact moves
+with it. This rules out information leakage and forces the model to retrieve claims it has never
+seen during training. At evaluation time the search corpus is the full set of facts, but only the
+validation queries are issued against it. Section 4.4 specifies the metrics used.
+4.4 Evaluation Plan
+Evaluation runs on three orthogonal axes: retrieval quality, end-to-end latency, and user accep-
+tance. Each axis has its own metric, its own instrument, and a predetermined threshold against
+which the result is read. Table 4.3 sets out the three axes in summary form.
+Table 4.3: Evaluation plan by axis
+Axis Metric Instrument Target
+Retrieval
+quality
+Recall@5, Recall@10 Held-out fact split,
+scored offline
+Lift of at least 10%
+on Recall@5 over
+the off-the-shelf
+all-MiniLM-L6-v2
+baseline
+System
+latency
+Wall-clock time per phase
+(median and 95th percentile)
+Instrumented dev
+host, measured
+over repeated runs
+Place phase under
+5 s, hotel phase
+under 5 s, itinerary
+phase under 30 s
+Page 11
+--- PAGE 25 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Axis Metric Instrument Target
+User
+acceptance
+Task-completion time, SUS
+score, qualitative themes
+Moderated
+session, n = 10–20
+participants
+Median SUS score
+in the “good” band
+(above 68)
+The user acceptance test is conducted as a moderated session in which each participant
+completes a fixed planning task while their time-on-task is recorded. They then complete a
+ten-item SUS-style questionnaire and answer one open-ended prompt that surfaces qualitative
+themes. The sample size of ten to twenty falls below the threshold of thirty often quoted for
+publishable user studies, so the test is framed as a formative evaluation rather than a confirmatory
+one. The implication of this constraint is revisited in Section 8.4.
+5.0 Artefact Design
+The design is shaped by the research questions in Section 1.2 and the project objectives in
+Section 3.2.
+5.1 Design Specifications
+This section sets out what the artefact must do and the constraints it operates under. It opens
+with the target user that the design serves, the functional and non-functional requirements that
+follow from their needs, the system roles, and the planning-workflow use cases. The summary
+of functional and non-functional specifications that consolidates these is given at the end of the
+section.
+5.1.1 User Identification
+Requirement, role, and use case is shaped by the audience the system serves (X. Zhang
+et al., 2024). The target user the proposed system targets are independent travellers planning
+multi-day trips to Nepal without using tour operators. The group spans foreign visitors arriving
+from abroad and Nepali citizens travelling domestically, with different budget tiers and different
+information needs. The system serves all three pricing tiers used in Nepali tourism (Nepali,
+SAARC and non-SAARC) so that every cost included in the itinerary applies the correct entry-fee
+bracket for the traveller.
+5.1.2 User Requirements
+Table 5.1 lists the functional, user-level requirements that the artefact must deliver, and Ta-
+ble 5.2 lists the non-functional requirements that bound the implementation. Priorities follow the
+MoSCoW convention (Vijayakumar et al., 2024), where Must is essential, Should is important
+but not blocking, and Could is desirable when budget allows.
+Page 12
+--- PAGE 26 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 5.1: Functional user-level requirements with MoSCoW priorities
+ID Priority Description
+R1 Must Discover places matching the traveller’s interests
+R1.1 Must Express interests through natural-language chat with the place agent
+R1.2 Must Refine the suggested places by continuing the chat in the same
+phase
+R1.3 Should See a personalised short description for each suggested place
+R1.4 Could See an image for each suggested place
+R2 Must Choose accommodation for the confirmed places
+R2.1 Must See hotels grouped by spatial region for the trip
+R2.2 Should Filter hotels by user-selected attributes
+R2.3 Must Choose a different hotel for each region from the available options
+R3 Must Receive a usable day-by-day itinerary for the trip
+R3.1 Must See a day-by-day schedule covering the selected places
+R3.2 Must See cost estimates in NPR with nationality-tiered pricing applied
+R3.3 Should Export the final itinerary as a downloadable PDF
+R4 Should Manage saved trips across browser sessions
+R4.1 Should Register or sign in to save the current session to an account
+R4.2 Should Link an anonymous trip to a new or existing account
+R4.3 Should View and re-export past itineraries from the account
+Table 5.2: Non-functional requirements with MoSCoW priorities
+ID Priority Description
+N1 Must Place search returns a ranked recommendation within 5 seconds of
+the user submitting a chat turn
+N2 Must Hotel search returns clustered recommendations within 5 seconds of
+the user confirming places
+N3 Must Itinerary generation completes within 30 seconds of the user
+confirming hotels
+Page 13
+--- PAGE 27 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+ID Priority Description
+N4 Must Every place and hotel surfaced to the user resolves to a curated
+knowledge-base entity rather than free-form model output
+N5 Must User passwords are stored as salted hashes and never logged in
+plaintext
+N6 Must Anonymous sessions can be claimed into a registered account
+without losing itinerary
+5.1.3 User Roles
+The system supports two roles, listed in Table 5.3. A session always begins in the anonymous
+role, and the user can choose to upgrade to a registered account at any point.
+Table 5.3: Roles supported by the system
+Role Description
+Anonymous
+visitor
+Can plan a trip end to end in a single browser session without
+registering. The session is held by the backend under its session id only
+and is not retrievable once the browser tab is closed.
+Registered user Can register or sign in to save sessions to an account, claim a
+previously anonymous session into the account, view past itineraries,
+and re-export them as PDFs.
+5.1.4 Use Cases
+The use cases are restricted to the planning workflow that carries the project’s research argument.
+Each use case in Table 5.4 is traceable upward through a user requirement in Section 5.1.2 to
+one or more project objectives in Section 3.2 and onward to the research questions in Section 1.2
+that the objective is set up to answer. Account-management and persistence features sit outside
+this scope.
+Page 14
+--- PAGE 28 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 5.4: Planning-workflow use cases and traceability
+Use case Description Traceability
+Browse
+recommended
+places
+Express trip interest through the
+place-phase chat and receive a
+ranked panel of recommended
+places with personalised short
+description and image
+Section 1.2 (RQ1, RQ3)
+Section 3.2 (PO2, PO3)
+Section 5.1.2 (R1, R1.1, R1.3, R1.4,
+N1, N4)
+Refine places Continue the place-phase chat
+to revise interests, add
+constraints, or shift focus
+Section 1.2 (RQ2, RQ3)
+Section 3.2 (PO3)
+Section 5.1.2 (R1.2, N1, N4)
+Select places Pick the preferred places from
+the recommended panel to carry
+forward into the trip
+Section 1.2 (RQ2)
+Section 3.2 (PO5 input preparation)
+Section 5.1.2 (R1, N4)
+Confirm places Mark the place selection as final
+and gate the transition to the
+hotel phase
+Section 1.2 (RQ2)
+Section 3.2 (phase transition)
+Section 5.1.2 (R1)
+Browse
+clustered
+hotels
+View hotels grouped by regional
+base around the confirmed
+places
+Section 1.2 (RQ2)
+Section 3.2 (PO5 input preparation)
+Section 5.1.2 (R2, R2.1, N2, N4)
+Refine hotels Issue further preferences to
+narrow accommodation results
+Section 1.2 (RQ2, RQ3)
+Section 3.2 (PO5 input preparation)
+Section 5.1.2 (R2.2, N2, N4)
+Select hotels Choose one hotel per regional
+base from the available options
+Section 1.2 (RQ2)
+Section 3.2 (PO5 input preparation)
+Section 5.1.2 (R2.3, N4)
+Confirm hotels Mark the hotel selection as final
+and gate the transition to the
+itinerary phase
+Section 1.2 (RQ2)
+Section 3.2 (phase transition)
+Section 5.1.2 (R2)
+Receive
+itinerary
+Receive a day-by-day plan with
+NPR pricing and live festival,
+permit, and weather context
+Section 1.2 (RQ2, RQ3)
+Section 3.2 (PO4, PO5)
+Section 5.1.2 (R3, R3.1, R3.2, N3, N4)
+Refine itinerary Continue the itinerary-phase
+chat to adjust pacing, swap
+activities, or revise budget
+assumptions
+Section 1.2 (RQ2, RQ3)
+Section 3.2 (PO5)
+Section 5.1.2 (R3, N3, N4)
+Page 15
+--- PAGE 29 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Use case Description Traceability
+Export itinerary View the final itinerary page and
+export it as a downloadable PDF
+Section 1.2 (RQ3)
+Section 3.2 (PO5, PO6)
+Section 5.1.2 (R3.3)
+Use case diagrams effectively convey primary actors interaction with system components (Imtiaz
+Malik et al., 2023), especially in agent-based systems with communication with external entities
+(Leon, 2022). The use case diagram in Figure 5.1 sets out how the two primary actors interact
+with the system and where the agent layer reaches out to its external secondary actors.
+Figure 5.1: Use case diagram for the Nepal Travel Concierge
+Page 16
+--- PAGE 30 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+5.2 Artefact Structure and Architecture
+This section sets out how the artefact is structured to meet the specifications in Section 5.1. It
+opens with the phase decomposition that organises the planning workflow, then the technical
+options weighed for each major layer and the choice taken, then the system architecture as a
+whole, and closes with the per-component design of the layers that carry the research argument.
+5.2.1 Phase Decomposition
+The planning workflow is split into three sequential phases plus one cross-cutting capability.
+Each phase owns its own agent, its own panel, and its own chat transcript, and ends with an
+explicit confirmation that gates the next phase. Table 5.5 sets out the role of each phase.
+Table 5.5: Phase decomposition of the planning workflow
+Phase Description
+Place phase Conversational refinement of trip intent leading to a panel of
+recommended places, each ranked by semantic similarity and
+accompanied by a personalised short description
+Hotel phase Cluster the confirmed places into regional bases and recommend hotels
+per base, filtered by an agent-issued attribute spec covering category,
+price, rating and amenities
+Itinerary phase Generate a day-by-day plan with cost estimates in NPR tiered by
+traveller nationality (Nepali, SAARC, non-SAARC) and grounded in live
+festival, permit and disruption information
+Chat refinement
+(cross-cutting)
+Per-phase chat continues after the initial panel so the user can revise
+selections, add constraints, or shift focus without leaving the current
+phase
+5.2.2 Design Options and Justifications
+Several technical choices behind the artefact had defensible alternatives. The subsections
+below set out the alternatives weighed, the justification for the chosen path, and the trade-off
+accepted in each case.
+5.2.2.1 Retrieval Model
+Three retrieval candidates were weighed for the place-search layer. Table 5.6 summarises each
+option, its status, and the rationale behind the decision.
+Page 17
+--- PAGE 31 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 5.6: Retrieval model options weighed for the place-search layer
+Option Status Rationale
+MiniLM-L6 (Small
+bi-encoder)
+Selected Runs on CPU in well under a second per query
+(Korga et al., 2025) and the recall gain via
+fine-tuning on specialized datasets (Yin and
+Z. Zhang, 2024) justifies the extra training step
+BGE-base (Larger
+off-the-shelf encoder)
+Rejected Larger memory and latency footprint with no proven
+advantage on this small curated corpus
+BM25 (Classic lexical
+search)
+Rejected Strong on keyword-matching queries but cannot
+handle synonymy or paraphrase, kept as the
+evaluation baseline in Section 6.2.2
+5.2.2.2 Agent Architecture
+Three architectures were weighed for the conversational layer. Table 5.7 compares them.
+Table 5.7: Architectures weighed for the conversational layer
+Option Description Status Rationale
+Multi-agent
+split
+Four phase-specific agents,
+each with a short prompt and
+a narrow set of tools
+Selected Allows for phase specific role
+specialization and effective
+execution of complex tasks
+(Stübinger and Metz, 2026)
+while confining failures to the
+phase
+Monolithic
+agent
+Single agent driving the
+whole conversation under
+one long prompt
+Rejected One long prompt covering
+every phase is harder to
+maintain and a single faulty
+step can corrupt the rest of
+the session
+Page 18
+--- PAGE 32 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Option Description Status Rationale
+Swarm
+orchestration
+Multiple specialised agents
+that dynamically hand off
+control to one another based
+on the user’s intent rather
+than fixed phases
+Rejected Dynamic handoffs would
+conflict with the gated phase
+model the user interface
+depends on, where each
+panel is tied to one phase
+and one agent, and would
+make per-phase panel
+refresh signals harder to
+trigger predictably
+5.2.2.3 Backend Framework
+Four web frameworks were considered for the backend. Table 5.8 sets out the comparison.
+Table 5.8: Web frameworks considered for the backend
+Option Description Status Rationale
+Django Mature Python framework
+with a typed ORM, first-class
+migrations, and a built-in
+admin interface
+Selected Single framework covers the
+ORM, migrations,
+authentication, and admin
+under one configuration story,
+and Django Ninja adds
+type-safe HTTP routing on
+the same data model without
+introducing a separate stack
+FastAPI Modern asynchronous
+Python framework focused on
+speed and type-driven API
+generation
+Rejected Lighter framework but
+requires pairing with separate
+libraries for the ORM,
+migrations, and admin, which
+increases the surface area to
+assemble and maintain
+Page 19
+--- PAGE 33 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Option Description Status Rationale
+Node.js JavaScript runtime paired
+with the Express framework
+for HTTP routing
+Rejected Splits the stack across two
+languages, which
+complicates sharing the
+embedding model and
+pgvector access with the rest
+of the system
+5.2.2.4 Data Layer
+Two storage architectures were weighed for the catalogue plus the per-session state. Table 5.9
+sets out the comparison.
+Table 5.9: Storage architectures weighed for the data layer
+Option Stack Status Rationale
+Single PostgreSQL with
+pgvector extension
+Selected One connection serves both relational and
+vector data, low operational complexity,
+transactional consistency between
+embeddings and the catalogue, and lower
+per-query latency at this scale because
+the vector lookup runs inside the same
+Postgres connection rather than incurring
+a network hop to a separate service
+Hybrid PostgreSQL paired
+with Qdrant
+dedicated vector
+database
+Rejected Two services to operate with separate
+authentication, no transactional
+consistency between embeddings and
+relational rows, and an additional network
+hop on every search
+5.2.2.5 Frontend Stack
+Three approaches were considered for the user interface. Table 5.10 compares them.
+Page 20
+--- PAGE 34 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 5.10: Frontend stacks considered for the user interface
+Option Status Rationale
+React single-page app
+(served by Vite with
+Tailwind for styling)
+Selected Client-side reactive model matches the panel-driven
+UI with frequent partial updates from background
+tasks
+Server-rendered
+framework (Next.js with
+server components)
+Rejected Server-rendering split adds deployment complexity
+without benefiting the panel-driven flow
+Plain HTML with htmx Rejected Lighter but less natural for optimistic selection
+toggles and the polling loop that delivers narrator
+descriptions
+5.2.3 System Architecture
+The artefact runs as three cooperating local processes together with two external cloud services.
+The three local processes refer to: a web interface, a backend server, and an agent server. Their
+general layout is depicted in Figure 5.2. Only one architectural invariant determines the rest of
+the design: the backend server being the only client of the database. The web interface never
+accesses the database directly, and the agent server does not access it at all. This separation
+means every panel rendered in the user interface is driven from backend state rather than from
+an agent’s text reply, which prevents a class of hallucination bugs in which a recommendation
+refers to a place or hotel the database does not contain. The agent server only contains the
+orchestration logic. The language-model inference is performed using Google’s Gemini API,
+and the itinerary agent also gets information about festivals, permits, and disruptions from Tavily.
+In production, each component is running inside Docker.
+Figure 5.2: System architecture and external services
+Page 21
+--- PAGE 35 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+5.2.4 Component Design
+The design now breaks down by component. Each subsection covers one component’s role,
+the data it holds or produces, and the design choices that shape its behaviour.
+5.2.4.1 Per-Phase Agent Design
+The artefact decomposes a single conversation into three gated phases and four supporting
+agents. Each phase has one agent that drives the user-facing work for that phase, and each
+agent holds its own conversation history and prompt. The overall pipeline is shown in Figure 5.3.
+Figure 5.3: Three-phase pipeline and agent flow
+Each of the four agents serves one well-defined responsibility, listed in Table 5.11. The split
+keeps every agent’s prompt short and isolates a failure to the phase in which it occurs.
+Table 5.11: Agents hosted on the ADK server
+Agent Phase Responsibility
+agent_narrator Fan-out Summarises a place into a short personalised
+description for its card.
+agent_places Place Converses with the user, infers interests, and crafts a
+short semantic query.
+Page 22
+--- PAGE 36 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Agent Phase Responsibility
+agent_hotel Hotel Groups selected places by region and issues
+per-region hotel filter specs.
+agent_itinerary Itinerary Plans the day-by-day schedule with budget tiers and
+submits the final itinerary.
+The phases themselves are gated, which means that the next phase cannot begin until the user
+explicitly confirms the current one. Table 5.12 sets out what each phase delivers to the user.
+Two recurring patterns connect these phases together: a kick-off pattern and a panel-update
+flag, both described after the table.
+Table 5.12: Three gated phases of a session
+Phase Description
+Place Surfaces a panel of place suggestions ranked by the mean of their top-3
+fact-to-query cosine similarities. The narrator fan-out runs in parallel within
+this phase to write a short personalised description for every card.
+Hotel Groups confirmed places into regional bases via spatial clustering, then
+recommends hotels per base filtered by an attribute spec, which prevents
+geographically impossible itineraries
+Itinerary Plans a day-by-day schedule with cost estimates and submits the final itinerary.
+Authenticated users can save the session and export a summarised PDF.
+First pattern is the kick-off. When the user confirms one phase, the backend will set up an
+agent session for the next phase and send it an internal message that summarizes what has
+just been confirmed. Because of this, the first reply of the next phase will be grounded in the
+panel content, and not start with a generic greeting. Second pattern is the panel-update flag,
+set in the agent’s session state whenever a tool call makes a change to what the user should
+see. Three such flags are used, one per phase. After each chat turn the backend reads the
+relevant flag, resets it, and forwards the boolean to the frontend, which uses the signal to decide
+whether to refetch the panel.
+5.2.4.2 Knowledge Base
+The knowledge base currently has four tables and consists of the read-mostly half of the
+database. In the database, Place represents destinations, Fact holds atomic pieces of data
+about the destinations, PlaceImage stores thumbnail URLs, and Hotel lists the accommodation
+Page 23
+--- PAGE 37 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+stock. The connections among these tables are depicted in Figure 5.4. There are two design
+decisions in the schema that I want to highlight here. Firstly, instead of the whole place sharing
+one description vector, every statement about a place is a separate Fact row with its own
+384-dimensional embedding. This is the reason that the retriever in Section 5.2.4.3 can handle
+places with different facets. Secondly, Hotel table does not have a foreign key to Place. The
+association between the two is not a direct link but a spatial one, and it is resolved at query time
+by the clustering pipeline in Section 5.2.4.4.
+Figure 5.4: Knowledge base schema
+5.2.4.3 Place Recommendation: Semantic Retrieval
+Query expansion techniques in information retrieval justify converting user intent into a short
+keyword-based query (Azad and Deepak, 2019). So, the place agent simply prepares and a
+short keyword-bag query that is the essence of the user’s articulated interests and sends to
+the backend which then forms a ranked list of places. The query goes through the fine-tuned
+bi-encoder which outputs a 384-dimensional vector that is scanned and compared against the
+vector representations of every Fact using cosine similarity. The backend retains just the best
+three facts per place and averages their similarity scores to come up with one place score. This
+top-K-average method rewards places whose best features are essentially a good match with
+the query, without giving one high match result the power to overshadow the rest of the evidence.
+If a user at a later point asks a factual question about a specific named place, the agent does
+not follow the search path but rather accesses a separate lookup tool providing the curated facts
+for that place which the agent can use to ground its response on.
+Page 24
+--- PAGE 38 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 5.5: Semantic retrieval flow
+5.2.4.4 Hotel Recommendation: Spatial Clustering
+Once a user confirms places selection, the hotel agent is in charge of allocating lodging intelli-
+gently. Suggesting hotels without considering the geographical location of selected places could
+result in itineraries that are impractical. The backend first groups the places into regional bases
+by using a DBSCAN-style proximity rule (Ester et al., 1996) with an ε of about 30 kilometres.
+Each connected component corresponds to a cluster or base which is then ordered by size and
+given labels. For every base, the backend gets a list of hotels located within about 25 kilometres
+of the cluster centroid as the candidate pool. Then, the hotel agent makes filtering specification
+describing four different axes: type of accommodation, miminum hotel price, minimum rating,
+and required amenities. After that, predefined maximum number of hotels are selected per
+base to ensure hotel selection for user remains managable. Geometry of bases are stored on a
+session so that later refinement rounds reuse the same bases and only filter the hotels per base
+as required. The whole process is shown in Figure 5.6. As with the place phase, any questions
+about the facts of a particular named hotel are passed to a separate lookup tool which brings
+the hotel catalog attributes, so the agent answers from the curated record rather than inventing
+details.
+Figure 5.6: Hotel clustering and filtering pipeline
+5.2.4.5 Frontend UI
+Page 25
+--- PAGE 39 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The frontend displays the planning process through a chat panel accompanied by a phase-
+specific side panel. The chat panel can be used by users to request changes in natural language
+and the side panel reflects the place cards recommendations, hotel recommendations based
+on clusters, and the generated itinerary. Background tasks updates such as the narrator
+descriptions mentioned in Section 5.2.4.3 get delivered via a polling loop through which the side
+panel re-fetches after the backend signals a change. Selection state is optimistically updated so
+toggles feel instant, but a server-side revert on failure is used to maintain the panel’s integrity.
+Additionally, registered users have a separate account page that displays all their past trips and
+allows them to reopen or export each itinerary as a PDF.
+6.0 Implementation
+This chapter records how the artefact was built and how its claims were tested. Section 6.1
+documents the construction itself, working through the curated knowledge base, the fine-tuned
+retriever built on top of it, the three application layers, and the containerised deployment that
+brings them up together. Section 6.2 then describes the validation strategy and the per-axis
+measurements that check the artefact against the success criteria set out in Section 4.4.
+6.1 Construction of the Artefact
+Construction followed a layered approach: each layer was built and verified before the next
+was added on top. The repository layout in Figure 6.1 groups the three application layers under
+application/, the offline training pipeline under training/, the seed bootstrap under seed/,
+and the compose files at the root. Configuration shared across layers lives in a single .env
+file at the repository root; the template and the preflight check that validates it are detailed in
+Section 6.1.6.
+Page 26
+--- PAGE 40 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+strsnp/
+application/
+agent/
+backend/
+frontend/
+training/
+finetune/
+seed/
+docker-compose.dev.yml
+docker-compose.prod.yml
+.dockerignore
+requirements.txt
+README.md
+Figure 6.1: Repository structure
+The dynamic view differs by phase. Phase 1 (Figure 6.2) lets the place agent branch between a
+strict-match lookup and a semantic search, with a successful search triggering an asynchronous
+narrator fan-out. Phase 2 (Figure 6.3) clusters the user’s confirmed places into regional bases
+before the hotel agent issues a single filter specification per base. Phase 3 (Figure 6.4) fires the
+itinerary agent’s tool calls in parallel to gather knowledge-base entries, weather, and live news,
+then submits one structured record for the backend to validate and persist.
+Page 27
+--- PAGE 41 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.2: Phase 1 chat turn sequence
+Page 28
+--- PAGE 42 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.3: Phase 2 chat turn sequence
+Page 29
+--- PAGE 43 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.4: Phase 3 chat turn sequence
+Table 6.1 maps the subsections that follow to the layer each one covers and the headline
+technology used in that layer.
+Table 6.1: Construction subsection map
+Section Layer Headline technology
+Section 6.1.1 Knowledge Base Curation Python HTTP loader, MinIO
+Section 6.1.2 Fine-tuning sentence-transformers,
+MultipleNegativesRankingLoss
+Page 30
+--- PAGE 44 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.1: Construction subsection map (continued)
+Section Layer Headline technology
+Section 6.1.3 Backend on Django and
+PostgreSQL
+Django 5, Django Ninja, pgvector
+Section 6.1.4 AI Agents on Google ADK Google ADK, Gemini, Tavily
+Section 6.1.5 Frontend on React React 18, Vite, Tailwind
+Section 6.1.6 Containerisation and
+Deployment
+Docker Compose, nginx
+6.1.1 Knowledge Base Curation
+The knowledge base was hand-curated from online sources covering the Kathmandu Valley
+in four passes: places, single-claim facts per place, place images, and supporting hotels. The
+four passes together produced 156 places, 550 facts, 100 hotels, and a matching image set,
+persisted as the CSV bundle shown in Figure 6.5.
+seed/
+seed.py
+data/
+place.csv
+fact.csv
+hotel.csv
+place_image.csv
+place_image/
+Figure 6.5: Seed bootstrap directory structure
+The bundle is loaded into the running system by seed.py, a standalone script that posts each
+CSV batch to the matching token-gated admin endpoint in Table 6.4, uploads the place images
+to a public-read MinIO bucket, and writes the resulting URLs back through the place-images
+endpoint. Splitting every place into atomic single-claim facts is the design choice the rest of
+the system depends on, since it lets the retriever match on one facet without diluting the signal
+across unrelated content; the same split underpins the fine-tuning dataset built in Section 6.1.2.
+6.1.2 Fine-tuning
+The fine-tuning pipeline lives outside the application code in a self-contained workspace shown
+in Figure 6.6, with the training script, the curated CSVs, and the trained checkpoint each in their
+Page 31
+--- PAGE 45 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+own folder so the pipeline can be rerun whenever the dataset changes without touching the rest
+of the system.
+training/finetune/
+finetune.py
+evaluate_baselines.py
+requirements.txt
+data_processing/
+facts.csv
+query_facts.csv
+strsnp-embedder/
+Figure 6.6: Fine-tune training directory structure
+The fine-tuning dataset was crafted on top of the seed data from Section 6.1.1 by writing short
+queries against every fact in the knowledge base. In total the dataset holds 5,500 queries over
+the 550 facts that cover the 156 Kathmandu Valley attractions in the seed.
+Figure 6.7: Sample query-to-fact pairings
+The queries themselves in Figure 6.7 are synthetic, generated with the help of large language
+models (Anthropic, 2024; Google, 2024). Each fact_id above resolves to one row in the fact
+table shown in Figure 6.8, where every row carries a single atomic claim about a place.
+Figure 6.8: Sample fact rows, each carrying one atomic claim
+Joining the two tables on fact_id produces the final training pairings shown in Figure 6.9, where
+Page 32
+--- PAGE 46 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+each query sits beside the full text of its target claim.
+Figure 6.9: Query-to-fact pairings resolved to its underlying claim
+The training script holds 10% of facts (with all of their queries) out of the training set so the
+model is scored only on claims it has never seen during training. The base model is sentence-
+transformers/all-MiniLM-L6-v2, a 384-dimensional bi-encoder small enough to run on CPU
+in well under a second per query, and training uses MultipleNegativesRankingLoss so every
+query is pulled toward its paired fact and pushed away from every other fact in the same batch.
+The full set of hyperparameters used to produce the shipped checkpoint is listed in Table 6.2.
+Fine-tuning is executed by running finetune.py, and the training run that produced the shipped
+checkpoint is plotted in Figure 6.10.
+Table 6.2: Fine-tune configuration
+Setting Value
+Base model sentence-transformers/all-MiniLM-L6-v2
+Embedding dim 384
+Loss MultipleNegativesRankingLoss
+Training pairs 5,500 query-to-fact pairs
+Held-out split 10% (held out as units, with their queries)
+Max training steps 600
+Batch size 32
+Learning rate 2 × 10−5 with 10% warm-up
+Random seed 42
+Output directory training/finetune/strsnp-embedder/
+Page 33
+--- PAGE 47 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.10: Fine-tune training curve, with held-out Recall@5 climbing as training loss falls
+Training loss falls steadily as held-out Recall@5 climbs and settles well above its untrained
+starting point, confirming that the configuration in Table 6.2 is well-matched to the dataset
+rather than overshooting or stalling. The resulting checkpoint, written to strsnp-embedder/,
+is the retriever the backend loads at start-up and uses to embed every place-agent query at
+run time. The same checkpoint is then scored against three off-the-shelf baselines through
+evaluate_baselines.py, with the results discussed in Section 6.2.2.
+6.1.3 Backend on Django and PostgreSQL
+The backend is the only client of the database and the single source of truth for everything the
+user sees.
+6.1.3.1 Tooling
+Table 6.3 lists the tools chosen for the backend layer and the role each plays.
+Table 6.3: Backend tooling
+Tool Role
+Django 5 Web framework and ORM for the application code and the data layer
+Page 34
+--- PAGE 48 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.3: Backend tooling (continued)
+Tool Role
+Django Ninja Typed HTTP surface with Pydantic request and response schemas
+uvicorn ASGI server running the application asynchronously
+PostgreSQL Relational store for the knowledge base and the application state
+pgvector Postgres extension providing the vector column type and HNSW
+index used by semantic search
+6.1.3.2 Project Structure
+The application is organised around a single api/ package that holds the HTTP views, schemas,
+models, session manager, and services, with environment-agnostic configuration kept in config/
+and a single squashed migration under migrations/. A backend-local Dockerfile packages
+the layer for the stack-level compose files described in Section 6.1.6. The full layout is shown in
+Figure 6.11.
+Page 35
+--- PAGE 49 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+application/backend/
+Dockerfile
+.dockerignore
+entrypoint.sh
+manage.py
+run.py
+config/
+settings.py
+urls.py
+asgi.py
+api/
+views.py
+auth_views.py
+admin_views.py
+booking_views.py
+models.py
+schemas.py
+runner.py
+session_manager.py
+mock_profiles.py
+services/
+semantic_search.py
+hotel_search.py
+narrator.py
+embedding.py
+itinerary_pdf.py
+migrations/
+0001_initial.py
+templates/api/
+booking_status.html
+Figure 6.11: Backend directory structure
+6.1.3.3 API Surface
+Every endpoint follows the same shape: it takes a typed request, runs the work against the
+database, refreshes the session’s panel state, and returns a short acknowledgement so the
+caller can move on. Table 6.4 groups the routes into five families and identifies the consumer of
+each.
+Page 36
+--- PAGE 50 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.4: Backend HTTP endpoint families
+Family Example routes Consumer
+Session and
+chat
+/sessions
+/sessions/{id}
+/sessions/{id}/chat
+/sessions/{id}/phase/{phase}/greet
+Frontend
+(Section 6.1.5)
+Phase tools /phase/place/{search,lookup}
+/phase/hotel/{search,lookup}
+/phase/itinerary/submit
+Agents
+(Section 6.1.4)
+Panel state /sessions/{id}/{activities,hotels,itinerary}
+/sessions/{id}/{activities,hotels}/selection
+/sessions/{id}/{activities,hotels}/confirm
+Frontend
+(Section 6.1.5)
+Auth and
+saved trips
+/auth/{register,login,me,claim-session}
+/auth/me/{sessions,itineraries}
+/auth/me/itineraries/{id}
+/auth/me/itineraries/{id}/pdf
+Frontend
+(Section 6.1.5)
+Admin
+(token-gated)
+/admin/{reset,places,facts,hotels,place_images} Seed script
+(Section 6.1.1)
+6.1.3.4 Data Models
+The data the endpoints operate on is defined by a small set of Django models, split into a
+read-mostly knowledge base and a read-write application state produced as the user moves
+through the three phases. Table 6.5 summarises the eight models with their purpose and key
+fields.
+Table 6.5: Backend data models
+Model Group Purpose Key fields
+Place Knowledge
+base
+Catalogue entity with
+reachability metadata used
+by the itinerary agent
+name, lat, lon, region,
+district, altitude_m,
+access_mode, nearest_hub,
+hub_travel_hours
+Page 37
+--- PAGE 51 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.5: Backend data models (continued)
+Model Group Purpose Key fields
+Fact Knowledge
+base
+One claim per row with its
+384-dimensional embedding,
+enabling the top-K-average
+ranking in Section 5.2.4.3
+place (FK), fact,
+embedding(384)
+PlaceImage Knowledge
+base
+Many URLs per place,
+fetched in a second query
+keyed on matched place ids
+rather than joined into the
+search SQL
+place (FK), url
+Hotel Knowledge
+base
+Price, rating, category and
+JSON amenities; the
+hotel-to-place link is spatial
+and computed by the
+clustering pipeline in
+Section 5.2.4.4
+name, lat, lon,
+price_min_npr,
+price_max_npr, category,
+rating, amenities (JSON)
+User Application
+state
+Intentionally minimal
+account record; auth tokens
+live in a process-local
+dictionary, a dev-scale
+simplification revisited in
+Section 8.3
+id (UUID), email, full_name,
+nationality, password_hash
+Session Application
+state
+Heart of the application
+state; holds a denormalised
+traveller profile snapshot,
+three transcripts and three
+ADK session ids, one per
+phase, enforcing the
+per-phase isolation invariant
+from Section 5.2.4.1;
+per-phase wall-clock timings
+are recorded at phase
+transitions for UAT analysis
+id (UUID), user (FK), status,
+profile (JSON),
+place_conversation,
+hotel_conversation,
+itinerary_conversation,
+place_adk_session_id,
+hotel_adk_session_id,
+itinerary_adk_session_id,
+selected_places,
+selected_hotels,
+agent_state, phase_timings
+Page 38
+--- PAGE 52 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.5: Backend data models (continued)
+Model Group Purpose Key fields
+HotelBooking Application
+state
+One row per confirmed stay,
+written at phase 2
+confirmation, with a
+generated URL pointing to
+the booking status page
+linked from the exported
+PDF
+id (UUID), session (FK),
+hotel (FK), status,
+day_number, check_in,
+check_out, num_guests,
+total_cost_npr, booking_url
+Itinerary Application
+state
+Versioned plan with the full
+payload alongside a
+compact variant cached on
+first PDF export so
+subsequent downloads skip
+the summarisation step
+id (UUID), session (FK),
+version, status,
+itinerary_data,
+itinerary_data_minimal
+6.1.3.5 Service Layer
+The non-trivial logic behind the endpoints is factored out into service modules under services/,
+so the endpoint handlers stay small and the same module can be reused outside the request
+path. Table 6.6 summarises the five modules and the implementation choice in each.
+Table 6.6: Backend service modules
+Module Implementation
+Semantic place
+search
+Embeds the query and runs a pgvector <=> scan on the facts table, scoring
+each place by the average of its top three fact similarities (Section 5.2.4.3)
+Hotel clustering
+and filter
+Groups the confirmed places by geographic proximity (DBSCAN-style,
+min_samples=1) and applies the agent’s filter per cluster; cluster geometry
+is cached on the session so labels stay stable across refinement turns
+(Section 5.2.4.4)
+Narrator
+fan-out
+Fires the per-place narrator agent in parallel as a fire-and-forget asyncio
+task, writes paragraphs back as they land, and discards stale writes via a
+generation counter
+Page 39
+--- PAGE 53 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.6: Backend service modules (continued)
+Module Implementation
+Fact
+embedding
+backfill
+Encodes any facts with NULL embeddings in batches of 256 and writes the
+vectors back via bulk UPDATE
+Itinerary PDF
+export
+Compresses the full itinerary JSON into a compact day-by-day variant via
+Gemini, then renders it to PDF with ReportLab
+6.1.4 AI Agents on Google ADK
+The agent layer is where the language-model work happens, with each pipeline phase owned
+by its own agent and a separate narrator that fans out per-place description writing in parallel.
+6.1.4.1 Tooling
+The agent layer runs as a single Google ADK server process that hosts four sibling LLM
+applications, one per pipeline phase plus the narrator. Table 6.7 lists the tools chosen for the
+agent layer and the role each plays.
+Table 6.7: Agent layer tooling
+Tool Role
+Google ADK Hosts the agent applications behind a single api_server process and
+exposes the per-session run loop the backend calls into
+Gemini Underlying language model invoked by each agent; all four agents
+run on the flash-lite variant to keep per-turn cost and latency low
+Tavily External search API used by the itinerary agent for live festival, permit,
+and disruption context
+OpenWeatherMap External forecast API used by the itinerary agent to plan around
+weather on the trip dates
+6.1.4.2 Project Structure
+ADK discovers each agent_* subpackage automatically, so adding or removing an agent is a
+matter of dropping a folder in or out of the layout shown in Figure 6.12.
+Page 40
+--- PAGE 54 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+application/agent/
+Dockerfile
+.dockerignore
+run.py
+agent_places/
+root.py
+config.py
+prompts.py
+memorize.py
+tools/
+search_places.py
+get_place_details.py
+agent_hotel/
+root.py
+config.py
+prompts.py
+memorize.py
+tools/
+search_hotels.py
+get_hotel_details.py
+agent_itinerary/
+root.py
+config.py
+prompts.py
+memorize.py
+schemas.py
+tools/
+weather.py
+nepal_knowledge_base.py
+tavily_news.py
+submit_itinerary.py
+agent_narrator/
+root.py
+config.py
+prompts.py
+Figure 6.12: Agent layer directory structure
+Page 41
+--- PAGE 55 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+6.1.4.3 Phase Agents
+Table 6.8 lists the four agents hosted by the ADK server, the pipeline phase each one drives,
+and the Gemini model identifier loaded by each agent’s config.py.
+Table 6.8: Phase agents and their underlying models
+Agent Phase Model
+Place Agent Phase 1 (place recommendation) gemini-3.1-flash-lite
+Hotel Agent Phase 2 (hotel recommendation) gemini-3.1-flash-lite
+Itinerary Agent Phase 3 (day-by-day itinerary) gemini-3.1-flash-lite
+Narrator Agent Fan-out (per-place descriptions) gemini-2.0-flash-lite
+6.1.4.4 Agent Shape
+Every agent follows the same four-part shape, summarised in Table 6.9. The root module
+stitches the parts together into a single LLM agent object that the ADK server exposes to the
+backend.
+Table 6.9: Per-agent file layout
+File Contents
+prompts.py Role description and the rules the agent must obey for that phase
+config.py Model identifier, backend host details, and per-agent tool configuration
+tools/ Callable Python functions the agent may invoke during a turn
+root.py Constructs the LLM agent object with the prompt, model, and tool list
+6.1.4.5 Tools
+Each tool is a plain Python function the agent calls by name. Backend-routed tools post a
+typed request to the matching phase endpoint in Table 6.4; external-service tools make a direct
+outbound call. Either way, panel state is updated by the backend rather than by the agent’s
+reply. Table 6.10 lists the tools per phase agent (the narrator has none).
+Page 42
+--- PAGE 56 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.10: Phase agent tools
+Agent Tool Purpose
+Place Semantic place
+search
+Discovers places from a keyword-bag query, routed
+through the backend retriever
+Place Place lookup Strict-match lookup of a named place for factual
+question answering grounded in the catalogue
+Hotel Hotel filter search Filter-spec query that returns hotels clustered around
+the user’s selected places, applying price, rating and
+amenity constraints
+Hotel Hotel lookup Strict-match lookup of a named hotel for factual
+question answering
+Itinerary Weather forecast Multi-day forecast for a target location, used to plan
+around rain and temperature
+Itinerary Nepal knowledge
+base
+Static curated lookup for transport, permits, and
+seasonal context that is stable across runs
+Itinerary Live news search Web search via Tavily for permit fees, festivals, and
+travel disruptions on the planning dates
+Itinerary Itinerary submission Final structured submission of the day-by-day plan and
+budget to the backend for validation and saving
+6.1.4.6 Integration Patterns
+Two patterns tie the agents back to the rest of the system, summarised in Table 6.11. Both
+keep the backend as the source of truth and the agent text reply as a thin narration over
+backend-mutated state.
+Table 6.11: Agent integration patterns
+Pattern Behaviour
+Panel update flag Every tool that mutates a panel sets a small update flag in ADK state;
+the backend reads it after each turn, resets it, and forwards it to the
+frontend so the relevant panel is refreshed
+Page 43
+--- PAGE 57 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.11: Agent integration patterns (continued)
+Pattern Behaviour
+Phase kick-off When the user confirms a phase, the backend spawns the next phase’s
+ADK session and runs a synthetic kick-off turn immediately, so the
+user’s first visible reply from the new agent is already grounded in the
+panel content rather than a cold greeting
+6.1.5 Frontend on React
+The frontend is a thin single-page application that talks only to the backend over the HTTP
+surface in Table 6.4.
+6.1.5.1 Tooling
+Table 6.12 lists the tools chosen for the frontend layer and the role each plays.
+Table 6.12: Frontend tooling
+Tool Role
+React 18 Component framework rendering the chat, side panel, modals, and
+the dedicated itinerary view page
+Vite Dev server and bundler used for the development hot reload and the
+production static build
+Tailwind Utility-first CSS framework used for all styling, with no separate
+stylesheet hierarchy
+Fetch API Native HTTP client used by a thin api.js wrapper that adds the auth
+token and JSON handling
+6.1.5.2 Project Structure
+App.jsx is the root component that drives the phase machine and selects which side panel to
+render, while api.js is the only module that issues HTTP requests. The full layout is shown in
+Figure 6.13.
+Page 44
+--- PAGE 58 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+application/frontend/
+Dockerfile
+.dockerignore
+nginx.conf
+package.json
+index.html
+vite.config.js
+tailwind.config.js
+postcss.config.js
+src/
+main.jsx
+App.jsx
+api.js
+index.css
+data/
+countries.js
+components/
+LandingPage.jsx
+ChatPanel.jsx
+SidePanel.jsx
+PlacePanel.jsx
+HotelPanel.jsx
+ItineraryPanel.jsx
+ItineraryViewPage.jsx
+AboutPage.jsx
+ProfilePage.jsx
+ProfileModal.jsx
+AuthModal.jsx
+CountrySelect.jsx
+Figure 6.13: Frontend directory structure
+6.1.5.3 Behaviour Patterns
+Table 6.13 summarises the runtime patterns the root component coordinates across every chat
+turn.
+Page 45
+--- PAGE 59 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.13: Frontend runtime patterns
+Pattern Behaviour
+Phase machine The root component derives a phase value from the session status
+returned by the backend and switches the side panel between place,
+hotel, and itinerary views accordingly
+Panel refresh on
+update flag
+After every chat turn the frontend reads the update flags forwarded by
+the backend (Section 6.1.4) and re-fetches the panel they point to, so
+the agent’s reply and the side panel stay in sync without polling
+Narrator description
+polling
+While the place panel has pending narrator descriptions, the frontend
+polls every 1.5 seconds until every card is ready or marked as failed,
+then stops
+Optimistic selection
+toggle
+Place and hotel selection toggles are applied locally on click and
+reverted on a server-side failure, so the interface stays responsive
+even under a slow backend round-trip
+Post-itinerary auth
+modal
+When an anonymous user first reaches a confirmed itinerary, the
+registration prompt opens; signing up calls the claim-session endpoint
+to link the session to the new account
+6.1.6 Containerisation and Deployment
+Deployment is driven by two Docker Compose files at the repository root, one per mode.
+6.1.6.1 Compose Modes
+Table 6.14 contrasts what each mode launches; Figure 6.14 shows the two topologies side by
+side.
+Table 6.14: Docker Compose modes
+Mode What it launches
+Development Data services only (PostgreSQL with pgvector, MinIO, pgAdmin);
+application code runs on the host with hot reload
+Production Full stack as containers behind a single command, with the backend, agent,
+and frontend services running alongside the data services
+Page 46
+--- PAGE 60 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.14: Dev and production deployment topologies
+6.1.6.2 Service Builds
+Each application service uses a multi-stage Dockerfile with separate development and production
+targets. The backend image bakes in the fine-tuned embedding model from Section 6.1.2 so
+the container is self-contained at run time, and the frontend production target serves a pre-built
+static bundle through nginx with no Node runtime.
+6.1.6.3 Preflight Gate
+Before any application service starts, a preflight container runs as a one-shot dependency that
+checks the environment file is complete and the embedding model is present on disk, with the
+flow shown in Figure 6.15. The rest of the stack only starts once that check passes, so missing
+keys or a missing checkpoint surface immediately instead of as opaque crashes at request time.
+Page 47
+--- PAGE 61 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.15: Preflight gate flow
+6.1.6.4 Environment Configuration
+Listing 6.1 shows the template form of the .env file with secret values redacted; the preflight
+container in Section 6.1.6 validates that every required key is set before the rest of the stack
+starts.
+Page 48
+--- PAGE 62 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+9 BACKEND_HOST=127.0.0.1
+BACKEND_PORT=8888
+AGENT_HOST=127.0.0.1
+AGENT_PORT=8080
+# Embedding model checkpoint
+# Database
+1 # APIs
+2 GOOGLE_API_KEY=<gemini_api_key>
+3 TAVILY_API_KEY=<tavily_api_key>
+4
+5 # Shared seed token (gates the admin endpoints)
+6 SEED_TOKEN=<random_token>
+7
+10 11 12 13
+14 15 16
+17 18 19 20 21 22 23
+24 25 26 27 28
+29 30 31 32 33 8 # Service hostnames (defaults assume dev mode on host)
+EMBEDDING_MODEL_PATH=training/finetune/strsnp-embedder
+POSTGRES_DB=strsnp
+POSTGRES_USER=<db_user>
+POSTGRES_PASSWORD=<db_password>
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5433
+# pgAdmin
+PGADMIN_EMAIL=<email>
+PGADMIN_PASSWORD=<password>
+PGADMIN_PORT=5051
+# MinIO
+MINIO_ROOT_USER=<minio_user>
+MINIO_ROOT_PASSWORD=<minio_password>
+MINIO_API_PORT=9000
+MINIO_CONSOLE_PORT=9001
+Listing 6.1: Environment configuration template
+6.2 Validation and Testing
+Testing was carried out across four complementary types, each described in the subsections
+below. Quantitative results and their interpretation are deferred to Section 7.0.
+6.2.1 Black-Box Functional Testing
+Table 6.15 lists the black-box test cases exercised against the system. Each case covers one
+user-facing feature, with the recorded outcome and a reference to the supporting screenshot.
+Page 49
+--- PAGE 63 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.15: Black-box functional test cases
+ID Feature Steps Expected result Actual result Pass
+/ Fail
+TC-
+01
+Session start
+and greeting
+Open the landing
+page in the
+browser.
+A new session is
+created on load,
+the place agent’s
+greeting appears
+in the chat panel,
+and the side
+panel is in its
+empty initial
+state.
+Greeting
+rendered and
+side panel empty
+on first load as
+shown in
+Figure 6.16.
+Pass
+TC-
+02
+Traveller
+profile capture
+Send the chat
+message “I want
+to explore old
+temples and
+culture in
+Kathmandu
+valley”, then fill all
+required fields in
+the profile modal.
+The form accepts
+the inputs and
+the session
+stores the profile
+snapshot used by
+later phases.
+Profile fields
+captured as
+shown in
+Figure 6.17.
+Pass
+TC-
+03
+Place search
+returns
+ranked places
+Submit the profile
+modal filled in
+TC-02 and
+observe the side
+panel.
+The place panel
+populates with
+ranked place
+cards drawn from
+the semantic
+retriever for the
+message sent in
+TC-02, and the
+agent’s text reply
+does not name
+any places.
+Ranked cards
+rendered in the
+side panel as
+shown in
+Figure 6.18.
+Pass
+Page 50
+--- PAGE 64 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.15: Black-box functional test cases (continued)
+ID Feature Steps Expected result Actual result Pass
+/ Fail
+TC-
+04
+Toggle place
+selection
+Click two place
+cards in the side
+panel to mark
+them as selected.
+The two cards
+change to the
+selected state,
+the selection
+persists across
+the panel, and
+the
+confirm-activities
+button becomes
+available.
+Two selected
+cards and
+enabled confirm
+button as shown
+in Figure 6.19.
+Pass
+TC-
+05
+Refine place
+recommenda-
+tions via chat
+Send the chat
+message “I am
+also thinking of
+hiking while I’m
+there. So
+suggest some
+beautiful ones.”
+The place panel
+updates with a
+new ranked set
+covering hiking
+spots, and any
+previously
+selected cards
+remain in the
+selected state.
+Refined panel
+with prior
+selections
+preserved as
+shown in
+Figure 6.20.
+Pass
+TC-
+06
+Confirm
+activities and
+hotel-phase
+kickoff
+Click the
+confirm-activities
+button once a set
+of places is
+selected.
+The session
+advances to the
+hotel phase, the
+hotel panel
+populates with
+cluster-grouped
+hotel cards, and
+the hotel agent’s
+first reply is
+grounded in the
+confirmed places.
+Hotel panel
+populated with
+cluster labels and
+contextual first
+reply as shown in
+Figure 6.21.
+Pass
+Page 51
+--- PAGE 65 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.15: Black-box functional test cases (continued)
+ID Feature Steps Expected result Actual result Pass
+/ Fail
+TC-
+07
+Hotel filter by
+amenity
+Send the chat
+message “give
+me ones with
+free Wi-Fi and
+parking”.
+The hotel panel
+re-populates with
+a narrower set
+under the same
+cluster labels,
+restricted to
+hotels that carry
+the requested
+amenities.
+Filtered hotel
+cards under
+stable cluster
+labels as shown
+in Figure 6.22.
+Pass
+TC-
+08
+Toggle hotel
+selection
+Click one hotel
+card under each
+cluster label to
+mark them as
+selected.
+The cards
+change to the
+selected state,
+the selection
+persists across
+the panel, and
+the
+confirm-hotels
+button becomes
+available.
+Selected hotel
+cards per cluster
+and enabled
+confirm button as
+shown in
+Figure 6.23.
+Pass
+TC-
+09
+Confirm
+hotels,
+itinerary-
+phase kickoff
+and auth
+modal prompt
+As an
+anonymous user,
+click the
+confirm-hotels
+button once hotel
+selections are in
+place.
+The itinerary
+panel populates
+with the first
+version of the
+day-by-day plan,
+and an auth
+modal opens
+over the panel to
+gate the next
+step behind
+sign-up.
+Itinerary panel
+populated with
+auth modal open
+as shown in
+Figure 6.24.
+Pass
+Page 52
+--- PAGE 66 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.15: Black-box functional test cases (continued)
+ID Feature Steps Expected result Actual result Pass
+/ Fail
+TC-
+10
+Fill sign-up
+form in auth
+modal and
+claim session
+Fill the sign-up
+form in the auth
+modal and
+submit it.
+The new account
+is created, the
+modal closes,
+and the
+previously
+anonymous
+itinerary remains
+visible under the
+new account.
+Filled sign-up
+form and claimed
+itinerary as
+shown in
+Figures 6.25
+and 6.26.
+Pass
+TC-
+11
+Refine
+itinerary via
+chat
+Send the chat
+message “I want
+to have local
+thakali meal in
+the evening in the
+first dat. Make it
+in evening.”
+The itinerary
+panel updates
+with a new
+version of the
+plan reflecting
+the requested
+evening meal on
+day one, while
+the chat reply
+remains a single
+short sentence.
+Updated itinerary
+version with the
+requested
+change as shown
+in Figure 6.27.
+Pass
+TC-
+12
+Submit
+itinerary
+Click the confirm
+button on the
+itinerary panel
+once satisfied
+with the plan.
+The dedicated
+itinerary view
+page opens and
+renders the
+finalised plan end
+to end with day
+breakdown,
+selected hotels,
+booking
+references and
+NPR budget
+summary.
+Full itinerary view
+page rendered as
+shown in
+Figure 6.28.
+Pass
+Page 53
+--- PAGE 67 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.15: Black-box functional test cases (continued)
+ID Feature Steps Expected result Actual result Pass
+/ Fail
+TC-
+13
+Hotel booking
+status page
+Click a hotel’s
+booking button
+on the itinerary
+view page.
+The booking
+status page
+opens.
+Booking status
+page rendered
+for the selected
+hotel as shown in
+Figure 6.29.
+Pass
+TC-
+14
+PDF export
+from itinerary
+view
+Click the
+“Download PDF”
+button on the
+itinerary view
+page and open
+the downloaded
+file.
+A PDF is
+produced with the
+itinerary rendered
+as a table on the
+first page and
+subsequent
+pages each
+holding two
+images per
+selected place.
+Exported PDF
+rendered in a
+viewer as shown
+in Figure 6.30.
+Pass
+TC-
+15
+Backend
+offline
+graceful state
+With the backend
+stopped, open
+the sign-in modal
+from the chat
+interface and
+submit
+credentials.
+The sign-in
+request fails, the
+modal shows a
+visible “Failed to
+fetch” error, and
+the chat interface
+behind it stays
+intact rather than
+blanking out.
+Visible error in
+the sign-in modal
+with chat
+interface
+preserved as
+shown in
+Figure 6.31.
+Pass
+Page 54
+--- PAGE 68 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.16: TC-01, new session with place-agent greeting and empty side panel
+Figure 6.17: TC-02, traveller profile form with nationality, dates, party size and interest tags filled in
+Page 55
+--- PAGE 69 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.18: TC-03, ranked place cards rendered after a semantic search query
+Figure 6.19: TC-04, place cards in their selected state with the confirm-activities button available
+Page 56
+--- PAGE 70 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.20: TC-05, place panel after a chat refinement turn with prior selections preserved
+Figure 6.21: TC-06, hotel panel populated with cluster-grouped cards immediately after confirming
+activities
+Page 57
+--- PAGE 71 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.22: TC-07, hotel panel after a chat-driven amenity filter for free Wi-Fi and parking
+Figure 6.23: TC-08, hotel cards in their selected state with the confirm-hotels button available
+Page 58
+--- PAGE 72 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.24: TC-09, itinerary panel populated after confirming hotels with the auth modal open over it
+Figure 6.25: TC-10, sign-up form in the auth modal with all fields filled in
+Page 59
+--- PAGE 73 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.26: TC-10, itinerary panel remaining visible under the new account after claim
+Figure 6.27: TC-11, itinerary panel after a chat refinement turn showing the updated day plan
+Page 60
+--- PAGE 74 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.28: TC-12, dedicated itinerary view page rendering the finalised plan with hotels and budget
+Figure 6.29: TC-13, Django booking status page rendered for a confirmed hotel
+Page 61
+--- PAGE 75 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.30: TC-14, exported itinerary PDF open in a viewer showing the day plan and budget
+Figure 6.31: TC-15, sign-in modal showing a fetch error while the backend is offline, with the chat
+interface preserved
+Page 62
+--- PAGE 76 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+6.2.2 Retrieval Quality Measurement
+The fine-tuned retriever and three baselines were scored on the same 550 held-out queries
+described in Section 6.1.2. MiniLM is the off-the-shelf checkpoint that the fine-tune started from,
+so the gap between the MiniLM row and the Fine-tuned row in Table 6.16 isolates the effect of
+the training itself. Figure 6.32 shows the same numbers as a bar chart.
+Table 6.16: Retrieval recall on held-out queries, fine-tuned model versus three baselines
+Model Recall@1 Recall@5 Recall@10
+MiniLM 0.5127 0.7709 0.8327
+BGE-small 0.5273 0.7345 0.8036
+BM25 0.6218 0.8255 0.8673
+Fine-tuned 0.7782 0.9400 0.9673
+Figure 6.32: Recall at 1, 5, and 10 per model on the same held-out queries
+The fine-tuned model beats every baseline at every cutoff. BM25 alone already reaches a
+Recall@5 of 0.8255, so meeting that target is not by itself a sign that fine-tuning was worthwhile.
+Page 63
+--- PAGE 77 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The more user-facing comparison is Recall@1: the fine-tuned model places the correct fact
+first 77.8% of the time, against 62.2% for BM25 and 51.3% for the base bi-encoder. That
+15.6 percentage-point margin over the strongest baseline is the most honest measure of what
+the fine-tune contributes, because in a five-card panel the top card carries the most user
+attention.
+6.2.3 System Performance Measurement
+The data comes from 30 controlled trips on the development host, extracted via the queries
+in Appendix C. The first assistant turn in each phase is the kickoff and carries that phase’s
+main work: semantic place search in phase 1, hotel clustering and search in phase 2, full
+day-by-day itinerary generation in phase 3. Later turns are refinements that revise earlier output
+after a user follow-up. Three views of the data follow: retrieval alone, the full chat turn, and a
+parallel-versus-sequential narrator comparison.
+6.2.3.1 Retrieval Pipeline
+The retrieval pipeline is essentially free (Table 6.17), with medians of 87.9 ms on kickoff and
+92.3 ms on refinement and almost every call under 200 ms. The single 1638 ms outlier
+corresponds to the first call after process start, when the embedding model loads into memory.
+Once warm, retrieval contributes only a small fraction of the chat turn’s total time.
+Page 64
+--- PAGE 78 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.33: Retrieval time distribution by turn type
+Table 6.17: Retrieval pipeline timing (ms)
+Turn type n Median
+(ms)
+90th pct
+(ms)
+Min (ms) Max (ms)
+Kickoff 30 87.9 111.0 71.4 1638.4
+Refinement 30 92.3 108.4 71.7 111.7
+6.2.3.2 Agent-Turn Time
+Adding the language-model call widens the spread considerably (Table 6.18, Figure 6.34).
+Phase 1 stays around 3.7 s on both turn types because every place turn runs the same short
+search-and-reply. Hotel kickoff costs an extra 1.3 s for spatial clustering, dropping to 2.8 s once
+the panel is set. The itinerary phase is by far the heaviest, with a kickoff median of 14.8 s and a
+90th percentile of 18.1 s, reflecting the full day-by-day plan, per-day prompts, and NPR budget
+all being generated in a single turn. Refinement on the itinerary is roughly half the cost because
+it revises rather than builds. Every bucket sits comfortably inside the per-phase response targets
+from Section 5.1.2, but the itinerary kickoff remains the system’s clearest performance bottleneck
+Page 65
+--- PAGE 79 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+and the closest to its acceptable bound.
+Figure 6.34: Agent-turn time distribution per phase and turn type
+Table 6.18: Agent-turn timing by phase and turn type (ms)
+Phase Turn type n Median
+(ms)
+90th pct
+(ms)
+Min (ms) Place Kickoff 30 3779.8 4885.1 2303.0 Refinement 30 3677.4 4166.8 2637.6 Hotel Kickoff 30 4143.6 4559.1 2696.7 Refinement 32 2795.8 3195.1 2298.4 Itinerary Kickoff 30 14794.7 18066.4 11849.9 Refinement 30 6733.1 8420.0 4830.7 6.2.3.3 Parallel Fan-out vs Sequential Baseline
+Max (ms)
+5228.8
+4646.1
+4723.4
+4043.4
+20983.3
+10007.3
+Page 66
+--- PAGE 80 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Running the per-place narrator calls in parallel delivers a median 4.29× speedup over the
+sequential equivalent (Table 6.19), turning a hypothetical 5.6 s into an actual 1.3 s. The ratio
+stays tight across the 60 searches (3.70× to 4.78×), so the asynchronous design pays off
+consistently rather than only in favourable runs.
+Figure 6.35: Speedup ratio distribution across 60 searches
+Table 6.19: Parallel narrator fan-out versus sequential baseline (n=60)
+Metric Median 90th pct Min Max
+Parallel wall-clock (ms) 1311.3 1477.6 1132.0 1736.7
+Sequential equivalent (ms) 5598.8 6386.3 4398.2 7716.5
+Speedup ratio (×) 4.29 4.53 3.70 4.78
+6.2.4 Validation Against User Requirements
+This section maps the user-side requirements deliverables of Section 5.1.2 to evidence in
+Table 6.20.
+Page 67
+--- PAGE 81 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.20: Traceability of user requirements to validation evidence
+ID Status Evidence
+R1 Met TC-03, TC-05 in Table 6.15
+R1.1 Met TC-02, TC-05
+R1.2 Met TC-05
+R1.3 Met TC-03 (narrator description rendered on each card)
+R1.4 Met TC-03 (image rendered on each card)
+R2 Met TC-06, TC-07, TC-08
+R2.1 Met TC-06 (cluster-grouped cards)
+R2.2 Met TC-07 (amenity filter applied via chat)
+R2.3 Met TC-08 (one selection per cluster)
+R3 Met TC-09, TC-11, TC-12
+R3.1 Met TC-09, TC-12 (day-by-day plan rendered)
+R3.2 Met TC-09 (NPR cost lines with tiered pricing)
+R3.3 Met TC-14 (PDF export)
+R4 Met TC-10 (session claim flow)
+R4.1 Met TC-10 (sign-up form submission)
+R4.2 Met TC-10 (anonymous session linked to new account)
+R4.3 Met Latest itinerary per session is retrievable from the account page
+N1 Met Section 6.2.3.2, Table 6.18 (median 3.7 s)
+N2 Met Section 6.2.3.2, Table 6.18 (median 4.1 s on kickoff)
+N3 Met Section 6.2.3.2, Table 6.18 (median 14.8 s, 90th percentile 18.1 s)
+N4 Met Section 6.2.2 and the black-box panel checks in Table 6.15 confirm
+every surfaced place and hotel resolves to a curated row
+N5 Met Passwords are persisted as SHA-256 salted hashes by the
+registration endpoint
+N6 Met TC-10 (anonymous session claimed)
+6.2.5 Validation Against Project Objectives
+This section traces each project objective from Section 3.2 to the part of the artefact that
+implements it and the section or test case in this chapter that validates it. Table 6.21 lists the
+Page 68
+--- PAGE 82 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+mapping for the six objectives.
+Table 6.21: Traceability of project objectives to achieved values and validation evidence
+ID Objective Achieved value Validation evidence
+PO1 Query-to-fact dataset of
+5,000 to 20,000 entries
+over at least 100
+Kathmandu Valley
+attractions
+5,500 pairs over 156
+attractions
+Section 4.3, Section 6.1.1,
+Section 6.1.2
+PO2 Recall@5 of at least 80%
+on a held-out test set
+Recall@5 of 0.94 Section 6.2.2, Table 6.16
+PO3 Ranked recommendation
+within 500 ms
+87.9 ms median, 111 ms at
+the 90th percentile
+Section 6.2.3.1, Table 6.17
+PO4 Real-time travel context
+across at least 3
+categories
+Three categories
+integrated (weather,
+festivals, disruptions)
+Section 6.1.4, TC-12 in
+Table 6.15
+PO5 Day-by-day itinerary
+generated within 30 s
+14.8 s median, 18.1 s at
+the 90th percentile for the
+kickoff turn
+Section 6.2.3.2, Table 6.18,
+TC-09 to TC-14
+PO6 Responsive frontend with
+an asynchronous
+backend connecting
+agents, relational
+database, and vector
+store
+React frontend with
+Django and uvicorn
+asynchronous backend
+connecting Google ADK
+agents to PostgreSQL with
+the pgvector extension
+Section 6.2.1, TC-01 to
+TC-14 in Table 6.15
+Every objective has at least one implementation path and one piece of test evidence on the
+page. The single qualification worth flagging is that the itinerary kickoff (PO5) is the heaviest turn
+in the system at 14.8 s median and 18.1 s at the 90th percentile (Section 6.2.3.2). It clears its
+30-second target comfortably, but it is also the closest the system gets to its slowest acceptable
+bound, and is treated as the primary performance target for future work.
+6.2.6 User Acceptance Testing
+6.2.6.1 Method
+Ten Nepali participants were recruited through stratified convenience sampling with a planned
+Page 69
+--- PAGE 83 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+split of two tourism-domain professionals, four casual or non-travellers, and four frequent
+travellers. The achieved spread is summarised in Section 6.2.6.2, where the non-traveller
+target was only partially met. Each participant planned a short Kathmandu Valley trip and
+completed a Google Form covering consent, three demographic questions, the ten-item System
+Usability Scale (Brooke et al., 1996), and three open-ended prompts; the form as the participants
+saw it is reproduced in Appendix E. Responses are anonymised under P1 through P10, with
+the ethics design in Appendix B.3 and the full responses in Appendix D. The sample sits
+below the n=30 typical of publication-grade studies and is single-nationality, so no statistical
+generalisation beyond the panel is claimed and the international-visitor perspective is forward-
+linked to Section 8.4.
+6.2.6.2 Participants
+Table 6.22 and Figure 6.36 summarise the demographic spread of the panel. The search engine
+dominates trip planning across the panel (8 of 10), which places the artefact in direct competition
+with the manual web-research workflow it is meant to replace. Familiarity with AI chat tools
+is broad: 9 of 10 participants have at least tried one and 7 use them at least occasionally,
+suggesting that the chat-driven interaction style is unlikely to be the source of friction for this
+audience and that the transition into the system is realistic for them. Travel frequency is spread
+across rare, occasional, and frequent travellers, so the usability readings reflect a mix of planning
+experience levels rather than a single segment.
+Table 6.22: UAT participant demographics (n=10)
+Question Responses
+Usual trip-planning
+method
+(8) Search engine
+(1) AI tools
+(1) Travel agent
+Travel frequency (5) Two or three times a year
+(3) Four or more times a year
+(2) Rarely
+Familiarity with AI
+chat tools
+(4) Use regularly
+(3) Use occasionally
+(2) Tried a few times
+(1) Never used one
+Page 70
+--- PAGE 84 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.36: Demographic spread of the UAT panel across trip-planning method, travel frequency, and AI
+chat tool familiarity
+6.2.6.3 Quantitative Results
+The per-participant SUS scores are listed in Table 6.23 and plotted in Figure 6.37. The sample
+mean of 73.0 (median 68.8, min 55.0, max 100.0, σ 15.4) sits above the 68 industry benchmark,
+placing the system in the “Good” band of the adjective rating scale proposed by Bangor et al.
+(2009).
+Table 6.23: Per-participant SUS scores
+Participant SUS score Adjective grade
+P1 100.0 Excellent
+P2 65.0 OK
+P3 60.0 OK
+P4 72.5 Good
+P5 72.5 Good
+P6 55.0 OK
+P7 95.0 Excellent
+P8 65.0 OK
+P9 60.0 OK
+P10 85.0 Good
+Page 71
+--- PAGE 85 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Figure 6.37: Per-participant SUS scores against the sample mean and the 68 industry benchmark
+6.2.6.4 Per-item Analysis
+Table 6.24 and Figure 6.38 report the mean rating for each of the ten SUS statements. The
+strongest positive signal is Q7 on learnability (mean 4.20), and the strongest negative refutation
+is Q8 on cumbersomeness (mean 2.00). All five negative-phrased items sit below 2.50, indicating
+that participants consistently rejected the negative statements.
+Table 6.24: Per-item SUS mean ratings (1 = Strongly Disagree, 5 = Strongly Agree)
+Item Statement Mean
+rating
+Q1 I would like to use this travel concierge frequently 4.00
+Q2 I found the travel concierge unnecessarily complex 2.20
+Q3 I thought the travel concierge was easy to use 3.90
+Q4 I would need the support of a technical person to use it 2.20
+Page 72
+--- PAGE 86 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 6.24: Per-item SUS mean ratings (continued)
+Item Statement Mean
+rating
+Q5 I found the various functions were well integrated 4.00
+Q6 I thought there was too much inconsistency 2.30
+Q7 Most people would learn to use this very quickly 4.20
+Q8 I found the travel concierge very cumbersome to use 2.00
+Q9 I felt very confident using the travel concierge 4.00
+Q10 I needed to learn a lot of things before getting going 2.20
+Figure 6.38: Mean SUS rating per item, with positive-phrased and negative-phrased items distinguished
+6.2.6.5 Qualitative Themes
+Page 73
+--- PAGE 87 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The open-ended responses cluster into strengths, frustrations, and suggested changes, sum-
+marised in Table 6.25. The full raw responses are preserved in Appendix D.
+Table 6.25: Qualitative themes from the open-ended responses
+Category Theme Mentioned by
+Strength Chat-driven planning style P9, P10
+Single entry point for the full trip P2
+Visual place cards with images P2, P5
+Ability to edit the itinerary P1
+Automatic itinerary suggestion P4
+Helpful for first-time or inexperienced travellers P3, P6
+Quicker and easier trip planning P7
+Good place recommendations matching the request P8
+Frustration Knowledge-base coverage gap (missing entries) P1
+Limited number of results shown P2
+Recommendation relevance not matching request P9
+Missing loading feedback during hotel-to-itinerary
+transition (aligns with kickoff latency in Section 6.2.3.2)
+P10
+Minor PDF formatting issues P5
+Profile form less natural than chat P4
+Suggestion Expand the knowledge base P1
+Add distance from the stay to each place P2
+Take profile inputs through chat P4
+Default three-day plan that can be accepted as is P9
+Clearer signal that the itinerary is editable via chat P8
+Emergency location-share for travellers needing
+assistance
+P6
+The knowledge-base coverage and loading-feedback findings are carried forward as limitations in
+Section 8.3, and the six participant suggestions are folded into the future-work list in Section 8.4.
+Page 74
+--- PAGE 88 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+7.0 Critical Evaluation
+This chapter weighs the artefact against the evidence collected through the methods in Sec-
+tion 6.2, placing it alongside general-purpose alternatives and discussing its wider impact.
+7.1 Comparison with General-Purpose Planners
+Two publicly available planners were used as a reference point: Stardrift.ai (Stardrift.ai, 2025), a
+chat-based agent planner, and Mindtrip.ai (Mindtrip.ai, n.d.), an agent that recommends places
+and hotels but leaves the day-by-day arrangement to the user. Both are general-purpose tools
+that cover destinations worldwide. The comparison is structural and indicative rather than
+head-to-head, because place recommendation quality was not measured for any system and
+the three systems target different user journeys.
+Table 7.1 lists which planning steps each of the three systems supports and how, so the timing
+numbers that follow are read with a clear picture of what each system is actually doing at each
+step.
+Table 7.1: High-level feature comparison against two general-purpose planners
+Capability Proposed Stardrift.ai Mindtrip.ai
+Place
+recommendation
+Agent driven Agent driven Agent driven
+Hotel
+recommendation
+Agent driven Agent driven Agent driven
+Itinerary
+generation
+Agent generated
+day-by-day
+Agent generated
+day-by-day
+Manual
+drag-and-drop
+Hotel booking Auto-booked Via accommodation
+partners
+Via accommodation
+partners and live
+availability check
+Regional focus Nepal (Kathmandu
+Valley)
+Worldwide, general
+purpose
+Worldwide, general
+purpose
+Chat structure Phase-gated, panel
+per phase
+Single open chat Single open chat
+Table 7.2 reports the observed wall-clock latency for the three steps that both this project and
+a reference planner perform in a comparable form. Numbers for the reference planners were
+timed manually from the user-visible response on a small handful of trips.
+Page 75
+--- PAGE 89 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 7.2: Latency for comparable steps, observed against the two reference planners
+Step Proposed (median) Reference planner
+Place recommendation 3.7 s Mindtrip.ai: 14–18 s
+Itinerary kickoff 14.8 s Stardrift.ai: 48–49 s
+Itinerary refinement 6.7 s Stardrift.ai: 14–17 s
+Read together, the two tables describe a clear trade. The reference planners are stronger on
+user-facing breadth: Mindtrip.ai renders richer place and hotel cards and supports collaborative
+editing, and both reference planners integrate hotel booking through accommodation partners
+with live availability checks. The proposed system’s booking flow is, by comparison, a draft that
+auto-books confirmed hotels against an internal record and surfaces them through a backend-
+rendered status page. The proposed system is, however, faster on every step that was compared,
+by roughly a factor of three on the place step and the itinerary kickoff, and its narrower Nepal-only
+scope means every place and hotel returned is a row in a curated knowledge base, with pricing
+tiers, seasonal rules and regional geography tuned to one country. For a traveller whose trip
+is to Nepal, that combination of grounded recommendations, faster turns and locally aware
+planning is the more useful product.
+7.2 Impact
+The impact discussion below mirrors the three problems set out in Section 1.1, and the persistent
+gap in up-to-date data, and closes with the wider methodological contribution the project offers
+beyond its named beneficiary.
+7.2.1 Reducing Information Fragmentation for Independent Travellers
+The first problem set out in Section 1.1 is that travel information for Nepal is scattered across
+static informational sites, tour-operator pages, and informal blogs, leaving the independent
+traveller to research, filter, and reconcile facts by hand. The artefact collapses that workload into
+a single chat. Every recommendation the user sees is tied to a curated knowledge-base entity
+rather than a free-text generation, and the per-phase response targets in Section 6.2.3 keep the
+conversation moving. The scope of this impact, however, is bounded by the Kathmandu Valley
+and outward seed locations declared in Section 3.3.
+7.2.2 Delivering Localised, Nepal-Specific Information
+The second problem is the shortage of reliable, localised information on the practical aspects
+of travelling in Nepal. The artefact answers this through the curated Nepal-specific catalogue
+described in Section 6.1.1 and the retriever calibrated to that domain in Section 6.1.2, with
+itineraries priced in NPR across the three nationality tiers so the answers a non-SAARC visitor
+Page 76
+--- PAGE 90 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+sees differ from those a Nepali user sees. The impact widens as the catalogue grows: the same
+seed mechanism in Section 6.1.1 would absorb localised guidance on transport, accommodation,
+costs, safety, health and hygiene, internet availability, and general travel logistics, each surfaced
+through the same chat without changing the architecture. The audience is currently bounded by
+the English-only language scope acknowledged in Section 8.3.
+7.2.3 Addressing the Persistent Up-to-Date Information Gap
+The third problem, raised under successive editions of the Digital Nepal Framework and revisited
+in Section 1.1, is the persistent absence of up-to-date information for travellers. The artefact
+narrows that gap on two fronts. The live external tools in Section 6.1.4.5 fetch festival, permit,
+and weather signals at request time rather than reading them from a cached snapshot, and
+the CSV-driven seed described in Section 6.1.1 makes every catalogue extension a one-row
+change rather than a code release. Coverage is still limited to three external categories, leaving
+wider transport and hyper-local sources for further enhancements.
+7.2.4 Wider Impact
+The project also leaves behind a small open resource for low-resource tourism research. The
+5,500 query-to-fact pairs and the 156-place curated catalogue produced through Section 6.1.1
+and Section 6.1.2 can be reused without paying the cold-start curation cost, and the curate-
+then-fine-tune-then-serve pipeline running through Section 6.1.1 to Section 6.1.6 doubles as a
+working template for adjacent low-resource regions.
+The Digital Nepal Framework 1.0 (Ministry of Communication and Information Technology, 2019)
+and the Digital Nepal Framework 2.0 (Ministry of Communication and Information Technology,
+2025b) both identify tourism as a priority sector and the persistent staleness of localised travel
+information as a problem to solve. The artefact offers an independent reference point for the
+policy-level conversation those frameworks set out to drive, demonstrating concrete progress
+on the gap they raise.
+The most direct economic lift sits with Nepal’s small operators. Independent and family-run
+places and hotels that rarely rank on global platforms appear in the catalogue in Section 6.1.1
+on equal footing with larger establishments, lifting discoverability for businesses that would
+otherwise stay invisible to first-time travellers, and the booking flow drafted in the artefact leaves
+a clear extension point for local operators to plug into directly.
+8.0 Conclusion
+Nepal’s tourism economy leans on independent travellers who today plan their trips through a
+scattered web of static sites, tour-operator pages, and informal blogs where localised, up-to-date
+information is sparse. In response, the project delivers AI agents driven travel concierge that
+turns a free-form chat message into a personalised day-by-day itinerary, scoped for now to the
+Page 77
+--- PAGE 91 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Kathmandu Valley as the first region of coverage. The system is grounded in a hand-curated
+knowledge base of 156 places decomposed into 546 atomic single-claim facts alongside a
+catalogue of 100 hotels. A synthetic dataset of 5,500 query-to-fact pairs was then generated with
+the help of large language models and used to fine-tune the sentence-transformers all-MiniLM-
+L6-v2 bi-encoder, with each place ranked at query time by averaging the cosine similarity of
+its top three matching facts so a single strong match cannot drown out broader evidence. The
+planning workflow is split across phase-isolated AI agents: semantic place retrieval, DBSCAN
+spatial clustering for hotels grouped around the confirmed places, and itinerary generation
+with nationality-tiered NPR pricing for Nepali, SAARC, and non-SAARC travellers grounded
+in live weather, festival, permit, and disruption context, with backend tools owning the panel
+state so no hallucinated place or hotel ever reaches the user. The artefact cleared every target:
+Recall@5 climbed from 0.77 on the off-the-shelf MiniLM baseline to 0.94 on the fine-tuned
+retriever, the retrieval pipeline held an 87.9 ms median against the 500 ms target, the itinerary
+kickoff cleared its 30-second budget at 14.8 s median and 18.1 s at the 90th percentile, every
+functional and non-functional user requirement was validated end-to-end, and a ten-participant
+user acceptance test returned a mean System Usability Scale score of 73.0 above the 68
+industry benchmark. Beyond the numbers, the artefact narrows the three problems set out at
+the start of this report for independent travellers visiting Nepal, lifts discoverability for the small
+local operators who rarely rank on global platforms, and leaves behind a transferable template
+that, with a rebuilt knowledge base and a re-run fine-tune, can serve any region whose tourism
+information is similarly fragmented.
+8.1 Achievement of Objectives
+Table 8.1 summarises whether each project objective from Section 3.2 was delivered, alongside
+a short reflection on how the result sits against the original target. The measured values
+themselves and the validation references are reported in Section 6.2.5.
+Table 8.1: Achievement status of the project objectives
+PO Status Closing remark
+PO1 Met Dataset sits at the lower end of the 5,000 to 20,000 band but covers
+more attractions than the minimum and remains easy to grow with
+more curated facts
+PO2 Exceeded 14 percentage points above the 80% target and the strongest
+measured outcome in the project, confirming that fact-level chunking
+with a small domain-tuned bi-encoder beats every off-the-shelf
+baseline tried
+Page 78
+--- PAGE 92 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+PO Status Closing remark
+PO3 Exceeded Roughly five times under the 500 ms budget, so retrieval is not a
+bottleneck in any chat turn
+PO4 Met Three live categories integrated; broadening the source set to more
+news streams or seasonal sources remains a future-work item
+PO5 Met Comfortably inside the 30 s target on the median but still the
+heaviest turn in the system at the 90th percentile, identifying
+itinerary kickoff as the primary performance target in Section 8.4
+PO6 Met The intended stack is delivered end to end, with horizontal scaling
+and the in-process session store flagged as future work in
+Section 8.3 and Section 8.4
+8.2 Answers to Research Questions
+Table 8.2 summarises the answer to each research question from Section 1.2, with a short
+forward reference to the section that backs it.
+Table 8.2: Answers to the research questions
+RQ Answer Evidence
+RQ1 The fine-tuned all-MiniLM-L6-v2 outperforms every off-the-shelf
+alternative tested, with Recall@5 rising from baseline 0.77 to
+fine-tuned 0.94 on the held-out test set that is consistent with the
+literature reviewed in Section 2.3 which included about fine-tuned
+bi-encoders trained on dense text representations outperforming
+standard NLP methods even in low-resource domains
+Sec-
+tion 6.2.2,
+Section 2.3
+RQ2 Phase-isolated multi-agent orchestration delivers a complete
+day-by-day plan from natural-language input and meets the
+per-phase response targets in every bucket, with the itinerary kickoff
+sitting closest to its bound at 14.8 s median and 18.1 s at the 90th
+percentile against the 30 s target
+Section 6.2.3
+RQ3 The artefact returned a mean SUS score of 73.0 from a
+10-participant acceptance test, above the 68 industry benchmark
+and inside the “Good” band of the adjective rating scale proposed by
+Bangor et al. (2009)
+Section 6.2.6
+Page 79
+--- PAGE 93 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+8.3 Limitations
+Table 8.3 lists the major limitations of the system. For each, the “Impact” column states the
+practical effect on the project, and the “How addressed” column states what the project actually
+did about it, which may be a partial mitigation, a deliberate scoping decision, or an honest
+acknowledgement queued for future work rather than a full fix.
+Table 8.3: Major limitations of the system, their impact, and how each was handled
+Limitation Impact How addressed
+Knowledge base
+scope
+Only the 156 seeded places can
+be recommended, dense in the
+Kathmandu Valley and thin
+outside it.
+Seed is a CSV loaded by a
+standalone script (Section 6.1.1),
+so adding a place is one row.
+Hotel stock has no
+live availability
+The 100 seeded hotels have
+fixed prices and no live
+availability, so a
+recommendation may not be
+actually bookable on a given
+date.
+Booking is framed as a draft flow
+in Section 7.1 with an internal
+status page rather than a real
+reservation channel.
+Single
+language-model
+family
+All four agents call Gemini, so
+any vendor behaviour, pricing or
+availability change hits every
+phase at once.
+Prompts are short and kept in
+source, so switching family is a
+prompt-and-config change rather
+than an architecture change.
+Backend keeps live
+sessions in memory
+An active conversation is held in
+a process-local dictionary inside
+the backend. If the backend
+restarts mid-session, the
+in-progress turn is lost and the
+same chat cannot be served by
+a second backend instance.
+Each panel-mutating turn is
+mirrored to the database
+(Section 6.1.3), so the user can
+reopen the session and read
+what was already produced even
+after a restart.
+Itinerary kickoff
+latency
+The 90th-percentile itinerary
+kickoff turn takes 18.1 s
+(Section 6.2.3.2), the heaviest
+turn in the system and the
+closest to its 30 s target.
+Documented in Section 8.2 and
+identified as the primary
+performance target for future
+work in Section 8.4.
+Page 80
+--- PAGE 94 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+8.4 Future Work
+Table 8.4 sets out the next steps for the project, ranked by how much each would improve the
+system as it stands. Items are paired either with the limitation from Section 8.3 they most directly
+respond to, or with the user acceptance test feedback from Section 6.2.6.5 that surfaced them,
+so the table reads as a follow-on to those two evaluations rather than a separate wish list.
+Table 8.4: Future work
+Item Rationale Linked source
+Reduce itinerary
+kickoff latency
+Pulls the heaviest turn further inside its 30 s
+target through parallel tool calls, a shorter
+day-by-day prompt, or response streaming.
+Limitation
+Expand the
+knowledge base
+Grows the seed beyond the Kathmandu Valley to
+remove the place agent’s coverage ceiling. The
+CSV seed loader already supports this.
+Limitation
+Integrate a real
+hotel booking
+channel
+Replaces the internal status page with a genuine
+reservation through a partner API so the
+suggested room is actually bookable.
+Limitation
+Move session
+state out of the
+backend process
+Persists live sessions to an external store so the
+backend can restart without losing in-progress
+turns and a second instance can serve the same
+chat.
+Limitation
+Add a fallback
+language-model
+family
+Reduces single-vendor exposure by letting a
+phase fall back to a non-Gemini model when
+behaviour, pricing, or availability changes.
+Limitation
+Add
+Nepali-language
+support
+Opens the system to domestic users by adding
+Nepali across retrieval, prompts, and the
+frontend as a single bundled work item.
+New feature
+Voice interface
+for the same flow
+Adds speech-to-text and text-to-speech around
+the existing pipeline so the same flow works
+hands-free.
+New feature
+Social layer for
+sharing and
+collaborating on
+itineraries
+Turns the solo planning tool into a community
+platform where users can publish itineraries,
+invite collaborators, and follow, like, or comment
+on shared plans.
+New feature
+Page 81
+--- PAGE 95 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table 8.4: Future work (continued)
+Item Rationale Linked source
+Add distance
+from the stay to
+each attraction
+Shows the travel effort between the selected
+hotel and each chosen place using coordinates
+already in the catalogue.
+Feedback
+Capture traveller
+profile through
+chat instead of a
+form
+Removes the only non-chat input step by letting
+the place agent gather profile details from
+free-form replies.
+Feedback
+Default sample
+three-day plan
+that can be
+accepted as is
+Gives non-frequent travellers a quick-start path
+with a generic itinerary the user can accept or
+refine.
+Feedback
+Surface itinerary
+editability in the
+UI
+Makes the chat-editing affordance explicit
+through inline hints so users discover it without
+trial and error.
+Feedback
+Emergency
+location-share for
+travellers on the
+trip
+Extends the artefact into in-trip assistance by
+letting a traveller share their location with a
+chosen contact or support point.
+Feedback
+Page 82
+--- PAGE 96 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+References
+Anthropic (2024). Claude. Large language model. url: https://claude.ai (visited on 05/06/2026).
+Awale, S. (May 2025). “Nepalese Tourism Promotion Practices and its Effects”. In: Pragya Darshan
+प्रज्ञा दर्शन 7.1, pp. 61–65. ıssn: 2542-2634. doı: 10 . 3126 / pdmdj . v7i1 . 80770. url:
+http://dx.doi.org/10.3126/pdmdj.v7i1.80770.
+Azad, H. K. and A. Deepak (Sept. 2019). “Query expansion techniques for information retrieval:
+A survey”. en. In: Inf. Process. Manag. 56.5, pp. 1698–1735.
+Bangor, A., P. Kortum, and J. Miller (2009). “Determining what individual SUS scores mean:
+Adding an adjective rating scale”. In: Journal of usability studies 4.3, pp. 114–123.
+Brooke, J. et al. (1996). “SUS-A quick and dirty usability scale”. In: vol. 189. 194. London,
+England, pp. 4–7.
+Dahal, M. et al. (Sept. 2024). “A Tourist Destination Recommender System for Nepali Tourism
+Industry”. In: KEC Journal of Science and Engineering 8.1, pp. 17–22. ıssn: 2091-2919. doı: 10.
+3126/kjse.v8i1.69258. url: http://dx.doi.org/10.3126/kjse.v8i1.69258.
+Ester, M. et al. (1996). “A density-based algorithm for discovering clusters in large spatial
+databases with noise”. In: kdd. Vol. 96. 34, pp. 226–231.
+Google (2024). Gemini. Large language model. url: https://gemini.google.com (visited on
+05/06/2026).
+Honmane, N. (May 2025). “AI Trip Planner”. In: INTERNATIONAL JOURNAL OF SCIENTIFIC RE-
+SEARCH IN ENGINEERING AND MANAGEMENT 09.05, pp. 1–9. ıssn: 2582-3930. doı: 10.55041/
+ijsrem48099. url: http://dx.doi.org/10.55041/ijsrem48099.
+Huang, J. (2024). “Personalized Recommendation Method for Cultural Creative Products in
+Tourism Cities Based on User Profiles”. In: Procedia Computer Science 243, pp. 1133–1142. ıssn:
+1877-0509. doı: 10.1016/j.procs.2024.09.134. url: http://dx.doi.org/10.1016/j.
+procs.2024.09.134.
+Imtiaz Malik, M., M. Azam Sindhu, and R. Ayaz Abbasi (2023). “Extraction of use case diagram
+elements using natural language processing and network science”. In: Plos one 18.6, e0287502.
+Islek, I. and S. G. Oguducu (2020). “A Hybrid Recommendation System Based on Bidirectional
+Encoder Representations”. In: ECML PKDD 2020 Workshops. Springer International Publishing,
+pp. 225–236. ısbn: 9783030659653. doı: 10.1007/978-3-030-65965-3_14. url: http:
+//dx.doi.org/10.1007/978-3-030-65965-3_14.
+Kharel, S. (Mar. 2024). “Role of Information and Communication Technologies on Tourism: Nepal
+Case Study”. In: Nepalese Journal of Management Science and Research 7.1, pp. 20–35. ıssn: 2795-
+1545. doı: 10.53056/njmsr-2024.7.1.002. url: http://dx.doi.org/10.53056/njmsr-
+2024.7.1.002.
+Korga, A. M. et al. (Jan. 2025). “Does size matter? Examining sentence similarity performance
+in large language models”. In: 2025 International Conference on Information Networking (ICOIN). Chiang
+Mai, Thailand: IEEE, pp. 595–600.
+Page 83
+--- PAGE 97 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Leon, F. (Jan. 2022). “ActressMAS, a .NET multi-agent framework inspired by the actor model”.
+en. In: Mathematics 10.3, p. 382.
+M, U. and Y. C (June 2021). “COLPOUSIT: A Hybrid Model for Tourist Place Recommendation
+based on Machine Learning Algorithms”. In: 2021 5th International Conference on Trends in Electronics
+and Informatics (ICOEI). IEEE, pp. 1743–1750. doı: 10.1109/icoei51242.2021.9452746. url:
+http://dx.doi.org/10.1109/icoei51242.2021.9452746.
+Mindtrip.ai (n.d.). Mindtrip. online. url: https://mindtrip.ai/ (visited on 06/01/2026).
+Ministry of Communication and Information Technology (2019). 2019 Digital Nepal Framework: Unlock-
+ing Nepal’s Growth Potential. [online]. [Accessed 27 November 2025]. url: http://nepalindata.
+com/media/resources/items/15/bEN_Digital_Nepal_Framework_V7.2March2019.pdf.
+Ministry of Communication and Information Technology (2025a). ई-परामर्श (Digital Nepal Framework).
+[online]. [Accessed 26 November 2025]. url: https://mocit.gov.np/content/268/268-e-
+consultations-digital-nepal/#flipbook-flipbookContainer/1/.
+Ministry of Communication and Information Technology (2025b). िडिजटल नेपाल फ् रेमवर्क २.० को
+मस्यौदा मािथ रायसुझाव उपलब्ध गराउने सम्बन्धमा ।. [online]. [Accessed 27 November 2025]. url:
+https://mocit.gov.np/content/13013/relations-of-the-digital-nepal-framework-
+2-0/#flipbook-flipbookContainer/38/.
+Noorian, A., A. Harounabadi, and M. Hazratifard (Aug. 2023). “A sequential neural recommen-
+dation system exploiting BERT and LSTM on social media posts”. In: Complex & Intelligent
+Systems 10.1, pp. 721–744. ıssn: 2198-6053. doı: 10.1007/s40747-023-01191-4. url:
+http://dx.doi.org/10.1007/s40747-023-01191-4.
+Paudel, P. (Dec. 2025). “Divergent Digital Paths: A Comparative Study of Regulatory Frameworks
+and Participation in the Digital Silk Road between China and Nepal”. In: International Journal
+of Law and Legal Advancement 1.2. ıssn: 3105-0034. doı: 10.64060/ijlla.v1i2.4. url: http:
+//dx.doi.org/10.64060/ijlla.v1i2.4.
+Peffers, K. et al. (2007). “A design science research methodology for information systems
+research”. In: Journal of management information systems 24.3, pp. 45–77.
+Shrestha, D. et al. (Aug. 2021). “Study and evaluation of tourism websites based on user
+perspective.” In: Journal of Internet Computing and Services 22.4, pp. 65–82.
+Shrestha, D. et al. (Mar. 2024). “Personalized Tourist Recommender System: A Data-Driven
+and Machine-Learning Approach”. In: Computation 12.3, p. 59. ıssn: 2079-3197. doı: 10.3390/
+computation12030059. url: http://dx.doi.org/10.3390/computation12030059.
+Stardrift.ai (2025). Stardrift. online. url: https://stardrift.ai/ (visited on 06/01/2026).
+Stübinger, J. and F. Metz (Apr. 2026). “Understanding AI agents—A data-driven literature review”.
+en. In: Mathematics 14.9, p. 1478.
+Vijayakumar, S., Krishna Prasad K, and R. Holla M. (Oct. 2024). “Assessing the effectiveness of
+MoSCoW Prioritization in Software Development: A holistic analysis across methodologies”.
+In: EAI Endorsed Trans. Internet Things 10.
+Page 84
+--- PAGE 98 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Yin, C. and Z. Zhang (2024). “A Study of Sentence Similarity Based on the All-minilm-l6-v2
+Model With “Same Semantics, Different Structure” After Fine Tuning”. In: Proceedings of the
+2024 2nd International Conference on Image, Algorithms and Artificial Intelligence (ICIAAI 2024). Atlantis
+Press, pp. 677–684. ısbn: 978-94-6463-540-9. doı: 10.2991/978-94-6463-540-9_69. url:
+https://doi.org/10.2991/978-94-6463-540-9_69.
+Zhang, X. et al. (2024). “Auto-generated personas: Enhancing user-centered design practices
+among university students”. In: Extended Abstracts of the CHI Conference on Human Factors in Computing
+Systems, pp. 1–7.
+Page 85
+--- PAGE 99 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Appendices
+A Project Timeline
+The six sprints that mapped to the project objectives in Section 3.2 are broken down in Table A.1
+and visualised in Figure A.1.
+Table A.1: Sprint breakdown
+Sprint Phase focus Date Duration Key deliverables
+1 Knowledge Base
+Curation
+12/21/2025 -
+1/13/2026
+24 days Hand-curated Kathmandu
+Valley knowledge base of
+156 places decomposed
+into atomic single-claim
+facts, paired with 5,500
+LLM-assisted synthetic
+query-to-fact pairs
+2 Retriever
+Fine-tuning and
+Benchmarking
+1/14/2026 -
+2/4/2026
+22 days Domain fine-tuned MiniLM
+bi-encoder scored against
+three off-the-shelf
+baselines on a held-out
+fact split, with Recall@5
+above the 80% target
+3 Semantic
+Recommendation
+Service
+2/5/2026 -
+2/18/2026
+14 days Place agent and backend
+recommendation service
+using pgvector with an
+approximate-nearest-
+neighbour index and
+top-K-average aggregation
+under the 500 ms target
+4 Live Context Tool
+Integration
+2/19/2026 -
+3/4/2026
+14 days Weather, festival, and live
+news lookups wrapped as
+agent tools with graceful
+failure handling
+Page 86
+--- PAGE 100 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table A.1: Sprint breakdown (continued)
+Sprint Phase focus Date Duration Key deliverables
+5 Itinerary
+Generation
+Pipeline
+3/5/2026 -
+3/18/2026
+14 days Itinerary agent with parallel
+tool fan-out producing
+structured day-by-day
+plans tiered by traveller
+nationality, within the 30 s
+target
+6 Multi-Layer
+Application
+Integration and
+UAT
+3/19/2026 -
+4/22/2026
+35 days React frontend, full
+multi-agent ADK pipeline
+integration on Django and
+pgvector, containerised
+deployment, and the
+small-panel user
+acceptance test
+Figure A.1: Project timeline as a Gantt chart
+B Feasibility, Risks, and Ethical Aspects
+This appendix revisits the three planning concerns originally set out at the proposal stage and
+reports their state at the end of the project. Section B.1 explains why the chosen scope and stack
+were achievable within the available time and resources, Section B.2 lists the risks that shaped
+Page 87
+--- PAGE 101 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+the project’s design decisions and the mitigations carried out against each, and Section B.3 sets
+out the ethical considerations that match the final artefact.
+B.1 Feasibility
+The project was achievable within the available time, data, and resources because every major
+architectural choice was scoped to fit a single-student, single-machine budget. Transfer learning
+rather than training from scratch reduced the data requirement from millions of examples to
+thousands, making a hand-curated dataset of 5,500 synthetic query-to-fact pairs adequate
+for fine-tuning a small bi-encoder. Decoupling embedding generation from retrieval, with em-
+beddings pre-computed offline and indexed for approximate-nearest-neighbour lookup, kept
+real-time work down to query encoding and a vector similarity scan, both of which run comfortably
+on the development host without specialised hardware.
+Software dependencies were chosen to favour open-source and locally reproducible components:
+PostgreSQL with pgvector for storage and retrieval, Django for the backend, Google ADK for the
+agent runtime, and React for the frontend. The agent layer is phase-isolated, so each agent’s
+prompt stays short enough for a single student to maintain and iterate without coordination
+overhead.
+Data feasibility rests on the 156-place hand-curated knowledge base, which is bounded enough
+to be built by one person over the project timeline while still being large enough to exercise
+every functional capability the artefact claims. Live external context is gathered through weather,
+festival, and news APIs that all offer free developer tiers within the project’s usage volume.
+Finally, the author’s prior experience in full-stack web development and AI-agent engineering
+provided the skill base needed to integrate the three application layers, and the iterative sprint-
+based delivery left each layer in a runnable state before the next began, so feasibility was tested
+continuously rather than deferred to a single end-of-project integration.
+B.2 Risk Analysis and Mitigation
+Table B.1: Risk assessment and mitigation
+Potential risk Likeli-
+hood
+Impact Mitigation
+Limited knowledge-base
+coverage (missing or
+under-served places)
+Medium High Hand-curated 156 places with an
+extensible CSV seed; coverage gaps
+surfaced through UAT and queued for
+future expansion.
+Page 88
+--- PAGE 102 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Potential risk Likeli-
+hood
+Impact Mitigation
+LLM hallucination during
+synthetic query generation
+Medium Medium Structured query-generation rule and
+manual review of every fact and query
+pair before training.
+Dependency on external
+APIs (Tavily,
+OpenWeatherMap,
+Gemini)
+Medium High Tools wrapped with timeouts and
+graceful failure paths; short per-phase
+prompts allow an LLM family to be
+swapped without rewriting.
+Fine-tuned embedding
+fails to generalise to
+unseen queries
+Low High Held-out fact split during training; recall
+measured against three off-the-shelf
+baselines; fallback to off-the-shelf
+MiniLM available.
+Difficulty recruiting UAT
+participants
+Medium High Stratified convenience sample drawn
+from the author’s network; ten
+participants achieved.
+Itinerary kickoff turn
+exceeds the per-phase
+latency budget
+Low Medium Parallel tool fan-out delivering a 4.29×
+speedup over sequential; structured
+agent prompt; bound currently met but
+tracked as future work.
+B.3 Ethical Considerations
+The original ethical concern centred on third-party review data and platform terms of service.
+The final artefact does not use any review data, so that concern no longer applies and is replaced
+with a set of considerations that match the system actually built.
+Human participants in the user acceptance test (Section 6.2.6) gave informed consent through the
+Google Form, including age confirmation, an explicit opt-in to anonymised use of their responses,
+and the right to withdraw at any point. No personally identifying information was collected:
+participants are referred to in the report only as P1 through P10, with raw responses retained in
+Appendix D and the underlying dataset kept securely for twelve months after submission before
+being deleted.
+User account data in the system is intentionally minimal. Only an email, an optional display name
+and nationality, and a SHA-256 password hash are stored; no payment data, no government
+identifier, and no location data are collected at any point. Sessions can be planned anonymously
+without registration, and the post-itinerary registration prompt is dismissible so users who do not
+wish to create an account are not blocked from using the system.
+Page 89
+--- PAGE 103 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The knowledge base was hand-curated from publicly available online sources on Kathmandu
+Valley tourism, with attribution preserved against each source so the curation is auditable. The
+synthetic query-to-fact pairs used to fine-tune the retriever were generated with the help of
+large language models (Gemini and Claude, cited in Section 6.1.2); every generated pair was
+reviewed by hand before training, and the use of LLMs in dataset construction is openly disclosed
+rather than hidden.
+External API calls send only the minimum information needed to perform a lookup: weather
+queries carry a location and a date range, the news tool carries the phrasing of the live-context
+query, and Gemini receives the agent prompt plus the user’s chat turn. No participant identifiers,
+account details, or unrelated session content are forwarded to external services.
+Socially, the system is positioned to lift discoverability for small local operators that rarely rank on
+global platforms (Section 7.2.4) and to keep recommendations grounded in a curated knowledge
+base rather than free-text generation, reducing the risk of misleading travellers about places
+that do not exist. These design decisions form the ethical backbone of the project and have
+been honoured throughout development and evaluation.
+C Evaluation Queries
+Listing C.1 extracts the retrieval timings reported in Section 6.2.3, one row per search event,
+labelled as kickoff (the first search in a session) or refinement (later searches).
+Page 90
+--- PAGE 104 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+3 (msg ->> 'retrieval_ms')::float AS retrieval_ms ,
+6 ORDER BY (msg ->> 'timestamp')::timestamptz
+7 ) AS turn_rank
+8 FROM sessions s,
+1 WITH retrievals AS (
+2 SELECT
+4 ROW_NUMBER() OVER (
+5 PARTITION BY s.id
+10 11 12 )
+13 14 15 16 17 18 19 20 9 jsonb_array_elements(s.place_conversation) AS msg
+WHERE msg ->> 'role' = 'assistant'
+AND msg ->> 'retrieval_ms' IS NOT NULL
+SELECT
+retrieval_ms ,
+CASE
+WHEN turn_rank = 1 THEN 'kickoff'
+ELSE 'refinement'
+END AS turn_type
+FROM retrievals
+ORDER BY turn_type , retrieval_ms;
+Listing C.1: Retrieval timing extraction query
+Listing C.2 extracts the agent-turn timings reported in Section 6.2.3, one row per assistant
+message across the three phase transcripts, labelled with its phase and a kickoff or refinement
+turn type.
+Page 91
+--- PAGE 105 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+9 FROM sessions s,
+UNION ALL
+SELECT
+ROW_NUMBER() OVER (
+PARTITION BY s.id
+FROM sessions s,
+1 WITH agent_turns AS (
+2 SELECT
+5 ROW_NUMBER() OVER (
+6 PARTITION BY s.id
+10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 )
+38 39 40 41 42 43 44 45 46 3 'place' AS phase ,
+4 (msg ->> 'agent_turn_ms')::float AS agent_turn_ms ,
+7 ORDER BY (msg ->> 'timestamp')::timestamptz
+8 ) AS turn_rank
+jsonb_array_elements(s.place_conversation) AS msg
+WHERE msg ->> 'role' = 'assistant'
+AND (msg ->> 'agent_turn_ms')::float > 0
+'hotel' AS phase ,
+(msg ->> 'agent_turn_ms')::float AS agent_turn_ms ,
+ORDER BY (msg ->> 'timestamp')::timestamptz
+) AS turn_rank
+jsonb_array_elements(s.hotel_conversation) AS msg
+WHERE msg ->> 'role' = 'assistant'
+AND (msg ->> 'agent_turn_ms')::float > 0
+UNION ALL
+SELECT
+'itinerary' AS phase ,
+(msg ->> 'agent_turn_ms')::float AS agent_turn_ms ,
+ROW_NUMBER() OVER (
+PARTITION BY s.id
+ORDER BY (msg ->> 'timestamp')::timestamptz
+) AS turn_rank
+FROM sessions s,
+jsonb_array_elements(s.itinerary_conversation) AS msg
+WHERE msg ->> 'role' = 'assistant'
+AND (msg ->> 'agent_turn_ms')::float > 0
+SELECT
+agent_turn_ms ,
+phase ,
+CASE
+WHEN turn_rank = 1 THEN 'kickoff'
+ELSE 'refinement'
+END AS turn_type
+FROM agent_turns
+ORDER BY phase , turn_type , agent_turn_ms;
+Listing C.2: Agent-turn timing extraction query
+Page 92
+--- PAGE 106 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Listing C.3 extracts the parallel and sequential narrator-fanout numbers reported in Section 6.2.3,
+one row per search event, with the speedup ratio computed downstream.
+1 SELECT
+2 (msg ->> 'narrator_fanout_ms')::float AS parallel_ms ,
+3 (SELECT SUM((value)::float)
+4 FROM jsonb_each_text(msg -> 'narrator_ms')) AS sequential_ms
+5 FROM sessions s,
+6 jsonb_array_elements(s.place_conversation) AS msg
+7 WHERE msg ->> 'role' = 'assistant'
+8 AND (msg ->> 'narrator_fanout_ms')::float > 0
+9 ORDER BY parallel_ms;
+Listing C.3: Parallel fan-out vs sequential baseline extraction query
+D Raw UAT Responses
+This appendix reproduces the anonymised raw responses collected through the user acceptance
+test described in Section 6.2.6. Table D.1 lists each participant’s demographic responses,
+Table D.2 lists each participant’s rating for the ten SUS items, and Table D.3 lists each participant’s
+answers to the three open-ended prompts.
+Table D.1: Raw demographic responses per participant
+P Usual
+trip-planning
+method
+Travel frequency Familiarity with AI chat tools
+P1 Search engine Four or more times a
+year
+Use it regularly (most weeks)
+P2 Search engine Two or three times a
+year
+Use it regularly (most weeks)
+P3 Search engine Four or more times a
+year
+Use it occasionally
+P4 Search engine Two or three times a
+year
+Use it regularly (most weeks)
+P5 AI tools Four or more times a
+year
+Use it occasionally
+Page 93
+--- PAGE 107 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table D.1: Raw demographic responses per participant (continued)
+P Usual
+trip-planning
+method
+Travel frequency Familiarity with AI chat tools
+P6 Search engine Two or three times a
+year
+Tried it a few times
+P7 Search engine Two or three times a
+year
+Use it regularly (most weeks)
+P8 Search engine Two or three times a
+year
+Never used one
+P9 Travel agent Rarely (less than
+once a year)
+Tried it a few times
+P10 Search engine Rarely (less than
+once a year)
+Use it occasionally
+Table D.2: Raw SUS ratings per participant (1 = Strongly Disagree, 5 = Strongly Agree)
+P Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 Q10
+P1 5 1 5 1 5 1 5 1 5 1
+P2 4 2 4 3 3 1 4 3 4 4
+P3 3 4 3 3 5 4 5 3 5 3
+P4 4 2 3 2 4 2 4 2 4 2
+P5 3 2 4 1 3 2 5 3 3 1
+P6 4 3 3 4 3 4 4 2 3 2
+P7 5 1 5 1 5 1 5 1 5 3
+P8 5 3 3 4 4 2 3 2 4 2
+P9 3 2 4 2 4 4 2 2 3 2
+P10 4 2 5 1 4 2 5 1 4 2
+Page 94
+--- PAGE 108 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table D.3: Raw open-ended responses per participant
+P Single best thing Most frustrating thing If you could change one
+thing
+P1 The editing part where I
+can change the
+recommendation part in
+itinerary.
+I searched for
+Pashupatinath Temple but
+it was missing from the
+recommendation.
+I would have expanded
+the data.
+P2 I was able to plan a trip
+from a single place. Also
+images of places were a
+plus point to have.
+The system only showed
+top 5 places and there
+was no option to view
+more.
+I would add the distance
+information from the place
+where I am staying to the
+places I am visiting.
+P3 It’s easy to use and very
+helpful for travellers who
+aren’t sure how to plan
+their journey.
+Nothing. Nothing.
+P4 It could automatically
+suggest you the itinerary
+in the best possible way.
+The only frustrating thing
+was to fill up the forms.
+Those forms whose input
+could be taken directly
+from the chat.
+P5 It gives many options with
+pictures so I can choose
+multiple from there.
+When I download there is
+a little poor formatting of
+the downloaded PDF.
+All over best, I want to
+change as above I said.
+P6 It is very useful when the
+traveller is very new to the
+place.
+Nothing. Create an option that
+allows travellers to send
+their location to the
+administration whenever
+they need assistance or
+encounter a problem
+during their journey.
+P7 Travel plans made quicker
+and easier.
+None because the system
+was easy to catch on.
+None.
+P8 Good place
+recommendation based
+on my requests.
+None. Design should make it
+clearer that I can update
+the itinerary using chat.
+Page 95
+--- PAGE 109 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Table D.3: Raw open-ended responses per participant (continued)
+P Single best thing Most frustrating thing If you could change one
+thing
+P9 The idea of chat guiding
+me into my interest of
+places.
+Some recommended
+places were not what I
+asked for.
+Add a sample plan like
+three days I could just
+accept without choosing
+anything.
+P10 Made planning feel like a
+conversation rather than
+scrolling through a
+website.
+After I confirmed the hotel
+selection, it was stuck at a
+loading-like screen and I
+was not sure whether the
+system was still working or
+had stopped.
+No idea.
+E UAT Participant Information Sheet and Consent Form
+The participant-facing text and consent form delivered through the first section of the Google
+Form are reproduced below as the participants saw them.
+Page 96
+--- PAGE 110 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Page 97
+--- PAGE 111 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The second section of the form gathered the three demographic questions discussed in Sec-
+tion 6.2.6.2.
+Page 98
+--- PAGE 112 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The third section of the form presented the ten-item System Usability Scale on a five-point Likert
+scale, as analysed in Section 6.2.6.3.
+Page 99
+--- PAGE 113 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Page 100
+--- PAGE 114 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Page 101
+--- PAGE 115 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+Page 102
+--- PAGE 116 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The fourth section of the form invited free-text feedback through three open-ended prompts,
+analysed thematically in Section 6.2.6.5.
+Page 103
+--- PAGE 117 ---
+BIRMINGHAM CITY UNIVERSITY
+SCHOOL OF COMPUTING AND DIGITAL TECHNOLOGY
+The final section of the form confirmed the submission and reminded participants of their right
+to withdraw their responses after the fact.
+Page 104

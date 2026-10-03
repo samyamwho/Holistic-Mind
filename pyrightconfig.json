@@ -1,0 +1,12 @@
+{
+  "venvPath": "recommender",
+  "venv": ".venv312",
+  "pythonVersion": "3.12",
+  "exclude": ["recommender/.venv", "recommender/.venv312", "recommender/.python"],
+  "extraPaths": [
+    "recommender"
+  ],
+  "include": [
+    "recommender"
+  ]
+}

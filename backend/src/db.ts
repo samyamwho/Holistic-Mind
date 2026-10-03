@@ -242,6 +242,35 @@ export async function ensureSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    -- Existing plaintext is retained until an unlocked client migrates each entry.
+    ALTER TABLE journal_entries ALTER COLUMN pack DROP NOT NULL;
+    ALTER TABLE journal_entries ALTER COLUMN prompt DROP NOT NULL;
+    ALTER TABLE journal_entries ALTER COLUMN content DROP NOT NULL;
+    ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS envelope JSONB;
+    CREATE TABLE IF NOT EXISTS journal_vaults (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      key_id TEXT NOT NULL,
+      key_check JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS journal_media (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('image', 'audio')),
+      content_type TEXT NOT NULL,
+      envelope JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    -- CREATE TABLE IF NOT EXISTS does not upgrade a table made by an older build.
+    ALTER TABLE journal_media ADD COLUMN IF NOT EXISTS content_type TEXT;
+    UPDATE journal_media SET content_type = CASE WHEN kind = 'audio' THEN 'audio/mp4' ELSE 'image/jpeg' END
+      WHERE content_type IS NULL;
+    ALTER TABLE journal_media ALTER COLUMN content_type SET NOT NULL;
+    ALTER TABLE journal_media ADD COLUMN IF NOT EXISTS entry_id UUID REFERENCES journal_entries(id) ON DELETE CASCADE;
+    CREATE INDEX IF NOT EXISTS journal_media_entry_idx ON journal_media(entry_id);
+    CREATE INDEX IF NOT EXISTS journal_media_user_created_idx
+      ON journal_media(user_id, created_at DESC);
+
     CREATE TABLE IF NOT EXISTS practice_events (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

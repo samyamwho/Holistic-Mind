@@ -43,6 +43,9 @@ export default function RecommendedTools({ title, tools, onSelectTool }: Recomme
       </View>
 
       <View style={styles.exerciseGrid}>
+        {tools.length === 0 ? (
+          <Text style={styles.exerciseWhy}>No personalized practices are available right now.</Text>
+        ) : null}
         {visibleTools.map((exercise) => (
           <Pressable
             accessibilityHint="Opens the guided exercise"

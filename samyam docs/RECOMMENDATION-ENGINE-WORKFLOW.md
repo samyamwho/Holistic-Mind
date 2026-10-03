@@ -1,5 +1,7 @@
 # Holistic Mind Recommendation Engine Workflow
 
+> Earlier project documentation, retained for reference. For the current journal encryption, recommendation inputs, and rollout status, read [How the functionality works](HOW-THE-FUNCTIONALITY-WORKS.md) and [Recent changes](RECENT-CHANGES.md). In particular, the app no longer sends journal text to the recommender.
+
 ## Overview
 
 Holistic Mind uses a **local hybrid recommendation engine** to recommend suitable wellness exercises. It combines:

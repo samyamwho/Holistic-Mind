@@ -3,6 +3,13 @@
 # dependencies
 node_modules/
 
+# Python environments, model downloads, and test caches
+.venv*/
+.python/
+__pycache__/
+.pytest_cache/
+*.pyc
+
 # Expo
 .expo/
 dist/

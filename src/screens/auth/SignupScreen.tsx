@@ -12,9 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { assertAuthServerReady } from "../../services/auth/authApi";
 import { getGoogleIdToken } from "../../services/auth/googleAuth";
-import { getAppleIdentity } from "../../services/auth/appleAuth";
-import AppleSignInButton from "../../components/auth/AppleSignInButton";
 
 type SignupScreenProps = {
   navigation: {
@@ -30,7 +29,7 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signUp, signInWithApple, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
 
   const completeSignup = async () => {
     if (!name.trim() || !email.trim() || password.length < 8) {
@@ -55,24 +54,13 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
   const completeGoogleSignup = async () => {
     setErrorMessage(""); setIsSubmitting(true);
     try {
+      await assertAuthServerReady();
       const idToken = await getGoogleIdToken();
       if (!idToken) return;
       const result = await signInWithGoogle(idToken);
       navigation.replace(result.isNewUser ? "Onboarding" : "MainTabs");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Google sign-in could not be completed.");
-    } finally { setIsSubmitting(false); }
-  };
-
-  const completeAppleSignup = async () => {
-    setErrorMessage(""); setIsSubmitting(true);
-    try {
-      const identity = await getAppleIdentity();
-      if (!identity) return;
-      const result = await signInWithApple(identity.identityToken, identity.fullName);
-      navigation.replace(result.isNewUser ? "Onboarding" : "MainTabs");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Apple sign-in could not be completed.");
     } finally { setIsSubmitting(false); }
   };
 
@@ -167,7 +155,6 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
               <Pressable accessibilityRole="button" disabled={isSubmitting} onPress={completeGoogleSignup} style={styles.googleButton}>
                 <Text style={styles.googleLetter}>G</Text><Text style={styles.googleButtonText}>Continue with Google</Text>
               </Pressable>
-              <AppleSignInButton disabled={isSubmitting} onPress={completeAppleSignup} />
             </View>
 
             <Text style={styles.switchText}>

@@ -37,7 +37,7 @@ export default function LibraryScreen() {
 
   return <View style={styles.root}><ImageBackground source={require("../../../assets/welcome/paper-background.png")} resizeMode="cover" style={styles.background}>
     <SafeAreaView edges={["top"]} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(true)} tintColor="#70454A" />} showsVerticalScrollIndicator={false}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(true)} tintColor="#70454A" />} showsVerticalScrollIndicator={false}>
         <View style={styles.header}><View style={styles.headerIcon}><BookOpenText color="#70454A" size={23} strokeWidth={1.8} /></View><View><Text style={styles.kicker}>Learn gently</Text><Text style={styles.title}>Library</Text></View></View>
         <Text style={styles.subtitle}>Choose a collection and begin wherever feels right.</Text>
         <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Your modules</Text><Text style={styles.count}>{courses.length}</Text></View>

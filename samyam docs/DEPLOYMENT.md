@@ -1,5 +1,7 @@
 # Holistic Mind — Beta Cloud Deployment Guide
 
+> Earlier project documentation, retained for reference. For the current journal encryption, recommendation inputs, and rollout status, read [How the functionality works](HOW-THE-FUNCTIONALITY-WORKS.md) and [Recent changes](RECENT-CHANGES.md). In particular, the app no longer sends journal text to the recommender.
+
 This guide walks you step-by-step through deploying **Holistic Mind** to cloud services for your beta release and client testing.
 
 ---

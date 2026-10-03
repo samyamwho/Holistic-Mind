@@ -46,7 +46,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CheckInQuestion } from "../../../types/wellness";
 import { appSansFont as sansFont, typeScale } from "../../../theme/typography";
 
+import { comfortOptions, type ComfortPreference } from "../../../../backend/src/data/comfortPreferences";
+
 type DailyCheckInFlowProps = {
+  comfortPreferences: ComfortPreference[];
+  onToggleComfortPreference: (preference: ComfortPreference) => void;
   isComplete: boolean;
   isSaving: boolean;
   onBack: () => void;
@@ -275,6 +279,8 @@ function QuestionOptions({
 }
 
 export default function DailyCheckInFlow({
+  comfortPreferences,
+  onToggleComfortPreference,
   isComplete,
   isSaving,
   onBack,
@@ -416,6 +422,29 @@ export default function DailyCheckInFlow({
                       question={question}
                       selectedAnswer={selectedAnswer}
                     />
+                    {questionIndex === totalQuestions - 1 ? (
+                      <View style={styles.comfortSection}>
+                        <Text style={styles.comfortTitle}>Anything you’d like to avoid today?</Text>
+                        <Text style={styles.comfortHint}>Optional · select any that apply. We’ll leave these out of today’s recommendations.</Text>
+                        {comfortOptions.map(option => {
+                          const checked = comfortPreferences.includes(option.id);
+                          return (
+                            <Pressable
+                              key={option.id}
+                              accessibilityRole="checkbox"
+                              accessibilityLabel={option.label}
+                              accessibilityState={{ checked, disabled: isSaving }}
+                              disabled={isSaving}
+                              onPress={() => onToggleComfortPreference(option.id)}
+                              style={[styles.comfortOption, checked && styles.answerCardSelected]}
+                            >
+                              <Text style={styles.comfortLabel}>{option.label}</Text>
+                              {checked ? <Check color="#673F3F" size={20} /> : <View style={styles.comfortUnchecked} />}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
                   </ScrollView>
 
                   <View style={styles.bottomBar}>
@@ -453,6 +482,12 @@ export default function DailyCheckInFlow({
 }
 
 const styles = StyleSheet.create({
+  comfortSection: { marginTop: 28, gap: 10 },
+  comfortTitle: { color: "#5F3B2B", fontFamily: sansFont, fontSize: 18, fontWeight: "700" },
+  comfortHint: { color: "#725A54", fontFamily: sansFont, fontSize: 13, lineHeight: 19, marginBottom: 4 },
+  comfortOption: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: "rgba(111,87,81,0.22)", padding: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(255,255,255,0.44)" },
+  comfortLabel: { color: "#5F3B2B", fontFamily: sansFont, fontSize: 14 },
+  comfortUnchecked: { width: 20, height: 20, borderWidth: 1, borderColor: "#8B746D", borderRadius: 4 },
   root: { flex: 1, backgroundColor: "#F6E3C5" },
   background: { flex: 1 },
   safeArea: { flex: 1 },

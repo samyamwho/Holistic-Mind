@@ -1,0 +1,140 @@
+SOURCE: Interim Progress Review Samyam Shrestha.pdf
+
+--- PAGE 1 ---
+CMP6200 / DIG6200
+Individual Undergraduate Project (FYP)
+Interim Progress Review
+The Holistic Mind: A Trauma-Informed,
+AI-Powered Mobile Application for Mental
+Health Self-Regulation
+Student Name: Samyam Shrestha
+Student ID: 23189645
+Supervisor: Rabin Ghimire
+Reporting Period: 27 April 2026 to 14 June 2026
+Date: 14th June 2026
+--- PAGE 2 ---
+Interim Progress Review
+Contents
+1 Log of Completed Activities and Milestones 2
+2 Reflection and Iteration 2
+2.1 2.2 Progress Against Original Timeline . . . . . . . . . . . . . . . . . . . 2
+Evidence of Current Implementation . . . . . . . . . . . . . . . . . . 3
+3 Challenges Faced and Resolution Approaches 4
+4 Action Plan: Objectives for Next Period 4
+5 Other Considerations 4
+6 Questions for Supervisor 5
+1
+--- PAGE 3 ---
+Interim Progress Review
+1 Log of Completed Activities and Milestones
+Since the writing of the project proposal, the progress of the project has moved from
+researchtoimplementation. Theliteraturereviewalongwithotherdocumen-tations
+has been done. These include trauma-informed design, recommendations in mental
+health, user modeling, ethical issues, and personal self-regulation tools for those
+adults that had a traumatic past and have ADHD disorder. In terms of practical
+development of the application, the development process has started. React Native
+framework has been used for building the application due to the fact that it provides
+ability to create a mobile application using a single codebase for two operating
+systems: iOS and Android. This approach is consistent with the cross-platform
+concept proposed for the project. Firebase has been setup as the backend for our
+system. For authentication por- poses, Firebase Authentication framework has been
+used; moreover, Google Authentica- tion has also been integrated into the system.
+Login portal has been designed and, after logging in, the user is asked onboarding
+questions regarding his or her experi- ence. The basic information collected will help
+to profile the user further.
+The key completed activities are:
+• Completed the literature review and project documentation.
+• Selected React Native as the final mobile development framework.
+• Set up Firebase as the backend service.
+• Implemented the login portal using Firebase Authentication.
+• Integrated Google authentication.
+• Created the initial enrolment page.
+• Started the onboarding question flow for user profiling.
+2 Reflection and Iteration
+2.1 Progress Against Original Timeline
+Current Project Status: On Track
+The project remains within its time frame. The research, documentation, framework
+choice, Firebase implementation, authentication system design, and initial user on-
+boarding processes have all been achieved. While there was a more comprehensive
+development process timeline in the original Gantt Chart, the current one has placed
+an emphasis on building the technical structure of the app. The recommendation
+2
+--- PAGE 4 ---
+Interim Progress Review
+engine and self-regulation content will follow the development of the authentication
+and enrolment processes.
+Figure 1: Updated project Gantt chart showing completed, in-progress, and upcoming
+tasks
+2.2 Evidence of Current Implementation
+The following screenshots show the current prototype progress and provide evidence
+of the implementation completed so far.
+Figure 2: Login screen developed using React Native
+3
+--- PAGE 5 ---
+Interim Progress Review
+3 Challenges Faced and Resolution Approaches
+Table 1: Challenges faced and solutions attempted
+Challenge Faced Impact on Project ResolutionAttempted
+Choosing an appropriate
+mobile framework
+This required considera-
+tions such as compati-
+bility, development dura-
+tion, and maintenance.
+The React Native mo-
+bile framework was cho-
+sen since it supports iOS
+and Android within a sin-
+gle codebase.
+Setting up Firebase and
+Google Sign In
+This took more time than
+anticipated due to set-up
+and testing processes.
+Firebase has been config-
+ured for Authentication
+services and tested via
+Google Sign In.
+Constructing onboarding
+questions for a touchy
+subject
+Questions posed may
+seem very clinical and/or
+overwhelming for users.
+Onboarding has been de-
+signed to be friendly and
+supportive rather than
+clinical and diagnostic.
+4 Action Plan: Objectives for Next Period
+In the following period, the key goals will include completing the core user flow and
+tying onboarding inputs to the recommendation engine. All onboarding inputs will
+be finalized, with all responses safely stored in Firebase. Thereafter, the five-level
+emotional check-ins will be developed to serve as the key inputs to the recommen-
+dation engine.
+In order to make the recommendation engine as transparent as possible, it will
+be kept rule-based initially so that its internal logic remains transparent for use
+in the small scale prototype. Following this, the home dashboard, along with the
+initial self-regulation content modules of breathwork and somatic techniques, will
+be implemented.
+5 Other Considerations
+The general goal of the project has not changed significantly. The project will still
+continue to develop a trauma-informed and AI-powered mobile application aimed
+at facilitating the self-regulation of the nervous system. The only difference is that
+4
+--- PAGE 6 ---
+Interim Progress Review
+now React Native is chosen as the final development framework rather than letting
+the developer choose between React Native and Flutter.
+The application will remain in both ethical and technological limits. It will not
+diagnose nor give any therapeutic or crisis services but will offer exercises for nervous
+system self-regulation on the basis of user preferences.
+6 Questions for Supervisor
+1. Should the recommendation engine in its initial phase be rule-based before
+applying preference learning?
+2. Is the implementation direction I am using currently appropriate for my final
+project goals?
+3. Should recommendations be explainable to users, for example showing why a
+breathing or somatic exercise was suggested?
+4. How can I evaluate whether the personalised recommendation is actually
+better than a random or non-personalised suggestion?
+5

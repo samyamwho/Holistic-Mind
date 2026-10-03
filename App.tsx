@@ -1,5 +1,6 @@
 import React from "react";
 import "./global.css";
+import { JournalProvider } from "./src/context/JournalContext";
 import { AuthProvider } from "./src/context/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { AudioPlayerProvider } from "./src/context/AudioPlayerContext";
@@ -9,9 +10,11 @@ export default function App() {
   return (
     <AuthProvider>
       <NotificationManager />
-      <AudioPlayerProvider>
-        <AppNavigator />
-      </AudioPlayerProvider>
+      <JournalProvider>
+        <AudioPlayerProvider>
+          <AppNavigator />
+        </AudioPlayerProvider>
+      </JournalProvider>
     </AuthProvider>
   );
 }

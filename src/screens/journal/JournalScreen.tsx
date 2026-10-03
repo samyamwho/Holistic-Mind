@@ -10,10 +10,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { ArrowRight, BookOpenText, Check, Lock, PenLine, Plus } from "lucide-react-native";
+import { ArrowRight, BookOpenText, Check, ImagePlus, Lock, Mic, PenLine, Plus } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "../../context/AuthContext";
-import { createJournalEntry, getJournalEntries } from "../../services/wellness/wellnessApi";
+import { useJournal } from "../../context/JournalContext";
+import { JournalPrivacyGate } from "../../components/journal/JournalPrivacyGate";
+import { JournalMediaPanel } from "../../components/journal/JournalMediaPanel";
+import { JournalAttachmentComposer } from "../../components/journal/JournalAttachmentComposer";
+import type { DraftJournalAttachment } from "../../context/JournalContext";
+import type { JournalMedia } from "../../services/journal/journalCrypto";
 import { appSansFont as sansFont, screenLayout, typeScale } from "../../theme/typography";
 
 type PromptPack = {
@@ -29,6 +33,7 @@ type JournalEntry = {
   prompt: string;
   text: string;
   createdAt: string;
+  attachments?: JournalMedia[];
 };
 
 const promptPacks: PromptPack[] = [
@@ -70,45 +75,57 @@ function formatEntryTime(date: string) {
 }
 
 export default function JournalScreen() {
+  return <JournalPrivacyGate><UnlockedJournalScreen /></JournalPrivacyGate>;
+}
+
+function UnlockedJournalScreen() {
   const navigation = useNavigation<any>();
-  const { runAuthenticated } = useAuth();
+  const { getEntries, saveEntryWithMedia } = useJournal();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [selectedPackId, setSelectedPackId] = useState(releasePromptPacks[0].id);
   const [draft, setDraft] = useState("");
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [attachments, setAttachments] = useState<DraftJournalAttachment[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<JournalMedia | null>(null);
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    runAuthenticated(getJournalEntries)
+    getEntries()
       .then((savedEntries) => {
         if (active) setEntries(savedEntries);
       })
-      .catch((error) => console.warn("Unable to load journal entries", error));
+      .catch(() => { if (active) setError("Unable to read your journal entries. Lock and reopen your journal to retry."); });
     return () => { active = false; };
-  }, [runAuthenticated]));
+  }, [getEntries]));
 
   const selectedPack = useMemo(
     () => releasePromptPacks.find((pack) => pack.id === selectedPackId) ?? releasePromptPacks[0],
     [selectedPackId]
   );
-  const canSave = draft.trim().length > 0;
+  const canSave = draft.trim().length > 0 && !saving;
 
   const saveEntry = async () => {
     const text = draft.trim();
 
-    if (!text) {
+    if (!text || saving) {
       return;
     }
 
+    setSaving(true); setError("");
     try {
-      const saved = await runAuthenticated((token) => createJournalEntry(token, {
+      const saved = await saveEntryWithMedia({
         pack: selectedPack.label,
         prompt: selectedPack.prompt,
         text,
-      }));
+      }, attachments);
       setEntries((current) => [saved, ...current]);
       setDraft("");
+      setAttachments([]);
     } catch (error) {
-      console.warn("Unable to save journal entry", error);
+      setError(error instanceof Error ? error.message : "Unable to save your entry.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -133,7 +150,7 @@ export default function JournalScreen() {
                 <Text style={styles.headerHint}>Follow a prompt or simply write what is here.</Text>
               </View>
               <Pressable
-                accessibilityLabel="Write a free journal entry"
+                accessibilityLabel="Write a new journal entry"
                 accessibilityRole="button"
                 hitSlop={8}
                 onPress={() => navigation.navigate("FreeJournalEntry")}
@@ -145,6 +162,7 @@ export default function JournalScreen() {
               </Pressable>
             </View>
 
+            {error ? <Text accessibilityRole="alert">{error}</Text> : null}
             <View style={styles.promptShell}>
               <LinearGradient
                 colors={[
@@ -177,6 +195,7 @@ export default function JournalScreen() {
                     textAlignVertical="top"
                     value={draft}
                   />
+                  <JournalAttachmentComposer attachments={attachments} onChange={setAttachments} disabled={saving} />
                 </View>
 
                 <View style={styles.actionRow}>
@@ -270,11 +289,19 @@ export default function JournalScreen() {
                       <Text numberOfLines={2} style={styles.entryText}>
                         {entry.text}
                       </Text>
+                      {entry.attachments?.length ? <View style={styles.mediaChips}>{entry.attachments.map((item) => <Pressable accessibilityLabel={`Open ${item.kind === "image" ? "photo" : "voice note"} attachment`} accessibilityRole="button" key={item.id} onPress={() => setSelectedMedia(item)} style={styles.mediaChip}>{item.kind === "image" ? <ImagePlus color="#70454A" size={14} /> : <Mic color="#70454A" size={14} />}<Text style={styles.mediaChipText}>{item.kind === "image" ? "Photo" : "Voice"}</Text></Pressable>)}</View> : null}
                     </View>
                   </View>
                 ))}
               </View>
             )}
+            <JournalMediaPanel
+              menuOpen={false}
+              onCloseMenu={() => {}}
+              onWrite={() => navigation.navigate("FreeJournalEntry")}
+              requestedMedia={selectedMedia}
+              onCloseViewer={() => setSelectedMedia(null)}
+            />
           </ScrollView>
         </SafeAreaView>
       </ImageBackground>
@@ -614,4 +641,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: "500",
   },
+  mediaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 7 },
+  mediaChip: { minHeight: 26, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, borderRadius: 10, backgroundColor: "rgba(223,162,177,.22)" },
+  mediaChipText: { color: "#70454A", fontFamily: sansFont, fontSize: 10, fontWeight: "700" },
 });

@@ -20,6 +20,7 @@ import CheckInStreak from "./components/CheckInStreak";
 import DailyCheckInFlow from "./components/DailyCheckInFlow";
 import ProgressSummary from "./components/ProgressSummary";
 import RecommendedTools from "./components/RecommendedTools";
+import type { ComfortPreference } from "../../../backend/src/data/comfortPreferences";
 import type {
   DailyCheckIn,
   DailyCheckInAnswers,
@@ -72,7 +73,8 @@ function getRecommendationKey(checkIn: DailyCheckIn) {
   const answerFingerprint = dailyCheckInQuestions
     .map(({ id }) => `${id}:${checkIn.answers[id] ?? ""}`)
     .join("|");
-  return `v2-four:${checkIn.id}:${answerFingerprint}`;
+  const comfortFingerprint = [...(checkIn.answers.comfortPreferences ?? [])].sort().join(",");
+  return `v3-comfort:${checkIn.id}:${answerFingerprint}:${comfortFingerprint}`;
 }
 
 function getTimeGreeting(date = new Date()) {
@@ -155,7 +157,7 @@ export default function HomeScreen() {
   const currentQuestion = dailyCheckInQuestions[currentIndex];
   const selectedAnswer = answers[currentQuestion.id];
   const visibleTools =
-    isCompleteToday && recommendations.length > 0
+    isCompleteToday
       ? recommendations
       : exerciseLibrary.slice(0, 4);
 
@@ -185,13 +187,10 @@ export default function HomeScreen() {
         if (missingExerciseIds.length > 0) {
           console.warn("Ignoring unmapped recommendation exercises", missingExerciseIds);
         }
-        if (generated.length > 0) {
-          setRecommendations(generated);
-          setRecommendationRequestId(created.requestId);
-        } else {
-          setRecommendations(getLocalRecommendations(latestCheckIn.answers));
-          setRecommendationRequestId(null);
-        }
+        // An empty successful response can mean every candidate was excluded.
+        // Preserve it rather than bypassing the service's eligibility checks.
+        setRecommendations(generated);
+        setRecommendationRequestId(created.requestId);
       })
       .catch((error) => {
         registeredRecommendationKey.current = "";
@@ -210,6 +209,16 @@ export default function HomeScreen() {
       ...currentAnswers,
       [currentQuestion.id]: answer,
     }));
+  };
+
+  const toggleComfortPreference = (preference: ComfortPreference) => {
+    if (isSavingCheckIn) return;
+    setAnswers(current => {
+      const selected = current.comfortPreferences ?? [];
+      return { ...current, comfortPreferences: selected.includes(preference)
+        ? selected.filter(item => item !== preference)
+        : [...selected, preference] };
+    });
   };
 
   const beginCheckIn = () => {
@@ -366,6 +375,8 @@ export default function HomeScreen() {
         </SafeAreaView>
       </ImageBackground>
       <DailyCheckInFlow
+        comfortPreferences={answers.comfortPreferences ?? []}
+        onToggleComfortPreference={toggleComfortPreference}
         isComplete={isCheckInComplete}
         isSaving={isSavingCheckIn}
         onBack={goPrevious}

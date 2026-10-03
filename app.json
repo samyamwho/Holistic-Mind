@@ -18,6 +18,9 @@
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.anonymous.holistic-mind",
       "buildNumber": "2",
+      "entitlements": {
+        "keychain-access-groups": ["$(AppIdentifierPrefix)$(CFBundleIdentifier)"]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -45,6 +48,12 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo to add to your private, encrypted journal."
+        }
+      ],
       "expo-apple-authentication",
       "expo-asset",
       [
@@ -58,7 +67,8 @@
       [
         "expo-audio",
         {
-          "enableBackgroundPlayback": true
+          "enableBackgroundPlayback": true,
+          "microphonePermission": "Record private voice notes in your journal."
         }
       ]
     ],

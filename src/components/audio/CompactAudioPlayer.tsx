@@ -42,7 +42,7 @@ export default function CompactAudioPlayer({ onOpen, placement = "expanded", nat
   const circumference = 2 * Math.PI * ringRadius;
 
   return (
-    <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateY }] }}>
+    <Animated.View {...panResponder.panHandlers} style={[nativeGlass && styles.nativeContainer, { transform: [{ translateY }] }]}>
       <Pressable accessibilityLabel={`Open player for ${track.title}`} onPress={onOpen} style={[styles.player, nativeGlass ? styles.playerNative : styles.playerFallback, compact && styles.playerCompact]}>
         <View style={[styles.artwork, compact && styles.artworkCompact]}>
           {track.imageUrl ? <Image source={{ uri: track.imageUrl }} style={styles.image} /> : <Music2 color="#75464D" size={compact ? 17 : 19} strokeWidth={2.2} />}
@@ -80,6 +80,7 @@ export default function CompactAudioPlayer({ onOpen, placement = "expanded", nat
 }
 
 const styles = StyleSheet.create({
+  nativeContainer: { flex: 1, justifyContent: "center" },
   player: {
     height: 44,
     marginHorizontal: 8,
@@ -92,12 +93,12 @@ const styles = StyleSheet.create({
   },
   playerNative: { backgroundColor: "transparent" },
   playerFallback: { borderWidth: 1, borderColor: "rgba(255,255,255,.74)", backgroundColor: "rgba(255,249,240,.94)" },
-  playerCompact: { height: 38, marginHorizontal: 5, borderRadius: 14 },
+  playerCompact: { height: "100%", marginHorizontal: 5, gap: 8, paddingTop: 2, borderRadius: 14 },
   artwork: { width: 32, height: 32, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: 999, backgroundColor: "rgba(223,162,177,.3)" },
   artworkCompact: { width: 28, height: 28, borderRadius: 999 },
   image: { width: "100%", height: "100%" },
-  copy: { minWidth: 0, flex: 1 },
-  title: { color: "#5F3B2B", fontSize: 13, fontWeight: "700" },
+  copy: { minWidth: 0, flex: 1, justifyContent: "center" },
+  title: { color: "#5F3B2B", fontSize: 13, fontWeight: "700", lineHeight: 18 },
   control: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: "#673F3F" },
   controlCompact: { width: 32, height: 32, borderRadius: 16 },
   progressRing: { position: "absolute" },

@@ -3,20 +3,27 @@ import { StatusBar } from "expo-status-bar";
 import { Alert, ImageBackground, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { ArrowLeft, Check, Feather } from "lucide-react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "../../context/AuthContext";
-import { createJournalEntry } from "../../services/wellness/wellnessApi";
+import { useJournal } from "../../context/JournalContext";
+import { JournalPrivacyGate } from "../../components/journal/JournalPrivacyGate";
+import { JournalAttachmentComposer } from "../../components/journal/JournalAttachmentComposer";
+import type { DraftJournalAttachment } from "../../context/JournalContext";
 import { appSansFont as sansFont, screenLayout } from "../../theme/typography";
 
 export default function FreeJournalEntryScreen({ navigation }: { navigation: any }) {
-  const { runAuthenticated } = useAuth();
+  return <JournalPrivacyGate onBack={navigation.goBack}><UnlockedFreeJournalEntry navigation={navigation} /></JournalPrivacyGate>;
+}
+
+function UnlockedFreeJournalEntry({ navigation }: { navigation: any }) {
+  const { saveEntryWithMedia } = useJournal();
   const insets = useSafeAreaInsets();
   const bodyRef = useRef<TextInput>(null);
   const allowLeave = useRef(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [attachments, setAttachments] = useState<DraftJournalAttachment[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const hasDraft = Boolean(title.trim() || body.trim());
+  const hasDraft = Boolean(title.trim() || body.trim() || attachments.length);
   const canSave = Boolean(body.trim()) && !saving;
 
   useEffect(() => navigation.addListener("beforeRemove", (event: any) => {
@@ -24,7 +31,7 @@ export default function FreeJournalEntryScreen({ navigation }: { navigation: any
     event.preventDefault();
     Alert.alert(
       "Discard this entry?",
-      "Your words have not been saved yet.",
+      "Your words and attachments have not been saved yet.",
       [
         { text: "Keep writing", style: "cancel" },
         {
@@ -45,11 +52,11 @@ export default function FreeJournalEntryScreen({ navigation }: { navigation: any
     setSaving(true);
     setError("");
     try {
-      await runAuthenticated((token) => createJournalEntry(token, {
+      await saveEntryWithMedia({
         pack: "Free writing",
         prompt: title.trim() || "Untitled reflection",
         text,
-      }));
+      }, attachments);
       allowLeave.current = true;
       navigation.goBack();
     } catch (saveError) {
@@ -107,11 +114,12 @@ export default function FreeJournalEntryScreen({ navigation }: { navigation: any
               textAlignVertical="top"
               value={body}
             />
+            <JournalAttachmentComposer attachments={attachments} onChange={setAttachments} disabled={saving} />
           </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>{saving ? "Saving privately…" : `${body.length.toLocaleString()} characters`}</Text>
-            {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : <Text style={styles.privateText}>Only you can see this entry</Text>}
+            {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : <Text style={styles.privateText}>Encrypted on your device</Text>}
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -131,7 +139,7 @@ const styles = StyleSheet.create({
   headerTitle: { marginTop: 2, color: "#5F3B2B", fontFamily: sansFont, fontSize: 15, fontWeight: "700" },
   doneButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "#70454A", shadowColor: "#5F3B2B", shadowOpacity: .14, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   doneButtonDisabled: { opacity: .34 },
-  editor: { flex: 1, marginHorizontal: screenLayout.horizontalPadding, marginTop: 14, paddingHorizontal: 20, paddingTop: 18, borderRadius: 25, borderWidth: 1, borderColor: "rgba(255,255,255,.68)", backgroundColor: "rgba(255,251,244,.62)" },
+  editor: { flex: 1, marginHorizontal: screenLayout.horizontalPadding, marginTop: 14, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8, borderRadius: 25, borderWidth: 1, borderColor: "rgba(255,255,255,.68)", backgroundColor: "rgba(255,251,244,.62)" },
   dateRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   featherIcon: { width: 28, height: 28, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "rgba(223,162,177,.19)" },
   dateText: { color: "rgba(95,59,43,.50)", fontFamily: sansFont, fontSize: 10, fontWeight: "700" },

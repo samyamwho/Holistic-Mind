@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Holistic Mind · Recommendation benchmark</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f7f5ef;
+        --ink: #253d36;
+        --muted: #5e6e66;
+        --line: #d9dfd4;
+        --green: #38644f;
+        --red: #9a3939;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          15px/1.6 system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      main {
+        max-width: 1280px;
+        margin: auto;
+        padding: 40px 32px 80px;
+      }
+      header {
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 25px;
+        margin-bottom: 24px;
+      }
+      .eyebrow {
+        font-size: 12px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--green);
+      }
+      h1 {
+        font:
+          clamp(30px, 4vw, 48px)/1.13 Georgia,
+          serif;
+        letter-spacing: -1px;
+        margin: 12px 0;
+      }
+      h2 {
+        font:
+          26px/1.25 Georgia,
+          serif;
+        margin: 0 0 12px;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 4px 0 12px;
+      }
+      p {
+        margin: 8px 0;
+        color: var(--muted);
+      }
+      .meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 20px 0 0;
+      }
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 12px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin: 24px 0;
+      }
+      .card,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fffefa;
+        padding: 22px;
+      }
+      .card strong {
+        display: block;
+        font:
+          32px Georgia,
+          serif;
+        margin: 8px 0;
+      }
+      .card small {
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .panel {
+        margin-bottom: 20px;
+      }
+      .barrow {
+        display: grid;
+        grid-template-columns: 150px 1fr 65px;
+        align-items: center;
+        gap: 12px;
+        margin: 15px 0;
+        font-size: 13px;
+      }
+      .track {
+        background: #e9ede5;
+        height: 16px;
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .bar {
+        height: 100%;
+        background: var(--green);
+        border-radius: 5px;
+      }
+      .barrow:nth-child(1) .bar {
+        background: #869b88;
+      }
+      .barrow:nth-child(2) .bar {
+        background: #bda187;
+      }
+      .barrow:nth-child(3) .bar {
+        background: #8b82a3;
+      }
+      .barrow:nth-child(4) .bar {
+        background: #38644f;
+      }
+      .barrow b {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .controls {
+        display: flex;
+        gap: 16px;
+        align-items: end;
+        flex-wrap: wrap;
+        margin: 18px 0;
+      }
+      label {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      select,
+      input,
+      button {
+        font: inherit;
+        color: inherit;
+      }
+      select,
+      input[type="search"] {
+        display: block;
+        border: 1px solid #adbbae;
+        border-radius: 8px;
+        background: white;
+        padding: 9px;
+        max-width: 100%;
+      }
+      button {
+        border: 1px solid #adbbae;
+        border-radius: 8px;
+        background: white;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #e9ede5;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid #9573bb;
+        outline-offset: 3px;
+      }
+      .scroll {
+        overflow: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+      }
+      th,
+      td {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        font-weight: 650;
+        white-space: nowrap;
+      }
+      td.number {
+        font-variant-numeric: tabular-nums;
+      }
+      .heat {
+        text-align: center;
+        min-width: 120px;
+      }
+      .heat button {
+        width: 100%;
+        padding: 8px;
+        border: 0;
+        background: none;
+        color: inherit;
+      }
+      .heat .flag {
+        font-size: 11px;
+        display: block;
+      }
+      .bad {
+        color: var(--red);
+        font-weight: 650;
+      }
+      .note {
+        border-left: 3px solid #b69b60;
+        padding: 8px 14px;
+        background: #f6f0e2;
+        margin: 18px 0;
+        font-size: 13px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      .ranklist {
+        padding-left: 25px;
+      }
+      .ranklist li {
+        padding: 9px 4px;
+        border-bottom: 1px solid var(--line);
+      }
+      .ranklist span {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      details {
+        margin-top: 14px;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      ul {
+        padding-left: 22px;
+      }
+      code {
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      .empty {
+        padding: 24px;
+        color: var(--muted);
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .metric-help {
+        min-height: 42px;
+        font-size: 13px;
+      }
+      .selected {
+        box-shadow: inset 0 0 0 2px var(--green);
+      }
+      footer {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 24px;
+      }
+      @media (max-width: 800px) {
+        main {
+          padding: 24px 16px;
+        }
+        .cards {
+          grid-template-columns: 1fr 1fr;
+        }
+        .grid,
+        .detail-grid {
+          grid-template-columns: 1fr;
+        }
+        .barrow {
+          grid-template-columns: 130px 1fr 60px;
+        }
+        .panel {
+          padding: 17px;
+        }
+        .card {
+          padding: 16px;
+        }
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        main {
+          padding: 0;
+          max-width: none;
+        }
+        .actions,
+        .controls {
+          display: none;
+        }
+        .panel,
+        .card {
+          break-inside: avoid;
+        }
+        .scroll {
+          overflow: visible;
+        }
+        button {
+          border: 0;
+          padding: 0;
+        }
+        details {
+          display: block;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="eyebrow">Holistic Mind / Research workspace</div>
+        <h1>How well do the recommendations fit?</h1>
+        <p>
+          A transparent comparison across authored user scenarios. Explore the
+          averages, then inspect the individual recommendations behind them.
+        </p>
+        <div class="meta" id="meta"></div>
+      </header>
+      <div class="note" id="scope"></div>
+      <div class="cards" id="cards"></div>
+      <div class="actions">
+        <button id="download">Download results JSON</button
+        ><button id="csv">Download summary CSV</button
+        ><button id="print">Print / save PDF</button>
+      </div>
+      <div class="controls">
+        <label>Comparison metric<select id="metric"></select></label>
+      </div>
+      <div class="grid">
+        <section class="panel">
+          <h2 id="chart-title">Ranking quality</h2>
+          <p class="metric-help" id="metric-help"></p>
+          <div id="bars"></div>
+          <p class="muted" id="intervals"></p>
+        </section>
+        <section class="panel">
+          <h2>Benchmark-label violations</h2>
+          <p class="metric-help">
+            Returned items labeled −1 by the scenario author. Lower is better.
+            Zero does not establish clinical safety.
+          </p>
+          <div id="safety-bars"></div>
+        </section>
+      </div>
+      <section class="panel">
+        <h2>Every model, at a glance</h2>
+        <p>
+          Metrics average all runs within each persona, then give each persona
+          equal weight. Latency includes all timed runs.
+        </p>
+        <div class="scroll"><table id="summary"></table></div>
+      </section>
+      <section class="panel">
+        <h2>Where does each approach struggle?</h2>
+        <p>
+          Click a score to inspect the persona and its ranked exercises. Cell
+          shading follows the selected comparison metric; labels identify
+          violations separately.
+        </p>
+        <div class="controls">
+          <label
+            >Scenario group<select id="category">
+              <option value="">All groups</option>
+            </select></label
+          ><label
+            >Search personas<input
+              id="search"
+              type="search"
+              placeholder="e.g. dizziness or P07" /></label
+          ><label
+            ><input type="checkbox" id="failures" /> Only personas with label
+            violations</label
+          >
+        </div>
+        <p id="count" role="status"></p>
+        <div class="scroll"><table id="heatmap"></table></div>
+      </section>
+      <section class="panel" id="detail" aria-live="polite"></section>
+      <section class="panel">
+        <h2>Read the benchmark correctly</h2>
+        <ul id="limitations"></ul>
+        <details>
+          <summary>Metric guide</summary>
+          <ul id="guide"></ul>
+        </details>
+        <details>
+          <summary>Reproducibility details</summary>
+          <div id="repro"></div>
+        </details>
+      </section>
+      <footer>
+        This report is self-contained. It makes no network requests and contains
+        only the synthetic benchmark scenarios.
+      </footer>
+    </main>
+    <script id="data" type="application/json">
+      __BENCHMARK_DATA__
+    </script>
+    <script>
+      "use strict";
+      const data = JSON.parse(document.getElementById("data").textContent);
+      const $ = (id) => document.getElementById(id);
+      const esc = (value) =>
+        String(value).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const metrics = {
+        explicit_exclusion_violation_rate: [
+          "Explicit preference violations (%)",
+          "Returned IDs that violate declared exercise exclusions, divided by returned items. Zero is the target; separate from authored relevance labels.",
+          100,
+        ],
+        precision_at_4: [
+          "Precision@4",
+          "Relevant recommendations divided by four. Labels 2 and 3 count as relevant. Missing slots count against precision.",
+          1,
+        ],
+        ndcg_at_4: [
+          "NDCG@4",
+          "Graded ranking quality relative to the ideal top four. Higher-ranked label-3 items earn more credit.",
+          1,
+        ],
+        recall_at_4: [
+          "Recall@4",
+          "Fraction of all exercises labeled 2 or 3 retrieved in the top four.",
+          1,
+        ],
+        mrr: [
+          "MRR",
+          "Reciprocal rank of the first relevant exercise, averaged over personas.",
+          1,
+        ],
+        hit_rate_at_1: [
+          "Hit rate@1",
+          "Fraction of runs whose first recommendation is relevant.",
+          1,
+        ],
+        hit_rate_at_4: [
+          "Hit rate@4",
+          "Fraction of runs with at least one relevant recommendation in the top four.",
+          1,
+        ],
+        intra_list_diversity: [
+          "Category diversity",
+          "Fraction of pairs of returned items from different categories. Measures category variety, not semantic variety.",
+          1,
+        ],
+        fill_rate_at_4: [
+          "List fill rate",
+          "Returned slots divided by four. Eligibility filters may leave fewer than four candidates.",
+          1,
+        ],
+        safety_violation_rate: [
+          "Label violations (%)",
+          "Percentage of returned items labeled −1. Lower is better; this is not a clinical safety measurement.",
+          100,
+        ],
+        catalog_coverage: [
+          "Catalog coverage (%)",
+          "Unique exercises recommended across all personas and repeats, divided by the catalog size.",
+          100,
+        ],
+        mean_latency_ms: [
+          "Mean latency (ms)",
+          "Warm ranking time across every persona and repeat; excludes startup, database, network and app time.",
+          null,
+        ],
+      };
+      const names = data.summary.map((s) => s.model_name);
+      const short = (name) =>
+        name === "Holistic Mind Hybrid"
+          ? "Hybrid"
+          : name === "Rules + Eligibility"
+            ? "Rules + eligibility"
+            : name.startsWith("Text Similarity")
+              ? "Text similarity"
+              : "Random";
+      const format = (key, v) =>
+        key.endsWith("_ms")
+          ? Number(v).toFixed(3) + " ms"
+          : metrics[key]?.[2] === 100
+            ? Number(v).toFixed(2) + "%"
+            : Number(v).toFixed(3);
+      let chosen = { model: names[names.length - 1], persona: "P01", run: 0 };
+      $("meta").innerHTML = [
+        data.personas_count + " personas",
+        data.catalog_count + " exercises",
+        data.metadata.runs_per_persona + " runs / persona",
+        "Backend: " + data.metadata.actual_backend,
+        "Suite: " + (data.metadata.suite ?? "original"),
+        "Seed " + data.metadata.seed,
+      ]
+        .map((x) => '<span class="badge">' + esc(x) + "</span>")
+        .join("");
+      $("scope").textContent =
+        data.metadata.requested_backend === "lexical"
+          ? "Lexical experiment: text similarity uses hashed word counts. These are cold-start, synthetic benchmark results—not measurements of MiniLM or real-user outcomes."
+          : "ONNX experiment: real model embeddings, with fallback disabled. These are cold-start, synthetic benchmark results—not measurements of real-user outcomes.";
+      const hybrid = data.summary[data.summary.length - 1];
+      const failures = data.models[hybrid.model_name].filter(
+        (p) => p.safety_violation_rate > 0,
+      ).length;
+      $("cards").innerHTML = [
+        [
+          "Hybrid precision",
+          (hybrid.precision_at_4 * 100).toFixed(1) + "%",
+          "Relevant items / four slots",
+        ],
+        [
+          "Hybrid ranking",
+          hybrid.ndcg_at_4.toFixed(3),
+          "NDCG@4 · higher is better",
+        ],
+        [
+          "Personas to review",
+          String(failures),
+          "Hybrid has ≥1 label violation across runs",
+        ],
+        [
+          "Warm ranking",
+          hybrid.mean_latency_ms.toFixed(2) + " ms",
+          "Hybrid · in-process timing",
+        ],
+      ]
+        .map(
+          ([a, b, c]) =>
+            '<div class="card"><small>' +
+            esc(a) +
+            "</small><strong>" +
+            esc(b) +
+            "</strong><small>" +
+            esc(c) +
+            "</small></div>",
+        )
+        .join("");
+      $("metric").innerHTML = Object.entries(metrics)
+        .map(
+          ([key, m]) =>
+            '<option value="' + key + '">' + esc(m[0]) + "</option>",
+        )
+        .join("");
+      const personas = data.models[names[0]];
+      $("category").innerHTML += [...new Set(personas.map((p) => p.category))]
+        .map((c) => "<option>" + esc(c) + "</option>")
+        .join("");
+      function bars(target, key) {
+        const max =
+          metrics[key][2] ??
+          Math.max(...data.summary.map((s) => s[key]), 0.001);
+        $(target).innerHTML = data.summary
+          .map(
+            (s) =>
+              '<div class="barrow"><span>' +
+              esc(short(s.model_name)) +
+              '</span><div class="track"><div class="bar" style="width:' +
+              Math.min(100, (100 * s[key]) / max) +
+              '%"></div></div><b>' +
+              esc(format(key, s[key])) +
+              "</b></div>",
+          )
+          .join("");
+      }
+      function renderCharts() {
+        const key = $("metric").value;
+        $("chart-title").textContent = metrics[key][0];
+        $("metric-help").textContent = metrics[key][1];
+        bars("bars", key);
+        bars("safety-bars", "safety_violation_rate");
+        const interval = hybrid.confidence_intervals_95[key];
+        $("intervals").textContent = interval
+          ? "Hybrid 95% bootstrap interval: " +
+            interval.map((v) => format(key, v)).join(" – ")
+          : "Latency and coverage use their own units; compare within each chart.";
+        renderHeatmap();
+      }
+      const summaryKeys = [
+        "precision_at_4",
+        "ndcg_at_4",
+        "recall_at_4",
+        "safety_violation_rate",
+        "fill_rate_at_4",
+        "catalog_coverage",
+        "mean_latency_ms",
+      ];
+      $("summary").innerHTML =
+        "<thead><tr><th>Model</th>" +
+        summaryKeys.map((k) => "<th>" + metrics[k][0] + "</th>").join("") +
+        "<th>P95 latency</th></tr></thead><tbody>" +
+        data.summary
+          .map(
+            (s) =>
+              "<tr><th>" +
+              esc(s.model_name) +
+              "</th>" +
+              summaryKeys
+                .map((k) => '<td class="number">' + format(k, s[k]) + "</td>")
+                .join("") +
+              "<td>" +
+              s.p95_latency_ms.toFixed(3) +
+              " ms</td></tr>",
+          )
+          .join("") +
+        "</tbody>";
+      function renderHeatmap() {
+        let key = $("metric").value;
+        if (key === "catalog_coverage") key = "precision_at_4";
+        if (key === "mean_latency_ms") key = "latency_ms";
+        const query = $("search").value.toLowerCase();
+        const visible = personas.filter(
+          (p) =>
+            (!$("category").value || p.category === $("category").value) &&
+            (!query ||
+              (p.persona_id + " " + p.title).toLowerCase().includes(query)) &&
+            (!$("failures").checked ||
+              names.some(
+                (n) =>
+                  data.models[n].find((r) => r.persona_id === p.persona_id)
+                    .safety_violation_rate > 0,
+              )),
+        );
+        $("count").textContent =
+          visible.length +
+          " of " +
+          personas.length +
+          " personas" +
+          ($("metric").value === "catalog_coverage"
+            ? " · heatmap shows Precision@4 because coverage is catalog-wide"
+            : "");
+        $("heatmap").innerHTML =
+          "<thead><tr><th>Persona</th>" +
+          names.map((n) => "<th>" + esc(short(n)) + "</th>").join("") +
+          "</tr></thead><tbody>" +
+          visible
+            .map(
+              (p) =>
+                "<tr><td><b>" +
+                p.persona_id +
+                "</b> " +
+                esc(p.title) +
+                '<br><small class="muted">' +
+                esc(p.category) +
+                "</small></td>" +
+                names
+                  .map((n, i) => {
+                    const r = data.models[n].find(
+                      (r) => r.persona_id === p.persona_id,
+                    );
+                    const value = r[key];
+                    const strength =
+                      ["safety_violation_rate", "explicit_exclusion_violation_rate"].includes(key)
+                        ? 1 - value / 100
+                        : key === "latency_ms"
+                          ? 0
+                          : Math.min(1, value);
+                    const color =
+                      key === "latency_ms"
+                        ? "#eef0eb"
+                        : `hsl(135 20% ${96 - strength * 27}%)`;
+                    return (
+                      '<td class="heat" style="background:' +
+                      color +
+                      '"><button data-persona="' +
+                      p.persona_id +
+                      '" data-model="' +
+                      i +
+                      '" aria-label="Inspect ' +
+                      p.persona_id +
+                      " · " +
+                      esc(n) +
+                      '">' +
+                      esc(format(key, value)) +
+                      (r.safety_violation_rate > 0
+                        ? '<span class="flag bad">' +
+                          r.safety_violation_rate.toFixed(1) +
+                          "% label violations</span>"
+                        : "") +
+                      "</button></td>"
+                    );
+                  })
+                  .join("") +
+                "</tr>",
+            )
+            .join("") +
+          "</tbody>";
+        $("heatmap")
+          .querySelectorAll("button")
+          .forEach((b) =>
+            b.addEventListener("click", () => {
+              chosen = {
+                model: names[Number(b.dataset.model)],
+                persona: b.dataset.persona,
+                run: 0,
+              };
+              renderDetail();
+              $("detail").scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }),
+          );
+      }
+      function renderDetail() {
+        const record = data.models[chosen.model].find(
+          (p) => p.persona_id === chosen.persona,
+        );
+        const run = record.runs[chosen.run];
+        const label = (r) =>
+          r === -1
+            ? "−1 · benchmark contraindication"
+            : r === 3
+              ? "3 · strongest match"
+              : r === 2
+                ? "2 · relevant"
+                : r === 1
+                  ? "1 · weak match"
+                  : "0 · irrelevant";
+        $("detail").innerHTML =
+          '<div class="eyebrow">Persona inspection</div><h2>' +
+          record.persona_id +
+          " · " +
+          esc(record.title) +
+          "</h2><p>" +
+          esc(chosen.model) +
+          " · " +
+          esc(record.category) +
+          '</p><div class="controls"><div><label for="run">Run</label><select id="run">' +
+          record.runs
+            .map(
+              (r, i) =>
+                '<option value="' +
+                i +
+                '" ' +
+                (i === chosen.run ? "selected" : "") +
+                ">Run " +
+                (i + 1) +
+                " · seed " +
+                r.seed +
+                "</option>",
+            )
+            .join("") +
+          "</select></div><span>Precision " +
+          format("precision_at_4", run.precision_at_4) +
+          " · NDCG " +
+          format("ndcg_at_4", run.ndcg_at_4) +
+          '</span></div><div class="detail-grid"><div><h3>What the engine received</h3><p>' +
+          esc(record.onboarding_goal) +
+          "</p><table>" +
+          Object.entries(record.check_in_answers)
+            .map(
+              ([k, v]) =>
+                "<tr><th>" + esc(k) + "</th><td>" + esc(v) + "</td></tr>",
+            )
+            .join("") +
+          "</table>" +
+          "<p>Comfort preferences: " + esc((record.comfort_preferences ?? []).join(", ") || "none") + "</p>" +
+          "<p>Explicit exclusions: " + esc((record.excluded_exercise_ids ?? []).join(", ") || "none") + "</p>" +
+          "<p>Explicit exclusion violations: " + esc(run.explicit_exclusion_violation_rate ?? "not recorded") + "</p>" +
+          record.journal_texts.map((t) => "<p>“" + esc(t) + "”</p>").join("") +
+          '</div><div><h3>Returned exercises, in order</h3><ol class="ranklist">' +
+          run.recommended_ids
+            .map(
+              (id, i) =>
+                '<li class="' +
+                (run.relevances[i] < 0 ? "bad" : "") +
+                '">' +
+                esc(data.catalog.find((e) => e.id === id)?.title ?? id) +
+                "<span>" +
+                label(run.relevances[i]) +
+                "</span></li>",
+            )
+            .join("") +
+          "</ol>" +
+          (!run.recommended_ids.length
+            ? "<p>No eligible recommendations returned.</p>"
+            : "") +
+          "<details><summary>All authored relevance labels</summary><table>" +
+          Object.entries(record.relevance_scores)
+            .sort((a, b) => b[1] - a[1])
+            .map(
+              ([id, rel]) =>
+                "<tr><td>" +
+                esc(data.catalog.find((e) => e.id === id)?.title ?? id) +
+                "</td><td>" +
+                label(rel) +
+                "</td></tr>",
+            )
+            .join("") +
+          "</table></details></div></div>";
+        $("run").addEventListener("change", (e) => {
+          chosen.run = Number(e.target.value);
+          renderDetail();
+        });
+      }
+      $("limitations").innerHTML = data.metadata.limitations
+        .map((x) => "<li>" + esc(x) + "</li>")
+        .join("");
+      $("guide").innerHTML = Object.values(metrics)
+        .map(([n, d]) => "<li><b>" + esc(n) + ":</b> " + esc(d) + "</li>")
+        .join("");
+      $("repro").innerHTML =
+        "<p>Generated " +
+        esc(data.metadata.generated_at) +
+        " · Python " +
+        esc(data.metadata.python) +
+        " · NumPy " +
+        esc(data.metadata.numpy) +
+        "</p><p>" +
+        esc(data.metadata.platform) +
+        "</p><p>Engine " +
+        esc(data.metadata.engine_version) +
+        " · " +
+        esc(data.metadata.strategy) +
+        "</p><table>" +
+        Object.entries({ ...data.metadata.source_hashes, ...(data.metadata.model_file_hashes ?? {}) })
+          .map(
+            ([k, v]) =>
+              "<tr><th>" +
+              esc(k) +
+              "</th><td><code>" +
+              esc(v) +
+              "</code></td></tr>",
+          )
+          .join("") +
+        "</table>";
+      function download(name, type, text) {
+        const url = URL.createObjectURL(new Blob([text], { type }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      $("download").onclick = () =>
+        download(
+          "benchmark-results.json",
+          "application/json",
+          JSON.stringify(data, null, 2),
+        );
+      $("csv").onclick = () => {
+        const keys = ["model_name", ...summaryKeys, "p95_latency_ms"];
+        const quote = (x) => '"' + String(x).replace(/"/g, '""') + '"';
+        download(
+          "benchmark-summary.csv",
+          "text/csv",
+          [keys, ...data.summary.map((s) => keys.map((k) => s[k]))]
+            .map((row) => row.map(quote).join(","))
+            .join("\r\n"),
+        );
+      };
+      $("print").onclick = () => window.print();
+      $("metric").onchange = renderCharts;
+      $("category").onchange = renderHeatmap;
+      $("search").oninput = renderHeatmap;
+      $("failures").onchange = renderHeatmap;
+      renderCharts();
+      renderDetail();
+    </script>
+  </body>
+</html>

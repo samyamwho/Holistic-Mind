@@ -1,3 +1,4 @@
+import { getComfortConstraints } from "../data/comfortPreferences.js";
 import { createHmac } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
@@ -61,7 +62,6 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
     const [
       onboardingResult,
       checkInResult,
-      journalResult,
       exerciseResult,
       interactionResult,
       excludedResult,
@@ -74,11 +74,6 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
       pool.query(
         `SELECT id, answers FROM daily_check_ins
          WHERE user_id = $1 ORDER BY check_in_date DESC LIMIT 1`,
-        [userId]
-      ),
-      pool.query(
-        `SELECT LEFT(content, 1200) AS content FROM journal_entries
-         WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3`,
         [userId]
       ),
       pool.query(
@@ -165,18 +160,29 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
       return;
     }
 
+    const { comfortPreferences = [], ...checkInAnswers } = checkInResult.rows[0].answers;
+    const comfort = getComfortConstraints(comfortPreferences);
+    const preferenceExclusions = exerciseResult.rows.filter((exercise) =>
+      comfort.avoidBreathHolds && exercise.breath_hold_required
+    ).map((exercise) => exercise.id);
+
     const generated = await requestLocalRecommendations({
       user_id: pseudonymousUserId(userId),
       onboarding_goal: onboardingResult.rows[0]?.support_goal ?? "",
-      check_in_answers: checkInResult.rows[0].answers,
-      journal_texts: journalResult.rows.map((row) => row.content),
+      check_in_answers: checkInAnswers,
+      contraindication_signals: comfort.signals,
+      journal_texts: [], // Journal keys and text stay on the user’s devices.
       exercises: exerciseResult.rows,
       interactions: interactionResult.rows.map((row) => ({
         user_id: pseudonymousUserId(row.user_id),
         exercise_id: row.exercise_id,
         value: Number(row.value),
       })),
-      excluded_exercise_ids: excludedResult.rows.map((row) => row.exercise_id),
+      excluded_exercise_ids: [...new Set([
+        ...excludedResult.rows.map((row) => row.exercise_id),
+        ...comfort.excludedIds,
+        ...preferenceExclusions,
+      ])],
       recent_recommendation_ids: recentRecommendationResult.rows.map(
         (row) => row.exercise_id
       ),
@@ -195,7 +201,7 @@ recommendationsRouter.post("/generate", async (_request, response, next) => {
           {
             strategy: generated.strategy,
             checkInId: checkInResult.rows[0].id,
-            journalEntryCount: journalResult.rows.length,
+            journalHistoryUsed: false,
             journalTextStored: false,
           },
         ]

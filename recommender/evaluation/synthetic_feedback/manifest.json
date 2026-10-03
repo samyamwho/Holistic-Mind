@@ -1,0 +1,27 @@
+{
+  "data_origin": "SYNTHETIC_NOT_REAL_PARTICIPANTS",
+  "purpose": "Software and analysis testing only; not rule justification or efficacy evidence",
+  "seed": 42,
+  "participants": 120,
+  "sessions_per_participant": 10,
+  "rows": 1200,
+  "csv_sha256": "358bc9c2a3764d18fb164eb2ede40b74ca755059d08cea7d7af8871bbb852e8f",
+  "source_hashes": {
+    "recommender/evaluation/generate_synthetic_feedback.py": "851cec6c4628449459aca4eca261d1bf840f840f2277a4c209df31aedb44b976",
+    "recommender/app/engine.py": "7a8db742c12dddb75a34cf545d045fa74d8f84fca209ce610e06d14338f7a519",
+    "recommender/evaluation/catalog.py": "5beafb6d8ab714645a171b39f071b9cb60b6cfa8cbb5176141be0f58e5829e66",
+    "recommender/evaluation/benchmark_personas.py": "f8158d2f4ee7414641c291cda176a8d19854e0dd5a3b3d5ab10ba01798c5cd7f",
+    "recommender/evaluation/production_personas.py": "7fb84862b3fd26938cd9a345f5e22228c4cb2a5bd972721c8ac0d071106bc78b",
+    "backend/src/data/comfortPreferences.ts": "2ee1d1155d7f0935d95b7a96ba06cca4e3a8a251264a7f63caa452d6b9ac7f5a"
+  },
+  "split_participants": {
+    "development": 84,
+    "validation": 18,
+    "test": 18
+  },
+  "missing_feedback_rows": 105,
+  "discomfort_rows": 100,
+  "stopped_rows": 67,
+  "unchanged_stress_rows": 421,
+  "worse_stress_rows": 247
+}

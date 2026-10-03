@@ -31,6 +31,7 @@ class RecommendationContext(BaseModel):
     exercises: list[Exercise] = Field(min_length=1)
     interactions: list[Interaction] = Field(default_factory=list)
     excluded_exercise_ids: list[str] = Field(default_factory=list)
+    contraindication_signals: list[str] = Field(default_factory=list, max_length=40)
     recent_recommendation_ids: list[str] = Field(default_factory=list, max_length=40)
     limit: int = Field(default=4, ge=1, le=10)
 

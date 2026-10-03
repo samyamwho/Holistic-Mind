@@ -1,0 +1,63 @@
+SOURCE: Holistic Mind App by Samyam Shrestha.pdf
+
+--- PAGE 1 ---
+PROJECT I: PROPOSAL
+Name of Student Program/Course : Samyam Shrestha
+: Bsc (Hons) Computer & Data Science
+BCU Student ID : 23189645
+IT Project Supervisor (if any) :
+Title: Holistic Mind App: A Trauma-Informed Mental Wellness Mobile Application
+Abstract /Summary of proposal:
+Holistic Mind App is a trauma-informed mobile wellness application designed to
+support adults managing childhood trauma, anxiety, and ADHD between therapy
+sessions. The app delivers evidence-based tools including guided breathwork, somatic
+exercises, and psychoeducation audio content through a calm, non-clinical interface. It
+leverages AI-driven personalization to recommend tools based on the user's self-
+reported nervous system state, ensuring contextually relevant support at any moment.
+Holistic Mind App operates on a freemium model, offering core features for free and
+full content access through a premium subscription.
+--- PAGE 2 ---
+Problem Statements:
+1. 2. 3. Currently over 10,000 mental health apps exist on major platforms, yet fewer
+than 3% are built around evidence-based trauma frameworks, leaving adults
+with complex trauma and ADHD without adequate digital support between
+therapy sessions (Linardon et al., 2020).
+Currently, fewer than half of adults with mental health conditions received
+treatment in 2024 (Grandview, 2025) which leaves millions without support
+between or outside of therapy sessions. However, the ideal situation is always-
+available, self-directed digital wellness tools. Therefore, there is a gap
+regarding accessible mental health apps for adults who cannot access consistent
+professional care.
+Over 63.9% of adults report at least one Adverse Childhood Experience (CDC,
+2023), yet no mainstream wellness app specifically addresses nervous system
+dysregulation as a core design principle, which causes trauma survivors to
+remain without targeted digital coping tools. However, the ideal situation is a
+personalized app that adapts to a user's emotional state in real time.
+Aim:
+This research aims to address the lack of trauma-informed digital mental health tools
+by designing and developing an AI-powered cross-platform mobile application in order
+to enable adults affected by childhood trauma and ADHD to self-regulate their nervous
+system between therapy sessions.
+Objectives: SMART – Specific, Measurable, Achievable, Realistic, Time Bound
+1. To design and develop a cross-platform mobile application with a nervous
+system check-in system offering 5 emotional states that trigger AI-personalized
+tool recommendations.
+2. To implement 3 core content modules. Breathwork (10 exercises), Somatic
+Tools (8 exercises), and a Psychoeducation Audio Library (2 series, 5 episodes
+each).
+3. To integrate an AI recommendation engine that maps user emotional state inputs
+to relevant tools using a rule-based and preference-learning model.
+4. To build a secure freemium access system with Firebase authentication and
+differentiated free and premium content tiers.
+--- PAGE 3 ---
+Reference:
+Mental health apps market size, share: Industry Report, 2025 Mental Health Apps
+Market Size, Share | Industry Report, 2025. Available at:
+https://www.grandviewresearch.com/industry-analysis/mental-health-apps-market-report
+Centers for Disease Control and Prevention. (2023). Prevalence of adverse childhood
+experiences among U.S. adults. MMWR.
+https://www.cdc.gov/mmwr/volumes/72/wr/mm7226a2.htm
+Linardon, J., Cuijpers, P., Carlbring, P., Messer, M., & Fuller‐Tyszkiewicz, M. (2019).
+The efficacy of app‐supported smartphone interventions for mental health problems: a
+meta‐analysis of randomized controlled trials. World Psychiatry, 18(3), 325–336.
+https://doi.org/10.1002/wps.20673

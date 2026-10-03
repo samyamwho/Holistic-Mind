@@ -1,3 +1,5 @@
+import { getComfortConstraints } from "../../../backend/src/data/comfortPreferences";
+import { recommendationProfileByExerciseId } from "../../../backend/src/data/recommendationProfiles";
 import { exerciseLibrary } from "../../data/wellnessContent";
 import type { DailyCheckInAnswers, Recommendation } from "../../types/wellness";
 
@@ -7,6 +9,10 @@ export function getRecommendations(
   onboardingSupport = "",
   limit = 4
 ): Recommendation[] {
+  const comfort = getComfortConstraints(answers.comfortPreferences);
+  const normalize = (value: string) => value.toLowerCase().replace(/[_-]/g, " ").trim();
+  const signals = new Set([...Object.values(answers).filter((value): value is string => typeof value === "string"), ...comfort.signals].map(normalize));
+  const highActivation = answers.state === "Anxious" || answers.state === "Overwhelmed" || answers.stress === "Very stressed";
   const normalizedJournal = journalText.toLowerCase();
   const journalSignals = [
     { pattern: /anxious|anxiety|panic|worry|worried|fear/, tags: ["Anxious", "Calm down"] },
@@ -35,24 +41,27 @@ export function getRecommendations(
   };
 
   return exerciseLibrary
+    .filter(exercise => {
+      if (comfort.excludedIds.includes(exercise.id)) return false;
+      const profile = recommendationProfileByExerciseId.get(exercise.id);
+      // Unknown bundled metadata cannot establish eligibility.
+      if (!profile) return false;
+      if (profile.contraindicationTags.some(tag => signals.has(normalize(tag)))) return false;
+      const holds = profile.breathHoldRequired || (exercise.phases?.some(phase => phase.motion === "hold") ?? false);
+      return !(holds && (comfort.avoidBreathHolds || highActivation));
+    })
     .map((exercise) => {
       const answerScore = Object.entries(answers).reduce((score, [key, value]) => {
-        if (!value || !exercise.bestFor.includes(value)) return score;
+        if (typeof value !== "string" || !value || !exercise.bestFor.includes(value)) return score;
         return score + (answerWeights[key as keyof DailyCheckInAnswers] ?? 1);
       }, 0);
       const historyScore = exercise.bestFor.filter((tag) =>
         historicalSignals.includes(tag)
       ).length * 0.5;
-      const usesBreathHolds = exercise.phases?.some((phase) => phase.motion === "hold") ?? false;
-      const breathHoldPenalty = usesBreathHolds && (
-        answers.state === "Anxious" ||
-        answers.state === "Overwhelmed" ||
-        answers.stress === "Very stressed"
-      ) ? 5 : 0;
 
       return {
         ...exercise,
-        score: answerScore + historyScore - breathHoldPenalty,
+        score: answerScore + historyScore,
       };
     })
     .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))

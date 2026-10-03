@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Activity, Baby, Brain, BrainCircuit, ChevronLeft, ChevronRight, Dumbbell, Ear, Flower2, Footprints, Headphones, Heart, Pause, PersonStanding, Play, Search, Sparkles, Wind, X } from "lucide-react-native";
-import { ImageBackground, type ImageSourcePropType, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Image, ImageBackground, type ImageSourcePropType, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassContainer, GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
+import { LinearGradient } from "expo-linear-gradient";
 import { exerciseCatalog, exerciseCategories, type ExerciseCatalogItem, type ExerciseCategory } from "../../data/exerciseCatalog";
 import { getExerciseCatalog, type BackendExerciseCatalogItem } from "../../services/exercises/exerciseCatalogApi";
 import { useAudioPlayerController } from "../../context/AudioPlayerContext";
@@ -15,7 +16,7 @@ type LibraryKind = "somatic" | "audio";
 type Collection = "All" | "Favorites" | ExerciseCategory;
 type CatalogItem = ExerciseCatalogItem & { imageUrl?: string | null; audioUrl?: string | null; audioDurationSeconds?: number | null };
 
-const GRID_GAP = 16;
+const GRID_GAP = 14;
 const CATEGORY_COVERS: Record<ExerciseCategory, ImageSourcePropType> = {
   "Nervous System Reset": require("../../../assets/explore/nervous-system.png"),
   Breathwork: require("../../../assets/explore/breathwork.png"),
@@ -39,7 +40,7 @@ const guidanceLabels: Record<ExerciseCatalogItem["guidanceType"], string> = {
 };
 
 function FolderCategoryIcon({ category, color }: { category: ExerciseCategory; color: string }) {
-  const props = { color, size: 16, strokeWidth: 1.8 };
+  const props = { color, size: 15, strokeWidth: 1.8 };
   switch (category) {
     case "Nervous System Reset": return <BrainCircuit {...props} />;
     case "Breathwork": return <Wind {...props} />;
@@ -55,28 +56,29 @@ function FolderCategoryIcon({ category, color }: { category: ExerciseCategory; c
   }
 }
 
-function CategoryCard({ category, count, kind, onPress, supportsGlass, width }: { category: ExerciseCategory; count: number; kind: LibraryKind; onPress: () => void; supportsGlass: boolean; width: number }) {
+function CategoryCard({ category, count, kind, onPress, width }: { category: ExerciseCategory; count: number; kind: LibraryKind; onPress: () => void; width: number }) {
   const noun = kind === "audio" ? (count === 1 ? "recording" : "recordings") : (count === 1 ? "exercise" : "exercises");
   const fixedWidth = { width, minWidth: width, maxWidth: width, flexBasis: width };
-  const overlayContent = <View className="h-full justify-center px-3.5 py-2.5">
+  const overlayContent = <View className="h-full justify-end px-3 pb-2 pt-1">
     <Text numberOfLines={2} style={styles.categoryName}>{category}</Text>
-    <View className="mt-2 flex-row items-center gap-1.5">
-      <FolderCategoryIcon category={category} color="#865B61" />
+    <View className="mt-1 flex-row items-center gap-1.5">
+      <FolderCategoryIcon category={category} color="#F8E9DD" />
       <Text numberOfLines={1} style={styles.categoryCount}>{count} {noun}</Text>
-      <View className="ml-auto h-8 w-8 items-center justify-center rounded-full bg-[#8F625F]">
-        <ChevronRight color="#FFF8EE" size={18} strokeWidth={2} />
+      <View className="ml-auto h-7 w-7 items-center justify-center rounded-full bg-[#A66F70]/90">
+        <ChevronRight color="#FFF8EE" size={17} strokeWidth={2} />
       </View>
     </View>
   </View>;
-  return <Pressable accessibilityLabel={`Open ${category}, ${count} ${noun}`} accessibilityRole="button" className="h-[210px] overflow-hidden rounded-[22px] border active:opacity-80" onPress={onPress} style={[fixedWidth, styles.categoryCard]}>
+  return <Pressable accessibilityLabel={`Open ${category}, ${count} ${noun}`} accessibilityRole="button" className="h-[164px] overflow-hidden rounded-[19px] border active:opacity-80" onPress={onPress} style={[fixedWidth, styles.categoryCard]}>
     <ImageBackground className="h-full w-full justify-end" resizeMode="cover" source={CATEGORY_COVERS[category]}>
-      {supportsGlass ? <GlassView glassEffectStyle="regular" style={styles.categoryOverlayGlass} tintColor="#EAD5D4">{overlayContent}</GlassView> : <View style={styles.categoryOverlayFallback}>{overlayContent}</View>}
+      <LinearGradient colors={["rgba(58,40,35,0)", "rgba(58,40,35,.54)", "rgba(58,40,35,.94)"]} locations={[0, .34, 1]} pointerEvents="none" style={styles.categoryGradient}>{overlayContent}</LinearGradient>
     </ImageBackground>
   </Pressable>;
 }
 
 export default function ExploreScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { runAuthenticated } = useAuth();
   const audioPlayer = useAudioPlayerController();
   const scrollRef = useRef<ScrollView>(null);
@@ -178,13 +180,31 @@ export default function ExploreScreen() {
     </Pressable>;
   };
 
+  const renderCategoryExercise = (item: CatalogItem) => {
+    const isAudio = item.guidanceType === "audio";
+    const hasPlayableAudio = isAudio && Boolean(item.audioUrl);
+    const isCurrentAudio = isAudio && audioPlayer.track?.id === item.id;
+    const thumbnailSource = item.imageUrl ? { uri: item.imageUrl } : CATEGORY_COVERS[item.category];
+    return <Pressable accessibilityLabel={item.title} accessibilityRole="button" key={item.id} onPress={() => openExercise(item)} style={styles.detailExercisePressable}>
+      <View style={styles.detailExerciseCard}>
+        <Image resizeMode="cover" source={thumbnailSource} style={styles.detailExerciseThumbnail} />
+        <View style={styles.detailExerciseCopy}>
+          <Text numberOfLines={2} style={styles.detailExerciseTitle}>{item.title}</Text>
+          <Text numberOfLines={1} style={styles.detailExerciseMeta}>{isAudio ? `${item.audioDurationSeconds ? `${Math.max(1, Math.round(item.audioDurationSeconds / 60))} min` : "Audio practice"} · Holistic Mind` : `${guidanceLabels[item.guidanceType]} · p. ${item.sourcePage}`}</Text>
+        </View>
+        <View style={styles.detailExerciseAction}>{favoriteIds.has(item.exerciseId ?? item.id) ? <Heart color="#9A5B6A" fill="#DFA2B1" size={17} strokeWidth={1.8} /> : hasPlayableAudio ? <View style={[styles.audioPlayIcon, isCurrentAudio && styles.audioPlayIconActive]}>{isCurrentAudio && audioPlayer.playing ? <Pause color="#FFF8EE" fill="#FFF8EE" size={15} /> : <Play color={isCurrentAudio ? "#FFF8EE" : "#673F3F"} fill={isCurrentAudio ? "#FFF8EE" : "#673F3F"} size={15} />}</View> : <ChevronRight color="rgba(95,59,43,0.52)" size={20} strokeWidth={2} />}</View>
+      </View>
+    </Pressable>;
+  };
+
   const isSearching = Boolean(query.trim());
   const isFolderOverview = selectedCategory === "All" && !isSearching;
+  const activeCategory = selectedCategory !== "All" && selectedCategory !== "Favorites" && !isSearching ? selectedCategory : null;
 
   return <View collapsable={false} style={styles.root}><ImageBackground {...({ collapsable: false } as any)} source={require("../../../assets/welcome/paper-background.png")} resizeMode="cover" style={styles.background}>
-    <SafeAreaView collapsable={false} edges={["top"]} style={styles.safeArea}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => refreshCatalog(true)} tintColor="#673F3F" />} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+    <SafeAreaView collapsable={false} edges={activeCategory ? [] : ["top"]} style={styles.safeArea}>
+      <ScrollView ref={scrollRef} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => refreshCatalog(true)} tintColor="#673F3F" />} showsVerticalScrollIndicator={false}>
+        {!activeCategory ? <View style={styles.header}>
           <View style={styles.titleRow}><View><Text style={styles.kicker}>Wellness library</Text><Text style={styles.title}>Explore</Text></View><Text style={styles.count}>{libraryExercises.length} {library === "audio" ? "recordings" : "exercises"}</Text></View>
           <GlassContainer spacing={8} style={[styles.libraryTabs, supportsLiquidGlass && styles.libraryTabsLiquid]}>
             <Pressable onPress={() => chooseLibrary("somatic")} style={[styles.libraryTab, library === "somatic" && !supportsLiquidGlass && styles.libraryTabSelected]}>
@@ -195,13 +215,29 @@ export default function ExploreScreen() {
             </Pressable>
           </GlassContainer>
           <View style={styles.searchField}><Search color="rgba(95,59,43,0.48)" size={20} strokeWidth={2} /><TextInput autoCapitalize="none" autoCorrect={false} onChangeText={setQuery} placeholder={library === "audio" ? "Search audio" : "Search all exercises"} placeholderTextColor="rgba(95,59,43,0.38)" returnKeyType="search" style={styles.searchInput} value={query} />{query ? <Pressable accessibilityLabel="Clear search" accessibilityRole="button" hitSlop={8} onPress={() => setQuery("")} style={styles.clearButton}><X color="rgba(95,59,43,0.60)" size={17} strokeWidth={2.2} /></Pressable> : null}</View>
-        </View>
+        </View> : null}
 
         {isFolderOverview ? <>
           <View style={styles.sectionRow}><View><Text style={styles.sectionKicker}>{library === "audio" ? "Listen gently" : "Choose a focus"}</Text><Text style={styles.sectionTitle}>{library === "audio" ? "Audio collections" : "Exercise categories"}</Text></View><Text style={styles.sectionCount}>{categoryFolders.length}</Text></View>
           {library === "somatic" ? <Pressable accessibilityLabel={`Open favorites, ${favoriteIds.size} saved`} accessibilityRole="button" className="relative mb-5 min-h-[86px] flex-row items-center gap-4 overflow-hidden rounded-[23px] border px-[18px] py-[14px] active:opacity-75" onPress={() => chooseCategory("Favorites")} style={{ marginHorizontal: screenLayout.horizontalPadding, borderColor: "rgba(121,81,89,.12)", backgroundColor: "rgba(255,249,242,.72)", shadowColor: "#5F3B2B", shadowOpacity: .05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } }}><View className="absolute -bottom-14 -right-5 h-32 w-32 rounded-full bg-[#EAD5D4]/40" pointerEvents="none" /><View className="h-12 w-12 items-center justify-center rounded-full bg-[#EAD5D4]/70"><Heart color="#8D5361" size={24} strokeWidth={1.8}/></View><View className="min-w-0 flex-1"><Text style={styles.favoritesTitle}>Your favorites</Text><Text style={styles.favoritesMeta}>{favoriteIds.size} saved {favoriteIds.size === 1 ? "exercise" : "exercises"}</Text></View><View className="h-10 w-7 items-end justify-center"><ChevronRight color="#795159" size={21} strokeWidth={1.8}/></View></Pressable> : null}
-          {categoryFolders.length ? <View className="gap-[18px]" style={{ paddingHorizontal: screenLayout.horizontalPadding }}>{categoryRows.map((row) => <View className="flex-row gap-4" key={row[0].category}>{row.map((folder) => <CategoryCard category={folder.category} count={folder.count} key={folder.category} kind={library} onPress={() => chooseCategory(folder.category)} supportsGlass={supportsLiquidGlass} width={columnWidth} />)}{row.length === 1 ? <View pointerEvents="none" style={{ width: columnWidth }} /> : null}</View>)}</View> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No collections yet</Text><Text style={styles.emptyText}>Published content will appear here automatically.</Text></View>}
-        </> : <View style={styles.listSection}>
+          {categoryFolders.length ? <View className="gap-[14px]" style={{ paddingHorizontal: screenLayout.horizontalPadding }}>{categoryRows.map((row) => <View className="flex-row gap-[14px]" key={row[0].category}>{row.map((folder) => <CategoryCard category={folder.category} count={folder.count} key={folder.category} kind={library} onPress={() => chooseCategory(folder.category)} width={columnWidth} />)}{row.length === 1 ? <View pointerEvents="none" style={{ width: columnWidth }} /> : null}</View>)}</View> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No collections yet</Text><Text style={styles.emptyText}>Published content will appear here automatically.</Text></View>}
+        </> : activeCategory ? <View style={styles.categoryDetail}>
+          <View style={[styles.categoryHero, { height: 318 + insets.top }]}>
+            <Image resizeMode="cover" source={CATEGORY_COVERS[activeCategory]} style={[styles.categoryHeroImage, { top: 0, width: screenWidth, height: 318 + insets.top }]} />
+            <LinearGradient colors={["rgba(48,32,28,.20)", "rgba(48,32,28,0)", "rgba(48,32,28,.12)", "rgba(48,32,28,.88)"]} locations={[0, .18, .50, 1]} style={[styles.categoryHeroShade, { paddingTop: insets.top + 16 }]}>
+              <View style={styles.categoryHeroActions}>
+                <Pressable accessibilityLabel="Back to categories" accessibilityRole="button" className="h-11 w-11 items-center justify-center rounded-full bg-[#FFF8EE]/90 active:opacity-75" onPress={() => chooseCategory("All")}><ChevronLeft color="#5F3B2B" size={24} strokeWidth={2} /></Pressable>
+                <Pressable accessibilityHint="Opens your saved exercises" accessibilityLabel={`View favorites, ${favoriteIds.size} saved`} accessibilityRole="button" className="h-11 w-11 items-center justify-center rounded-full bg-[#FFF8EE]/90 active:opacity-75" onPress={() => chooseCategory("Favorites")}><Heart color="#8D5361" size={22} strokeWidth={1.8} /></Pressable>
+              </View>
+              <View style={styles.categoryHeroCopy}>
+                <Text style={styles.categoryHeroKicker}>{library === "audio" ? "Audio collection" : "Exercise category"}</Text>
+                <Text numberOfLines={2} style={styles.categoryHeroTitle}>{activeCategory}</Text>
+                <View style={styles.categoryHeroMeta}><FolderCategoryIcon category={activeCategory} color="#FFF8EE" /><Text style={styles.categoryHeroCount}>{visibleExercises.length} {library === "audio" ? (visibleExercises.length === 1 ? "recording" : "recordings") : (visibleExercises.length === 1 ? "exercise" : "exercises")}</Text></View>
+              </View>
+            </LinearGradient>
+          </View>
+          <View style={styles.detailExerciseList}>{visibleExercises.length ? visibleExercises.map(renderCategoryExercise) : <View style={styles.emptyState}><Text style={styles.emptyTitle}>Nothing found</Text><Text style={styles.emptyText}>Published exercises will appear here automatically.</Text></View>}</View>
+        </View> : <View style={styles.listSection}>
           {isSearching ? <View style={styles.listHeading}><View><Text style={styles.sectionKicker}>Across all categories</Text><Text style={styles.listTitle}>Search results</Text></View><Text style={styles.sectionCount}>{visibleExercises.length}</Text></View> : <View style={styles.categoryHeading}><Pressable accessibilityLabel="Back to categories" accessibilityRole="button" onPress={() => chooseCategory("All")} style={styles.backButton}><ChevronLeft color="#673F3F" size={22} strokeWidth={2} /></Pressable><View style={styles.categoryHeadingCopy}><Text style={styles.sectionKicker}>{library === "audio" ? "Audio collection" : "Exercise category"}</Text><Text style={styles.listTitle}>{selectedCategory}</Text></View><Text style={styles.sectionCount}>{visibleExercises.length}</Text></View>}
           {visibleExercises.length ? <View style={styles.exerciseList}>{visibleExercises.map(renderExercise)}</View> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>{selectedCategory === "Favorites" ? "No favorites yet" : "Nothing found"}</Text><Text style={styles.emptyText}>{selectedCategory === "Favorites" ? "Tap the heart on an exercise to keep it here." : "Try another exercise name or category."}</Text></View>}
         </View>}
@@ -217,7 +253,9 @@ const styles = StyleSheet.create({
   searchField:{height:52,marginTop:20,overflow:"hidden",flexDirection:"row",alignItems:"center",gap:10,paddingHorizontal:15,borderRadius:19,borderWidth:1,borderColor:"rgba(255,255,255,0.70)",backgroundColor:"rgba(255,255,255,0.48)",shadowColor:"#5F3B2B",shadowOpacity:.07,shadowRadius:14,shadowOffset:{width:0,height:7}},searchInput:{height:50,minWidth:0,flex:1,padding:0,color:"#5F3B2B",fontFamily:sansFont,fontSize:15,lineHeight:20,fontWeight:"500",includeFontPadding:false},clearButton:{width:28,height:28,alignItems:"center",justifyContent:"center"},
   sectionRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:32,marginBottom:20,paddingHorizontal:screenLayout.horizontalPadding},sectionKicker:{color:"rgba(95,59,43,.48)",fontFamily:sansFont,fontSize:9,fontWeight:"800",letterSpacing:1,textTransform:"uppercase"},sectionTitle:{marginTop:4,color:"#5F3B2B",fontFamily:sansFont,fontSize:22,lineHeight:27,fontWeight:"700"},sectionCount:{minWidth:28,height:28,overflow:"hidden",borderRadius:14,color:"#70454A",backgroundColor:"rgba(223,162,177,.23)",fontFamily:sansFont,fontSize:11,lineHeight:28,fontWeight:"800",textAlign:"center"},
   favoritesTitle:{color:"#5F3B2B",fontFamily:sansFont,fontSize:16,lineHeight:21,fontWeight:"800"},favoritesMeta:{marginTop:3,color:"rgba(95,59,43,.55)",fontFamily:sansFont,fontSize:11,lineHeight:16,fontWeight:"600"},
-  categoryCard:{borderColor:"rgba(95,59,43,.08)",backgroundColor:"#F1DED8",shadowColor:"#5F3B2B",shadowOpacity:.06,shadowRadius:11,shadowOffset:{width:0,height:6}},categoryOverlayGlass:{height:78},categoryOverlayFallback:{height:78,backgroundColor:"rgba(239,219,214,.76)"},categoryName:{maxWidth:"94%",color:"#4B302A",fontFamily:sansFont,fontSize:15,lineHeight:18,fontWeight:"800"},categoryCount:{minWidth:0,flexShrink:1,color:"rgba(75,48,42,.68)",fontFamily:sansFont,fontSize:11,lineHeight:15,fontWeight:"700"},
+  categoryCard:{borderColor:"rgba(95,59,43,.08)",backgroundColor:"#F1DED8",shadowColor:"#5F3B2B",shadowOpacity:.06,shadowRadius:10,shadowOffset:{width:0,height:5}},categoryGradient:{height:108},categoryName:{maxWidth:"96%",color:"#FFF8EE",fontFamily:sansFont,fontSize:13,lineHeight:16,fontWeight:"800"},categoryCount:{minWidth:0,flexShrink:1,color:"rgba(255,248,238,.84)",fontFamily:sansFont,fontSize:10,lineHeight:14,fontWeight:"600"},
+  categoryDetail:{marginTop:-1},categoryHero:{position:"relative",height:318,overflow:"hidden",backgroundColor:"#F8ECE4"},categoryHeroImage:{position:"absolute",left:0},categoryHeroShade:{flex:1,justifyContent:"space-between",paddingBottom:20},categoryHeroActions:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingHorizontal:screenLayout.horizontalPadding},categoryHeroCopy:{paddingHorizontal:screenLayout.horizontalPadding},categoryHeroKicker:{color:"rgba(255,248,238,.80)",fontFamily:sansFont,fontSize:9,lineHeight:13,fontWeight:"800",letterSpacing:1.4,textTransform:"uppercase"},categoryHeroTitle:{maxWidth:"92%",marginTop:6,color:"#FFF8EE",fontFamily:sansFont,fontSize:29,lineHeight:34,fontWeight:"700"},categoryHeroMeta:{flexDirection:"row",alignItems:"center",gap:8,marginTop:10},categoryHeroCount:{color:"rgba(255,248,238,.90)",fontFamily:sansFont,fontSize:14,lineHeight:19,fontWeight:"600"},
+  detailExerciseList:{gap:9,paddingHorizontal:12,paddingTop:10},detailExercisePressable:{width:"100%"},detailExerciseCard:{minHeight:76,overflow:"hidden",flexDirection:"row",alignItems:"center",gap:12,padding:8,borderRadius:18,borderWidth:1,borderColor:"rgba(95,59,43,.08)",backgroundColor:"rgba(255,249,242,.76)",shadowColor:"#5F3B2B",shadowOpacity:.045,shadowRadius:9,shadowOffset:{width:0,height:4}},detailExerciseThumbnail:{width:96,height:62,borderRadius:13,backgroundColor:"#EAD5D4"},detailExerciseCopy:{minWidth:0,flex:1},detailExerciseTitle:{color:"#3F302A",fontFamily:sansFont,fontSize:14,lineHeight:18,fontWeight:"700"},detailExerciseMeta:{marginTop:4,color:"rgba(95,59,43,.55)",fontFamily:sansFont,fontSize:10,lineHeight:14,fontWeight:"500"},detailExerciseAction:{width:28,height:36,alignItems:"center",justifyContent:"center"},
   listSection:{paddingTop:28},listHeading:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingHorizontal:screenLayout.horizontalPadding,paddingBottom:14},categoryHeading:{flexDirection:"row",alignItems:"center",gap:12,paddingHorizontal:screenLayout.horizontalPadding,paddingBottom:14},categoryHeadingCopy:{minWidth:0,flex:1},backButton:{width:42,height:42,alignItems:"center",justifyContent:"center",borderRadius:21,borderWidth:1,borderColor:"rgba(95,59,43,.10)",backgroundColor:"rgba(255,255,255,.50)"},listTitle:{marginTop:4,color:"#5F3B2B",fontFamily:sansFont,fontSize:22,lineHeight:28,fontWeight:"700"},
   exerciseList:{gap:11,paddingHorizontal:screenLayout.horizontalPadding},exercisePressable:{width:"100%",flexGrow:0,flexShrink:0},exerciseCard:{position:"relative",width:"100%",minHeight:78,overflow:"hidden",flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12,paddingHorizontal:16,paddingVertical:12,borderRadius:19,borderWidth:1,borderColor:"rgba(255,255,255,.78)",backgroundColor:"rgba(255,251,245,.66)",shadowColor:"#5F3B2B",shadowOpacity:.065,shadowRadius:13,shadowOffset:{width:0,height:6}},exerciseGlassHighlight:{position:"absolute",top:0,left:0,right:0,height:34,backgroundColor:"rgba(255,255,255,.20)"},exerciseCopy:{minWidth:0,flexGrow:1,flexShrink:1},exerciseTitle:{color:"#3F302A",fontFamily:sansFont,fontSize:typeScale.itemTitle,lineHeight:typeScale.itemTitleLine,fontWeight:"600"},exerciseMeta:{marginTop:4,color:"rgba(95,59,43,0.52)",fontFamily:sansFont,fontSize:typeScale.meta,fontWeight:"500"},exerciseAction:{width:32,height:36,flexGrow:0,flexShrink:0,alignItems:"center",justifyContent:"center"},audioPlayIcon:{width:32,height:32,alignItems:"center",justifyContent:"center",borderRadius:16,backgroundColor:"rgba(103,63,63,.10)"},audioPlayIconActive:{backgroundColor:"#673F3F"},
   emptyState:{alignItems:"center",paddingHorizontal:30,paddingTop:62},emptyTitle:{color:"#5F3B2B",fontFamily:sansFont,fontSize:17,fontWeight:"700"},emptyText:{marginTop:6,color:"rgba(95,59,43,0.56)",fontFamily:sansFont,fontSize:13,lineHeight:19,fontWeight:"500",textAlign:"center"},

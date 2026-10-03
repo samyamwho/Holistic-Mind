@@ -377,3 +377,97 @@ def test_collaborative_filtering_activates_with_two_similar_users():
     assert strategy == "hybrid"
     popular = next(item for item in items if item.exercise_id == "popular")
     assert popular.score_components["collaborative"] > 0.9
+
+
+def test_known_contraindications_cannot_reenter_through_rotation():
+    from app.schemas import Exercise
+    context = RecommendationContext(
+        user_id="current", limit=4,
+        check_in_answers={"support": "Feel grounded", "state": "Overwhelmed"},
+        contraindication_signals=["touch_discomfort"],
+        recent_recommendation_ids=["safe-a", "safe-b", "safe-c", "safe-d"],
+        exercises=[Exercise(id=id, title="Grounding contact", category="Grounding",
+                            support_goals=["feel_grounded"], intended_states=["overwhelmed"])
+                   for id in ["safe-a", "safe-b", "safe-c", "safe-d"]] + [
+            Exercise(id="blocked", title="Grounding contact", category="Grounding",
+                     support_goals=["feel_grounded"], intended_states=["overwhelmed"],
+                     contraindication_tags=["touch_discomfort"]),
+        ],
+    )
+    items, _, _ = recommend(context)
+    assert len(items) == 4
+    assert "blocked" not in [item.exercise_id for item in items]
+
+
+def test_all_contraindicated_returns_empty_instead_of_filling_slots():
+    context = RecommendationContext.model_validate({
+        "user_id": "current", "check_in_answers": {"body": "Disconnected"},
+        "exercises": [{"id": "scan", "title": "Body scan", "category": "Body",
+                       "contraindication_tags": ["disconnected"]}],
+    })
+    items, strategy, _ = recommend(context)
+    assert items == []
+    assert strategy == "no-candidates"
+
+
+def test_reported_dizziness_excludes_matching_metadata():
+    from evaluation.benchmark_personas import BENCHMARK_PERSONAS
+    context = next(p for p in BENCHMARK_PERSONAS if p.id == "P29").to_context()
+    context.contraindication_signals = ["Dizziness"]
+    items, _, _ = recommend(context)
+    assert "orienting-exercise" not in [item.exercise_id for item in items]
+
+
+def test_primary_support_alignment_is_preserved_when_enough_options_exist():
+    context = RecommendationContext.model_validate({
+        "user_id": "current", "limit": 1,
+        "check_in_answers": {"support": "Calm down", "state": "Anxious", "body": "Tense"},
+        "exercises": [
+            {"id": "strong", "title": "Strong", "category": "A", "activation_level": "neutral",
+             "support_goals": ["calm_down"], "intended_states": ["anxious", "tense"]},
+            {"id": "weak", "title": "Weak", "category": "B", "activation_level": "down_regulating"},
+        ],
+    })
+    assert recommend(context)[0][0].exercise_id == "weak"
+
+
+def test_onnx_output_is_converted_and_normalized(monkeypatch):
+    import numpy as np
+    from types import SimpleNamespace
+    from app import engine
+    class Tokenizer:
+        def encode_batch(self, texts):
+            return [SimpleNamespace(ids=[1, 2], attention_mask=[1, 0], type_ids=[0, 0]) for _ in texts]
+    class Session:
+        def get_inputs(self):
+            return [SimpleNamespace(name="input_ids"), SimpleNamespace(name="attention_mask")]
+        def run(self, outputs, inputs):
+            return [[[[3, 4], [100, 100]]]]
+    monkeypatch.setenv("RECOMMENDER_EMBEDDING_BACKEND", "onnx")
+    monkeypatch.setenv("ALLOW_LEXICAL_FALLBACK", "false")
+    monkeypatch.setattr(engine, "_onnx_model", lambda: (Tokenizer(), Session()))
+    result, backend = engine.encode(["example"])
+    np.testing.assert_allclose(result, [[0.6, 0.8]])
+    assert backend.endswith(":onnx")
+
+
+def test_collaborative_evidence_changes_ranking_with_enough_neighbors():
+    context = RecommendationContext.model_validate({
+        "user_id": "current", "limit": 1,
+        "exercises": [{"id": id, "title": "Practice", "category": "Grounding"}
+                      for id in ["a-unpopular", "z-popular"]],
+    })
+    assert recommend(context)[0][0].exercise_id == "a-unpopular"
+    from app.schemas import Interaction
+    context.interactions = [
+        Interaction(user_id=user, exercise_id=id, value=1)
+        for user in ["current", "neighbor-a", "neighbor-b"]
+        for id in ["shared-a", "shared-b"]
+    ] + [
+        Interaction(user_id=user, exercise_id=id, value=value)
+        for user in ["neighbor-a", "neighbor-b"]
+        for id, value in [("a-unpopular", -1), ("z-popular", 1)]
+    ]
+    items, strategy, _ = recommend(context)
+    assert strategy == "hybrid"
+    assert items[0].exercise_id == "z-popular"

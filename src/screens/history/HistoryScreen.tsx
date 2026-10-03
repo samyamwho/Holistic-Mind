@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ImageBackground,
@@ -10,13 +10,15 @@ import {
   Text,
   View,
 } from "react-native";
-import { ArrowLeft, BookOpenText, CalendarDays, Check, ChevronDown, HeartPulse, Sparkles, X } from "lucide-react-native";
+import { ArrowLeft, BookOpenText, CalendarDays, Check, ChevronDown, HeartPulse, ImagePlus, Mic, Sparkles, X } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle as SvgCircle, Line as SvgLine, Path as SvgPath } from "react-native-svg";
+import { useJournal } from "../../context/JournalContext";
+import { JournalMediaPanel } from "../../components/journal/JournalMediaPanel";
+import type { JournalMedia } from "../../services/journal/journalCrypto";
 import { useAuth } from "../../context/AuthContext";
 import {
   getCheckIns,
-  getJournalEntries,
   getPracticeEvents,
   type PracticeActivity,
   type StoredJournalEntry,
@@ -150,7 +152,13 @@ function TrendChart({ days }: { days: TrendDay[] }) {
 
 export default function HistoryScreen({ navigation }: { navigation: { goBack: () => void } }) {
   const { runAuthenticated } = useAuth();
+  const { state: journalState, getEntries, legacyCount } = useJournal();
+  const journalReady = journalState === "ready" && legacyCount === 0;
+  const loadGeneration = useRef(0);
+  const [journalError, setJournalError] = useState("");
   const [entries, setEntries] = useState<StoredJournalEntry[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<JournalMedia | null>(null);
+  useEffect(() => { if (!journalReady) setEntries([]); }, [journalReady]);
   const [checkIns, setCheckIns] = useState<DailyCheckIn[]>([]);
   const [practiceEvents, setPracticeEvents] = useState<PracticeActivity[]>([]);
   const [filter, setFilter] = useState<HistoryFilter>("all");
@@ -160,34 +168,44 @@ export default function HistoryScreen({ navigation }: { navigation: { goBack: ()
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadHistory = useCallback(async (refreshing = false) => {
+    const generation = ++loadGeneration.current;
     if (refreshing) setIsRefreshing(true);
+    setJournalError("");
     try {
-      const [savedEntries, savedCheckIns, savedPracticeEvents] = await runAuthenticated((token) =>
-        Promise.all([getJournalEntries(token), getCheckIns(token), getPracticeEvents(token)])
-      );
+      const [savedEntries, [savedCheckIns, savedPracticeEvents]] = await Promise.all([
+        journalReady ? getEntries().catch(() => {
+          if (generation === loadGeneration.current) setJournalError("Your reflections could not be decrypted. Lock and reopen the journal to retry.");
+          return [];
+        }) : Promise.resolve([]),
+        runAuthenticated((token) => Promise.all([getCheckIns(token), getPracticeEvents(token)])),
+      ]);
+      if (generation !== loadGeneration.current) return;
       setEntries(savedEntries);
       setCheckIns(savedCheckIns);
       setPracticeEvents(savedPracticeEvents);
     } catch (error) {
       console.warn("Unable to load history", error);
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (generation === loadGeneration.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
-  }, [runAuthenticated]);
+  }, [runAuthenticated, getEntries, journalReady]);
 
   useFocusEffect(useCallback(() => {
     void loadHistory();
+    return () => { loadGeneration.current++; };
   }, [loadHistory]));
 
   const rangeBounds = useMemo(() => getRangeBounds(range), [range]);
   const rangeLabel = rangeOptions.find((option) => option.id === range)?.label ?? "This week";
 
-  const visibleEntries = useMemo(() => entries.filter((entry) => {
+  const visibleEntries = useMemo(() => (journalReady ? entries : []).filter((entry) => {
     if (!rangeBounds) return true;
     const date = new Date(entry.createdAt);
     return date >= rangeBounds.start && date <= rangeBounds.end;
-  }), [entries, rangeBounds]);
+  }), [entries, rangeBounds, journalReady]);
 
   const visibleCheckIns = useMemo(() => checkIns.filter((checkIn) => {
     if (!rangeBounds) return true;
@@ -317,6 +335,12 @@ export default function HistoryScreen({ navigation }: { navigation: { goBack: ()
               </Pressable>
             </View>
 
+            {!journalReady ? <Text style={styles.journalLockedNotice}>
+              {journalState === "ready"
+                ? "Older reflections need encryption before they appear here. Open Journal to finish protecting them."
+                : "Journal reflections are hidden while your journal is locked. Open Journal to see them."}
+            </Text> : null}
+            {journalError ? <Text accessibilityRole="alert">{journalError}</Text> : null}
             <View style={styles.summaryCard}>
               <View style={styles.summaryIntro}>
                 <Sparkles color="#9A5B6A" size={18} strokeWidth={2} />
@@ -451,6 +475,7 @@ export default function HistoryScreen({ navigation }: { navigation: { goBack: ()
                             </View>
                             <Text numberOfLines={2} style={styles.cardPrompt}>{item.entry.prompt}</Text>
                             <Text numberOfLines={3} style={styles.cardBody}>{item.entry.text}</Text>
+                            {item.entry.attachments?.length ? <View style={styles.attachmentRow}>{item.entry.attachments.map((media) => <Pressable accessibilityLabel={`Open ${media.kind === "image" ? "photo" : "voice note"} attachment`} accessibilityRole="button" key={media.id} onPress={() => setSelectedMedia(media)} style={styles.attachmentChip}>{media.kind === "image" ? <ImagePlus color="#70454A" size={14} /> : <Mic color="#70454A" size={14} />}<Text style={styles.attachmentLabel}>{media.kind === "image" ? "Photo" : "Voice"}</Text></Pressable>)}</View> : null}
                           </View>
                         </View>
                       ) : (
@@ -486,6 +511,7 @@ export default function HistoryScreen({ navigation }: { navigation: { goBack: ()
           </ScrollView>
         </SafeAreaView>
       </ImageBackground>
+      {journalReady ? <JournalMediaPanel menuOpen={false} onCloseMenu={() => {}} onWrite={() => {}} requestedMedia={selectedMedia} onCloseViewer={() => setSelectedMedia(null)} showLegacy={false} /> : null}
       <Modal animationType="fade" onRequestClose={() => setRangeOpen(false)} transparent visible={rangeOpen}>
         <Pressable onPress={() => setRangeOpen(false)} style={styles.rangeBackdrop}>
           <Pressable onPress={(event) => event.stopPropagation()} style={styles.rangeSheet}>
@@ -526,10 +552,14 @@ export default function HistoryScreen({ navigation }: { navigation: { goBack: ()
 }
 
 const styles = StyleSheet.create({
+  attachmentRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 7 },
+  attachmentChip: { minHeight: 26, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, borderRadius: 10, backgroundColor: "rgba(223,162,177,.22)" },
+  attachmentLabel: { color: "#70454A", fontFamily: bodyFont, fontSize: 10, fontWeight: "700" },
   root: { flex: 1, backgroundColor: "#F6E3C5" },
   background: { flex: 1 },
   safeArea: { flex: 1, backgroundColor: "transparent" },
   content: { paddingHorizontal: screenLayout.horizontalPadding, paddingTop: screenLayout.topPadding, paddingBottom: 132 },
+  journalLockedNotice: { marginTop: 14, color: "#795E55", fontSize: 13, lineHeight: 19 },
   header: {
     minHeight: screenLayout.headerHeight,
     flexDirection: "row",

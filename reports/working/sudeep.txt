@@ -1,0 +1,3766 @@
+
+--- PAGE 1 ---
+Bırmıngham Cıty Unıversıty
+Sunway College Kathmandu
+Faculty of Computing, Engineering, and the Built Environment
+Saathi: Nepali Voice Assistant for Elderly
+Users
+Sudeep Fullel
+Student ID: 23140750
+Sudeep.Fullel@mail.bcu.ac.uk
+Course: BSc (Hons) Computer and Data Science
+Report Type: Final Year Undergraduate Project
+Supervisor: Rupak Koirala
+Date: May 2026
+--- PAGE 2 ---
+Declaration of Originality
+I declare that this project report entitled “Saathi: Nepali Voice Assistant for Elderly Users”, submitted
+as a partial fulfilment of the requirements of the Birmingham City University (BCU) (Delivered
+through Sunway College Kathmandu) degree of BSc (Hons) Computer and Data Science is my
+own original work, except where acknowledged by citations and references.
+When using sources in the preparation of this report, the source has been identified in the text
+and is included in the bibliography. This thesis has not been previously submitted, in whole or in
+any part, for a degree, diploma or certificate at this or any other university. The data, training
+results and evaluation results that are reported in this document have been obtained exclusively
+by the author in the context of this project.
+I understand that, in accordance with the regulations of Birmingham City University, any breach
+of this declaration could be deemed to be academic misconduct.
+Name: Sudeep Fullel
+Student ID: 23140750
+Date: May 2026
+Signature:....................................................
+i
+--- PAGE 3 ---
+Acknowledgements
+I would like to thank my project supervisor Rupak Koirala for his Clear direction, positive
+comments and understanding all 32 weeks long project. The contribution of his leadership in
+key architectural choices, such as the switch from Whisper to Conformer and the incorporation
+of the hybrid NLG architecture, was priceless.
+I would like to thank the seven aged participants who took time to do this formal evaluation
+study. The project was validated in the real world through their enthusiasm toward an unfamiliar
+technology, feedback, and patience in testing sessions. I am particularly grateful to family
+members and care takers who made these sessions possible. I am especially grateful to
+my friend Nanak Shrestha who generously helped me during the elderly testing phase and
+introduced me to elderly subjects in his locality in Kathmandu and escorted me to the testing
+sessions, which enabled me to conduct field evaluations. Many thanks are due to Birmingham
+City University and Sunway College Kathmandu for providing the academic facilities, ethics
+and resources for this project. I would like to express my thanks to the faculty for their support
+during my college days.
+Last but not least, I would like to thank my family for their constant support and encourage-
+ment. The initial idea for this dissertation came from the lives of the elderly in Nepal; their
+encouragement throughout the dissertation process allowed it to be completed.
+ii
+--- PAGE 4 ---
+Abstract
+In 2021, the elderly population in Nepal accounted for 10.21% of the country’s total population,
+and the increasing youth migration resulted in millions of elderly people without family support.
+None of the existing commercial voice assistants (Alexa, Siri, Google Assistant) offer a functional
+Nepali pipeline, none of them work without an internet connection and none of the following age-
+specific features are available that are useful to an elderly Nepali user: medication reminders,
+emergency auto-dial, fall detection, support for Bikram Sambat calendar. No Nepali voice
+assistant has been tested with senior citizens before.
+This report brings you Saathi (साथी, “companion”), a completely offline and privacy preserving
+Nepali voice. assistant for elderly users, developed and evaluated through iterative prototyping
+(32 weeks). The system is completely local Wi-Fi network based, with no voice or personal data
+sent outside the network, and is delivered as an Android application with a WCAG AAA contrast
+level, one-button interface.
+After systematic iteration came three architectural results. First, Nepali ASR performance
+bounded by architecture, not data: Three Whisper fine tuning configurations all reached 48.56%
+Word Error Rate (WER) on the held out set, while switching to an NVIDIA NeMo Conformer-
+RNNT with two-stage fine tuning, resulted in a WER of 10.10% on the held out set and 30.50% on
+the public FLEURS ne_np benchmark. Second, a hybrid approach is required to achieve reliable
+natural language generation for a low resource language: all nine standalone configurations of
+generative models failed, whereas, the combination of deterministic Python handlers, the LLM
+persona prompting (Qwen3 9B), and bilingual retrieval and generation (BAR) was successful
+where none worked individually. Third, for elderly speech, in which there was a 25.1% WER
+(15% higher than the baseline for adults), the functional outcomes were near-perfect in structural
+fallback.
+The final system achieves 99.79% validation accuracy on 22 intents using IndicBERT-v3-1B
+(LoRA fine-tuning), with 100% reliability, provides medication reminders in 40 controlled tests
+under Android Doze Mode, and is able to identify falls with 90% accuracy and with a single
+false-positive in 10 fall tests. Formal evaluation was conducted with 7 elderly participants (aged
+60 years or older) from Nepal, who answered to 147 live spoken queries across 21 intent
+scenarios, with an overall Task Success Rate of 98.6% (95% CI: 95.6%–99.5%), and all queries
+took less than the 15 second latency goal in a fully offline network.
+iii
+--- PAGE 5 ---
+Contents
+1 Introduction and Context 1
+1.1 Problem Statement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2 Review of Existing Knowledge 2
+2.1 Ageing Population and Need of Assistive Technology . . . . . . . . . . . . . . . . 2
+2.2 Digital Health and mHealth in Low- and Middle-Income Countries . . . . . . . . . 2
+2.3 Voice Assistants for Elderly Users . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+2.4 Speech Technologies for Low-Resource Languages . . . . . . . . . . . . . . . . 4
+2.5 Acoustic Challenges of Elderly Speech . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.6 Intent Classification and Parameter-Efficient Fine-Tuning . . . . . . . . . . . . . 5
+2.7 Retrieval-Augmented Generation . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.8 Fall Detection . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.9 Critical Analysis and Gap Identification . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.10 Project Justification . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+3 Project Aims, Objectives, and Scope 8
+3.1 Project Aim . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+3.2 Project Objectives . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+4 Project Scope 8
+5 Project Design 9
+5.1 Design and Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+5.2 Justification of Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+6 Artefact Design 13
+6.1 Design Specifications . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+6.2 Artefact Structure, Architecture, and Framework . . . . . . . . . . . . . . . . . . . 16
+6.2.1 Software Engineering and HCI Design Methodology . . . . . . . . . . . . 16
+6.2.2 Overall Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+6.2.3 NLU Pipeline Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
+6.2.4 ASR Service Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+6.2.5 TTS Service Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+6.2.6 Emergency Calling and SOS System Design . . . . . . . . . . . . . . . . 24
+iv
+--- PAGE 6 ---
+6.2.7 RAG Fallback Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+6.2.8 Knowledge Base Design . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+6.2.9 Dual-Channel Reminder System Design . . . . . . . . . . . . . . . . . . . 27
+6.2.10 Frontend State Management and Intent Orchestration . . . . . . . . . . . 29
+6.2.11 Security and Privacy Architecture . . . . . . . . . . . . . . . . . . . . . . . 30
+6.2.12 Database Schema Design . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+7 Implementation 32
+7.1 Construction of the Artefact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+7.1.1 Phase 1: Research, Technology Selection, and Initial Prototyping . . . . . 32
+7.1.2 Phase 2: Core Component Development . . . . . . . . . . . . . . . . . . 32
+7.1.3 Phase 3: Integration and Deployment . . . . . . . . . . . . . . . . . . . . 45
+7.2 Validation and Testing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 50
+7.2.1 Overview and Test Strategy . . . . . . . . . . . . . . . . . . . . . . . . . . 50
+7.2.2 System-Level Black Box and Integration Testing . . . . . . . . . . . . . . 51
+7.2.3 Speech Recognition (ASR) Evaluation . . . . . . . . . . . . . . . . . . . . 55
+7.2.4 Intent Classification and Task Success Rate . . . . . . . . . . . . . . . . . 60
+7.2.5 System Performance and Latency (NFR-01) . . . . . . . . . . . . . . . . 63
+7.2.6 RAG Fallback Quality Validation . . . . . . . . . . . . . . . . . . . . . . . 64
+7.2.7 Hardware Integration Testing . . . . . . . . . . . . . . . . . . . . . . . . . 65
+7.2.8 User Acceptance Testing — Field Study . . . . . . . . . . . . . . . . . . . 66
+7.2.9 Objective Validation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 71
+8 Critical Evaluation 72
+8.1 Evaluation of the Artefact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72
+8.1.1 Performance Against Design Specifications . . . . . . . . . . . . . . . . . 72
+8.1.2 Contextualisation of ASR Results Against Published Literature . . . . . . 73
+8.1.3 What Works Well . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 75
+8.1.4 Areas Falling Short and Honest Critique . . . . . . . . . . . . . . . . . . . 76
+8.1.5 Critique of Methodology and Validity . . . . . . . . . . . . . . . . . . . . . 76
+8.2 How Saathi Differs from Related Systems . . . . . . . . . . . . . . . . . . . . . . 77
+8.2.1 ASR Component: Comparison with Published Nepali Speech Systems . 77
+8.2.2 Application Level: Comparison with Voice Assistant Systems . . . . . . . 78
+8.3 Impact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 80
+8.3.1 Impact on the Target Community . . . . . . . . . . . . . . . . . . . . . . . 80
+v
+--- PAGE 7 ---
+8.3.2 Societal and Academic Impact . . . . . . . . . . . . . . . . . . . . . . . . 80
+9 Conclusion 81
+10 Limitations 82
+11 Future Research Directions 84
+11.1 Near-Term (Feasible within 1–2 Years) . . . . . . . . . . . . . . . . . . . . . . . . 84
+11.1.1 Highest Priority . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 84
+11.1.2 Medium Priority . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 85
+11.2 Long-Term (Require Dedicated Resources) . . . . . . . . . . . . . . . . . . . . . 86
+A Feasibility, Risks, and Ethical Aspects 94
+A.1 Revised Feasibility . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 94
+A.2 Updated Risk Analysis and Mitigation . . . . . . . . . . . . . . . . . . . . . . . . 95
+A.3 Revised Ethical Considerations . . . . . . . . . . . . . . . . . . . . . . . . . . . . 96
+B Requirement Traceability Matrix 98
+C Project Timeline 100
+D Conformer ASR Training Scripts 101
+D.1 Stage 1 Training Configuration (Encoder Frozen) . . . . . . . . . . . . . . . . . . 102
+D.2 Stage 2 Training (Full Model Unfrozen) . . . . . . . . . . . . . . . . . . . . . . . . 103
+E Source Code Snippets 104
+E.1 Intent Classifier: CPU-Load Fix for Meta-Tensor Bug . . . . . . . . . . . . . . . . 104
+E.2 Knowledge Base: Bilingual Embedding and Qdrant Ingestion . . . . . . . . . . . 105
+E.3 RAG Fallback Handler: Three-Stage Pipeline . . . . . . . . . . . . . . . . . . . . 106
+E.4 Reminder Intent: Two-Call LLM Extraction Strategy . . . . . . . . . . . . . . . . . 107
+E.5 Fall Detection Service (Dart) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 108
+E.6 Dual-Channel Reminder Polling (Dart) . . . . . . . . . . . . . . . . . . . . . . . . 109
+F System Deployment and Setup Guide 111
+F.1 Prerequisites . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 111
+F.2 Environment Setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 111
+F.3 Service Launch . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 112
+F.4 Android Client Build . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 112
+vi
+--- PAGE 8 ---
+G Application User Interface Gallery 113
+G.1 Main Interaction Screens . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 113
+G.2 Safety and Emergency Screens . . . . . . . . . . . . . . . . . . . . . . . . . . . . 114
+G.3 Reminder and Contacts Management . . . . . . . . . . . . . . . . . . . . . . . . 115
+G.4 Caregiver Administration Panel . . . . . . . . . . . . . . . . . . . . . . . . . . . . 116
+G.5 User Setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 117
+H 22-Intent Reference Table 118
+I UAT Evaluation Instruments 121
+I.1 I.2 I.3 Evaluation Scenario List . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 121
+Post-Session Questionnaire . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 121
+Participant Information and Consent Procedure . . . . . . . . . . . . . . . . . . . 122
+J System Testing Evidence Gallery 123
+J.1 Black Box Testing Evidence . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 123
+J.2 Integration Testing Evidence . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 128
+vii
+--- PAGE 9 ---
+List of Figures
+5.1 Initial project design — iterative prototyping model . . . . . . . . . . . . . . . . . 10
+6.1 Software engineering and HCI design methodology . . . . . . . . . . . . . . . . . 16
+6.2 Use case diagram for the Saathi voice assistant application . . . . . . . . . . . . 17
+6.3 System architecture diagram . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+6.4 UML activity diagram of the Saathi runtime loop and component processing . . . 18
+6.5 UML sequence diagram of the Saathi NLU pipeline loop . . . . . . . . . . . . . . 20
+6.6 ASR service design architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+6.7 TTS service design architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+6.8 Emergency calling system: voice-to-sos flow diagram . . . . . . . . . . . . . . . 24
+6.9 UML sequence diagram of accelerometer fall detection and emergency SOS
+countdown . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+6.10 RAG fallback pipeline architecture . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+6.11 Dual-channel reminder system design flow . . . . . . . . . . . . . . . . . . . . . 28
+6.12 Flutter application architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+6.13 Database ERD — 13-table schema with domain-driven design groupings . . . . 31
+7.1 Iterative prototyping cycle diagram . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+7.2 Whisper fine-tuning: dataset preparation summary . . . . . . . . . . . . . . . . . 33
+7.3 Whisper fine-tuning: training loss curves . . . . . . . . . . . . . . . . . . . . . . . 33
+7.4 Conformer ASR two-stage fine-tuning pipeline . . . . . . . . . . . . . . . . . . . . 35
+7.5 Conformer training progress: Stage 1 decoder-only (Left) and Stage 2 full model
+fine-tuning (Right) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
+7.6 ASR performance across all iterations: WER and CER progression from Whisper
+to Conformer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
+7.7 Intent classification LoRA fine-tuning pipeline (indicbert-v3-1b) . . . . . . . . . . 38
+7.8 Intent classifier evolution — model accuracy and class expansion . . . . . . . . . 38
+7.9 Indicbert-v3 training curves (Left) and per-class validation results (Right) . . . . . 39
+7.10 End-to-end pipeline execution trace test . . . . . . . . . . . . . . . . . . . . . . . 40
+7.11 Hybrid NLG architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41
+7.12 Sample from the 2,081-row Knowledge Base CSV . . . . . . . . . . . . . . . . . 44
+7.13 ASR (port 8002) and TTS (port 8001) microservices running on CUDA . . . . . . 45
+7.14 Main NLU API running on port 8000 . . . . . . . . . . . . . . . . . . . . . . . . . 46
+7.15 Saathi core voice user interface (VUI) states . . . . . . . . . . . . . . . . . . . . 48
+viii
+--- PAGE 10 ---
+7.16 Saathi safety and compliance failsafe interfaces . . . . . . . . . . . . . . . . . . 49
+7.17 Caregiver configuration panels. Left: fall detection threshold, SOS duration,
+vibration, and silence settings. Right: backend API URL, default reminder mode,
+and elderly persona name. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 49
+7.18 Terminal output of held-out adult test split evaluation (500 samples) . . . . . . . 56
+7.19 Terminal output of FLEURS ne_np test split (726 samples). . . . . . . . . . . . . 57
+7.20 Terminal output of run_validation.py running live against the 147 elderly record-
+ings. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+7.21 ASR WER and CER by intent category (elderly corpus, n = 147) . . . . . . . . . 59
+7.22 WER and CER per elderly participant . . . . . . . . . . . . . . . . . . . . . . . . 59
+7.23 Terminal output of generate_charts.py: each [N/11] line confirms one chart
+saved from the real dataset. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+7.24 Key performance indicator dashboard (n = 147 queries, 7 elderly participants) . 60
+7.25 TSR and intent accuracy by category. six of seven categories achieved 100%
+TSR; health & knowledge scored 90.5% due to asr-induced false-positive SOS
+routing. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 62
+7.26 Intent classification confusion matrix (n = 147) . . . . . . . . . . . . . . . . . . . 62
+7.27 Per-query intent result matrix (1 =Correct, 0 =Wrong): errors concentrated in 3
+of 21 prompts; remaining 18 achieved 100% across all participants. . . . . . . . 63
+7.28 Pipeline latency analysis. mean 5.2s and P95 8.1s both well below the 15s
+NFR-01 limit. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 63
+7.29 RAG response quality: semantic keyword similarity score by scenario (0–1 scale.)
+all six exceed the 0.55 baseline. . . . . . . . . . . . . . . . . . . . . . . . . . . . 64
+7.30 Hardware integration evidence . . . . . . . . . . . . . . . . . . . . . . . . . . . . 65
+7.31 TSR per participant . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 68
+7.32 Field evaluation evidence. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 70
+C.1 32-Week project gantt chart . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 100
+G.1 Main interaction screens. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 113
+G.2 Safety and emergency screens. . . . . . . . . . . . . . . . . . . . . . . . . . . . . 114
+G.3 Reminder and contacts management. . . . . . . . . . . . . . . . . . . . . . . . . 115
+G.4 Caregiver administration panel. . . . . . . . . . . . . . . . . . . . . . . . . . . . . 116
+G.5 Onboarding screen. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 117
+J.5 TC-BB-10: Silence / Timeout . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 127
+J.6 TC-INT-01: FastAPI 200 OK . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 128
+ix
+--- PAGE 11 ---
+J.7 TC-INT-02: STT to NLU transcription log . . . . . . . . . . . . . . . . . . . . . . . 128
+J.8 TC-INT-03: Database conversation_logs populated . . . . . . . . . . . . . . . 129
+J.9 TC-INT-04: Database reminders row populated . . . . . . . . . . . . . . . . . . 129
+J.11 TC-INT-07: Qdrant retrieval log . . . . . . . . . . . . . . . . . . . . . . . . . . . . 131
+J.12 TC-INT-08: TTS generation log . . . . . . . . . . . . . . . . . . . . . . . . . . . . 131
+J.13 TC-INT-10: End-to-end latency test results . . . . . . . . . . . . . . . . . . . . . 132
+x
+--- PAGE 12 ---
+List of Tables
+2.1 Literature gap analysis: existing systems vs. saathi’s contributions . . . . . . . . 7
+6.1 Functional requirements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+6.2 Non-functional requirements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+6.3 Accessibility design parameter specifications . . . . . . . . . . . . . . . . . . . . 17
+6.4 System components summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+6.5 Response handler types and execution strategies . . . . . . . . . . . . . . . . . 21
+6.6 Action codes and client responses . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+6.7 Knowledge base domain coverage . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+6.8 Security architecture: threat layer and mitigations . . . . . . . . . . . . . . . . . . 30
+7.1 Whisper fine-tuning performance summary . . . . . . . . . . . . . . . . . . . . . 34
+7.2 Nepali speech dataset distribution for Conformer fine-tuning . . . . . . . . . . . . 35
+7.3 Conformer two-stage fine-tuning hyperparameters . . . . . . . . . . . . . . . . . 36
+7.4 Intent classifier model evolution . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+7.5 NLG model attempts — chronological evolution . . . . . . . . . . . . . . . . . . . 42
+7.6 Knowledge base topic distribution (2,081 Rows Total) . . . . . . . . . . . . . . . 43
+7.7 Engineered silence specifications at text boundaries . . . . . . . . . . . . . . . . 44
+7.8 TTS model evaluation and selection . . . . . . . . . . . . . . . . . . . . . . . . . 45
+7.9 Flutter application subsystem summary . . . . . . . . . . . . . . . . . . . . . . . 47
+7.10 Flutter edge case handling for elderly users . . . . . . . . . . . . . . . . . . . . . 48
+7.11 Validation coverage summary across all four layers . . . . . . . . . . . . . . . . . 50
+7.12 System-level black box test cases (Flutter application, end-user perspective) . . 53
+7.13 Component integration test cases (interface boundaries across the full system
+stack) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+7.14 ASR evaluation: three-stage benchmarking summary . . . . . . . . . . . . . . . 55
+7.15 Stage 1: base vs. fine-tuned Conformer on held-out adult set . . . . . . . . . . . 56
+7.16 Stage 2: FLEURS ne_np Benchmark — Whisper vs. Conformer (726 samples) . 56
+7.17 System-wide aggregated performance metrics . . . . . . . . . . . . . . . . . . . 61
+7.18 Task success rate and intent accuracy by functional category . . . . . . . . . . . 61
+7.19 End-to-end latency profiles by pipeline Stage (n = 147) . . . . . . . . . . . . . . 63
+7.20 RAG fallback: qualitative evaluation across six scenario types . . . . . . . . . . . 64
+7.21 Reminder delivery reliability under Android OS state profiles . . . . . . . . . . . . 65
+7.22 UAT participant demographics (n = 7) . . . . . . . . . . . . . . . . . . . . . . . . 66
+xi
+--- PAGE 13 ---
+7.23 UAT ground-truth query scenarios (21 queries × 7 participants = 147 recordings) 67
+7.24 UAT scenario results with FR traceability . . . . . . . . . . . . . . . . . . . . . . . 68
+7.25 Post-session questionnaire results . . . . . . . . . . . . . . . . . . . . . . . . . . 69
+7.26 Post-session qualitative feedback (original Nepali with English translation) . . . . 70
+7.27 Project objective traceability to measured outcomes . . . . . . . . . . . . . . . . 71
+8.1 Measured performance against must-priority targets . . . . . . . . . . . . . . . . 72
+8.2 Nepali ASR on FLEURS ne_np — all systems evaluated on the same public
+benchmark . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 74
+8.3 System strengths: evidence and significance . . . . . . . . . . . . . . . . . . . . 75
+8.4 End-to-end application comparison: Saathi vs. related systems . . . . . . . . . . 78
+10.1 ASR, dialouge and knowledge limitations . . . . . . . . . . . . . . . . . . . . . . 82
+10.2 Deployment and evaluation scope limitations . . . . . . . . . . . . . . . . . . . . 83
+11.1 Near-term future work — highest priority . . . . . . . . . . . . . . . . . . . . . . . 84
+11.2 Near-term future work — medium priority . . . . . . . . . . . . . . . . . . . . . . 85
+11.3 Long-term future research directions . . . . . . . . . . . . . . . . . . . . . . . . . 86
+B.1 Requirement Traceability Matrix) . . . . . . . . . . . . . . . . . . . . . . . . . . . 98
+B.2 Requirement Traceability Matrix (Non-Functional Requirements) . . . . . . . . . 99
+B.3 Requirement Traceability Matrix) . . . . . . . . . . . . . . . . . . . . . . . . . . . 99
+F.1 System prerequisites . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 111
+F.2 Microservice port bindings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 112
+H.1 All 22 intent classes — category, handler, and example queries . . . . . . . . . . 118
+I.1 Post-session questionnaire items (administered verbally in Nepali) . . . . . . . . 121
+xii
+--- PAGE 14 ---
+List of Abbreviations
+AD Anno Domini (Gregorian calendar)
+API Application Programming Interface
+ASR Automatic Speech Recognition
+BS Bikram Sambat (Nepali lunisolar calendar)
+CBA Component-Based Architecture
+CER Character Error Rate
+CTC Connectionist Temporal Classification
+ERD Entity Relationship Diagram
+FSM Finite State Machine
+GGUF GPT-Generated Unified Format (quantised LLM storage format)
+GPU Graphics Processing Unit
+GUI Graphical User Interface
+HCI Human-Computer Interaction
+HMM/GMM Hidden Markov Model / Gaussian Mixture Model
+IPC Inter-Process Communication
+JSON JavaScript Object Notation
+JSONL JSON Lines (newline-delimited JSON)
+LAN Local Area Network
+LMIC Low- and Middle-Income Country
+LLM Large Language Model
+LoRA Low-Rank Adaptation
+mHealth Mobile Health
+NeMo NVIDIA Neural Modules (open-source speech AI framework)
+NFR Non-Functional Requirement
+NLG Natural Language Generation
+NLP Natural Language Processing
+xiii
+--- PAGE 15 ---
+NLU Natural Language Understanding
+ONNX Open Neural Network Exchange
+ORM Object-Relational Mapping
+PEFT Parameter-Efficient Fine-Tuning
+PIN Personal Identification Number
+RAG Retrieval-Augmented Generation
+RNNT Recurrent Neural Network Transducer
+SOS Save Our Souls (emergency distress signal)
+STT Speech-to-Text
+TTS Text-to-Speech
+TSR Task Success Rate
+UI User Interface
+VA Voice Assistant
+VITS Variational Inference with adversarial learning for end-to-end TTS
+VRAM Video Random Access Memory
+VUI Voice User Interface
+WCAG Web Content Accessibility Guidelines
+WER Word Error Rate
+XLS-R Cross-lingual Speech Representations (large-scale multilingual model)
+Keywords: Nepali ASR, Conformer-RNNT, IndicBERT, LoRA, Voice Assistant, Elderly Assistive
+Technology, Low-Resource NLP, Retrieval-Augmented Generation, Hybrid NLG, Fall Detection,
+Offline AI, Bikram Sambat, Flutter, Microservices
+xiv
+--- PAGE 16 ---
+1 Introduction and Context
+There is a constant development of digital and assistive technologies all over the world. Google
+Assistant, Siri, and Alexa have shown their usefulness in assisting people to live independently;
+manage reminders, make calls and access information, just by voice (Hoy, 2018). Voice
+interaction is especially well suited for older users, who are less able to use touchscreens
+because of diminished vision, shaky hands, and cognitive challenges with complex touchscreen
+interfaces (Stigall et al., 2019, Pradhan et al., 2020). Most commercial voice assistants, however,
+are voice assistants for English language and other well-resourced languages, and are developed
+for general population and not by elderly users with specific daily living needs (Shahi and Sitaula,
+2021). This is not a minor difficulty for an older Nepalese speaker, rather it is a real challenge to
+live independently.
+The older Nepalese user’s needs include the basic things to remind him/her about medicine,
+to dial emergency numbers, to provide information on the Bikram Sambat calendar, today’s
+Tithi, and the upcoming festivals, simple health related advice instructions, allowing music to be
+played by voice command, and automatic fall detection and emergency notification. Currently,
+there is no system that offers any of these in Nepali.
+There are a number of interrelated problems to be addressed in building such a system. The
+Nepali language is a low resource language with not many labeled speech resources (Ghimire
+et al., 2024). The Devanagari script results in word level transcription errors that change word
+meaning (Shahi and Sitaula, 2021). Elderly speakers exhibit acoustical properties (slower
+speech, tremor, lower voice level) that make ASR systems, trained on younger adult speakers,
+perform poorly (Vipperla et al., 2010). Response generation needs to be warm, natural and
+factually correct, while not hallucinating on deterministic queries. For privacy and reliability in
+Nepal, an entire system must be operational without any Internet connection.
+Saathi (साथी, which means companion), the design project discussed, tackles all of these chal-
+lenges in an integrated system that was built and tested over 32 weeks of iterative prototyping.
+Key contributions of the design, implementation, and evaluation results are provided in the
+following sections.
+1
+--- PAGE 17 ---
+1.1 Problem Statement
+With a growing population of elderly people (Adhikari, 2023) and high youth migration rates,
+commercial voice assistants fail to provide the same support services for old people (Lamich-
+hane, 2024) due to language barriers (Shahi and Sitaula, 2021, Joshi et al., 2020) and lack of
+age-specific features like medication reminders, emergency auto dial, and culturally relevant
+information (Stigall et al., 2019, Pradhan et al., 2020), preventing this underserved population
+to access assistive AI technology that has become commonplace in high resource language
+communities (Hoy, 2018).
+2 Review of Existing Knowledge
+A literature review of previous academic research was carried out in eight thematic areas. The
+analysis outlines the current extent of knowledge which directly drives this project.
+2.1 Ageing Population and Need of Assistive Technology
+According to the World Health Organization (World Health Organization, 2025), the number of
+elderly people is expected to double by 2050. In Nepal, the elderly population grew from 6.50%
+to 10.21% between 2001 and 2021 (Adhikari, 2023). As the age advances, there is a decrease
+in physical mobility, cognition and memory which has a significant impact on activities of daily
+living (ADL) (Czaja et al., 2006). The deployment of assistive technologies is one of the key
+answers to these challenges and it has been proved that assistive technologies can facilitate
+elderly people’s independence and wellbeing (Antunes et al., 2019, Marasinghe, 2015). The
+demand for automated assistive systems in Nepal is even more pressing and escalating due
+to high youth migration rates affecting family dynamics and leaving elderly parents with lesser
+family support (Lamichhane, 2024).
+2.2 Digital Health and mHealth in Low- and Middle-Income Countries
+With the increasing availability of mobile devices, the use of mobile health (mHealth) services,
+which are delivered through mobile devices, have been rapidly increasing in Low- and Middle-
+Income Countries (LMICs). Källander et al. (2013) examined 23 mHealth studies in LMICs
+and reported voice-based and SMS-based apps yielded significantly higher adoption rates
+among older and less literate audiences due to avoiding the need to read and the cognitive load
+2
+--- PAGE 18 ---
+such reading places. In LMICs, Beratarrechea et al. (2014) determined that automated voice
+reminders for medication adherence had up to a 20% improvement in adherence over standard
+care.
+The digital health landscape in Nepal is growing rapidly: Nepal has witnessed more than 82%
+of the Nepali smartphone market dominated by Android (StatCounter Global Stats, 2024), and
+the government has introduced their Digital Nepal Framework to increase the use of digital
+services in the rural and elderly communities. Recent findings by Acharya et al. (2023) reveal
+that digital health tools in Nepal are mostly in English or in need of a high level of literacy, which
+systematically excludes elderly users. This structural exclusion directly influences this project –
+a voice-first, Nepali language system that is offline means that it doesn’t need to be read and is
+installed on standard Android devices.
+2.3 Voice Assistants for Elderly Users
+Voice User Interfaces (VUIs) have a significant benefit over the traditional Graphical User
+Interfaces (GUIs) when we consider elderly users (Song et al., 2022, Stigall et al., 2019). Due to
+cognitive decline, shaking hands and poor vision, elderly people struggle with using touchscreens
+and complex applications (Pradhan et al., 2020). Voice assistants are shown to be able to be
+adapted to by elderly users, and their adoption is promising for supporting the independent living
+for elderly users (Jakob et al., 2025, Chen et al., 2023).
+Research, however, has also been consistently identifying failure modes that are directly relevant
+to this project. The study of Trajkova and Martin-Hammond (2020) revealed that voice assistants
+often fail to capture the elderly user’s speech and are therefore frequently abandoned after the
+initial frustrations. Knowing what commands the system understands, called discoverability,
+has been a recurring challenge identified by Pradhan et al. (2020). There is one major usability
+issue that occurs with error recovery: when a system misinterprets, users do not know how
+to fix it (Abdolrahmani et al., 2018). All 3 studies have been undertaken with English users of
+English versions. If the language is not in use, the problem is very much greater. Motivating the
+cultural localisation approach taken in this project. Pal et al. (2019) found that culturally based
+interactions boost trust and adoption of digital tools for resource-constrained users in a Global
+South setting.
+3
+--- PAGE 19 ---
+2.4 Speech Technologies for Low-Resource Languages
+Nepali is considered to be a low resource language due to lack of labelled speech data and
+resources (Shahi and Sitaula, 2021, Jha, 2024). Previous research on Nepali ASR employed
+HMM/GMM systems (Sarma and Sarma, 2010, Paudel et al., 2023) that had moderate perfor-
+mance on the isolated-word tasks, were brittle, involved hand-crafted phonetic dictionaries and
+were unable to process conversational speech.
+Things changed drastically when self-supervised and multilingual end-to-end models appeared
+in the field. The speech recognition systems like Wav2Vec 2.0 (Baevski et al., 2020), XLS-
+R (Babu et al., 2021) and OpenAI Whisper (Radford et al., 2023) are able to achieve good
+speech recognition performance with limited amount of Nepali data by transferring knowledge
+from large multilingual pre-training (Srivastava et al., 2018, Williams et al., 2023). Rijal et al.
+(2024) fine-tuned Whisper on Nepali using available public datasets and found significant Word
+Error Rate (WER) improvements. Nepali ASR is an emerging field of study with the availability
+of open-source Nepali speech datasets on Hugging Face, such as community-contributed
+corpora by pujanpaudel (2024), amitpant7 (2024), shunyalabs (2024), and maharjanabeeral
+(2024).
+In the comprehensive survey of Nepali ASR by Ghimire et al. (2024, 2023), it is noted that as
+the fine-tuning data gradually becomes larger and larger for Nepali tasks, transformer based
+encoder architectures do not perform as well as previously. This indicates that for tasks that
+are primarily targeted towards multilingual coverage, there is an upper limit on the amount of
+fine-tuning that can be done. The Conformer architecture (Gulati et al., 2020) overcomes this
+ceiling. Conformer models outperform existing speech recognition models on conversational and
+informal speech by leveraging Multi-Head Self-Attention to capture long-range acoustic context
+and convolutional layers to model local acoustic patterns like phoneme boundaries. NVIDIA’s
+NeMo framework (NVIDIA, 2023) offers to the production community two stage fine-tuning
+modes: Training the decoder to the target language with the encoder frozen (Stage 1), and
+unfreezing the whole model for a deeper fine-tuning (Stage 2). This incremental process is
+especially appropriate in low resource areas where fine-tuning from a random initialisation might
+lead to over-fitting.
+4
+--- PAGE 20 ---
+2.5 Acoustic Challenges of Elderly Speech
+One of the main challenges for this project is the acoustic difference between the training data
+and target users. The findings by Vipperla et al. (2010) indicate that elderly speakers have a
+higher ASR WER than younger adults because of breathiness, tremor and slower articulation
+that is a result of physiological changes associated with aging (Presbyphonia). There is no public
+elderly Nepali speech corpus, so that ASR model trained in this project is based on general
+Nepali data. It is recognised that this mismatch is a limitation and ’formal elderly user evaluation’
+validates this.
+2.6 Intent Classification and Parameter-Efficient Fine-Tuning
+Task-oriented dialogue systems rely heavily on the ability to detect the intent. Liu and Lane (2016)
+demonstrated that attention-based recurrent networks perform better than simpler classifiers
+for the joint intent and slot detection task. Chen et al. (2019) showed that fine-tuning BERT
+significantly boosts the accuracy of intent detection on various datasets. In the context of
+task-oriented voice assistants for daily living situations, intent classification needs to accurately
+classify a diverse set of naturally-phrased queries, including queries of special concern, such as
+‘emergency help’ where misclassification has real-world implications.
+Hu et al. (2022) proposed the concept of LoRA (Low-Rank Adaptation) which adds low rank
+matrices to the attention scores of a pre-trained model while keeping the pre-trained parameters
+unchanged, making the number of trainable parameters fall to around 99%. This enables
+fine-tuning a billion parameter model to be done on a single consumer GPU. There is not much
+accuracy loss like Hu et al. report in several datasets when compared to full fine-tuning.
+IndicBERT-v3 is a 1 billion parameter model pretrained on hundreds of billion Indic language
+tokens comprising Nepali tokens released by the AI4Bharat group (Doddapaneni et al., 2023). It
+is significantly easier to adapt for Nepali intent classification due to its pre training on Indic script
+and grammar. The results show that the multiple intent classification approaches evaluated
+showed plateau at around 80% accuracy on the 21 intent classification on MuRIL (Khanuja et al.,
+2021), while DeBERTa (He et al., 2021) achieved 97.6% on 5 coarse intents classification but
+does not scale with increase in model size, indicating that architecture and language-specific
+pre training plays a more important role than model size alone.
+5
+--- PAGE 21 ---
+2.7 Retrieval-Augmented Generation
+Lewis et al. (2020) introduced RAG, a method that merges dense retrieval with autoregressive
+generation to provide factual grounding for the output of LLMs—mitigating hallucination on
+factual queries, but also addressing open-ended queries which do not have an explicit answer
+in a single document. Reimers and Gurevych (2019) proved that the bi-encoder sentence
+transformer generated embeddings that enabled efficient semantic retrieval, while Nogueira
+and Cho (2019) found cross-encoder reranking to be a very effective approach to boosting the
+precision by scoring the entire query-document pair.
+2.8 Fall Detection
+Casilari et al. (2017) reviewed wearable fall detection techniques, and concluded that threshold-
+based methods on the resultant vector magnitude of the accelerometer are relatively simple to
+compute and have acceptable sensitivity/specificity. Acceleration peaks during normal walking
+are 12–20 m/s2, and during a fall are 30–60 m/s2
+. Hijaz et al. (2010) combined fall detection and
+automatic emergency calling, and demonstrated that automatic response effectively reduces
+the delay between fall event and the first emergency call.
+2.9 Critical Analysis and Gap Identification
+The research gap that has emerged from existing work consists of three limitations. One of
+the reasons for this is because almost all voice assistant research has been conducted in
+high-resource languages, and there is no working and deployable voice assistant for Nepali
+language (Shahi and Sitaula, 2021). Second, there is no validation of any Nepali ASR system for
+elderly speakers, and there is no attempt to deal with the acoustic mismatch between the training
+data and the elderly target users for Nepali. Third, none of the components that are needed for
+elderly daily living in Nepal, such as medication reminders with voice confirmation, hands-free
+emergency calling, fall detection, Bikram Sambat calendar support, elderly-paced TTS, and
+local privacy-preserving operation are integrated in a single deployable application.
+A structural comparison of current implementations in literature to the target contributions
+collected by Saathi are given in Section 2.9.
+6
+--- PAGE 22 ---
+Category Existing Structural
+Limitations
+Saathi’s Unified Contribution
+Commercial VAs
+(Alexa, Siri,
+Google)
+No native pipeline support and
+is cloud dependent, no native
+cultural calendar mappings, no
+local fall tracking facilities.
+End to end ASR Nepali to Conformer,
+ASR Custom Language Nepali, ASR
+Specialized Language Nepali, Stand-
+alone network operation, Bikram Sam-
+bat support and automated count down
+SOS calling.
+Isolated
+Research ASR
+Distributed simply only as
+back-end models; without any
+optimization for old acoustic
+properties; without any front-end
+interactive UI loops.
+Combined application with speech
+pipelines and easy-to-access Flutter
+front end; structured 22-intent opera-
+tional routing layers.
+Regional Models
+(AI4Bharat
+Prototypes)
+Only academic research API
+checkpoints with no direct
+deployment frameworks for
+off-grid mobile architectures.
+Combinable lightweight microservices
+backend engines power real-time na-
+tive device channels localized execution
+layer combining.
+Wearable Fall
+Detection
+Systems
+Completely separated from the
+vocal assistant environments or
+response loops and uses closed
+hardware.
+Built-in realtime background accelerom-
+eter parsing, triggering local SOS count-
+down workflows automatically during
+voice app-layer operation.
+Table 2.1 Literature gap analysis: existing systems vs. saathi’s contributions
+2.10 Project Justification
+This project seeks to address this lacuna by creating and introducing a voice assistant application
+for elderly persons, which is localised in Nepal. The system enables the feasibility and effective-
+ness of integrating cutting-edge Indic language models, Conformer ASR, retrieval-augmented
+generation, and user interaction design for the elderly in a low-resource, high-need system,
+while keeping the cloud budget and engineering team small.
+7
+--- PAGE 23 ---
+3 Project Aims, Objectives, and Scope
+3.1 Project Aim
+This is a project that aims to design, develop and test a voice assistant specifically for the needs
+of senior citizens in the use of the Nepali language for an active, independent life.
+3.2 Project Objectives
+1. Fine tuning a Conformer-RNNT model (NVIDIANeMo) on a custom built and open source
+Nepali speech database to build a voice user interface in the Nepali language for the
+classification of 22 classes of intents associated with everyday tasks of the elderly.
+2. To remind the user about his/her activities, such as taking medicine at a specific time, to
+speak it out slowly and clearly in Nepali using the open source Sherpa-ONNX VITS TTS
+engine and to verify with a voice when he/she responds.
+3. To enable a 100% hands free service to make emergency calls and to dial the number of the
+family member, the application will use a countdown and will automatically dial the number
+of the family member when the user gives an emergency call.
+4. To develop the functionalities into the system such as Date Checking, Bikram Sambat Cal-
+endar and Festival Information, Weather and Music Playback using microservices backend
+& Native Android APIs.
+5. To test the entire system with a minimum of 5 real users (60+ years) in Nepal. Task Success
+Rate, Intent classification accuracy, and system latency will be used for this evaluation.
+When implemented, the technologies and extent of scope pertaining to each objective can be
+more specific through iterative prototyping.
+4 Project Scope
+The project is conceived as a research prototype for an unserved user group: elderly people, who
+are independent, Nepali speaking and have limited or no access to the internet in Nepal and only
+communicate vocally in Nepali. The scope is intentionally limited, in this way to give this context
+as much depth as possible, rather than a breadth in terms of the number of use-cases.
+8
+--- PAGE 24 ---
+In scope: a fully functional Android App which can understand natural spoken Nepali commands
+in 22 intents, voice controlled medication reminder in dual mode with confirmation, hands-
+free emergency calling, falls detection by using an accelerometer, Bikram Sambat calendar,
+time, weather, health support, and a formal evaluation with elderly persons in Nepal. The
+system does not have to depend on data transmission from external sources, but rather on a
+local WiFi network, intentionally so, because it is not a limitation of the resources available, in
+accordance with the privacy and reliability requirements of the context in which the system is
+being used.
+Out of scope by principled decisions: iOS deployment (Android is more than 82% of the
+smartphone market in Nepal (StatCounter Global Stats, 2024) and would be a ineffective to
+develop an app for iOS); commercial-grade scalability (this is a research contribution and not
+expected to be the release of a product); IoT integration and medical-monitoring certification
+(outside of the project schedule and commercialization requirements for an undergraduate
+prototype). For a pilot feasibility test, it is appropriate for the number of participants involved in
+the formal evaluation to be larger than the stated minimum, which is not the case for large-scale
+user evaluations exceeding the stated minimum. The heuristic that Nielsen (1994) states that
+the required number of users to find usability problems is 5-7 is only applicable for recognizing
+usability issues, and is not a general rule to validate the success of a task or the safety of a
+feature. The evaluation is then conducted in a pilot study, which is sufficient to uncover major
+usability issues and to estimate system-level TSR, but not be used to prove the safety of the
+system, which would require a much larger and more demographically diverse population for a
+proper validation.
+5 Project Design
+5.1 Design and Methods
+Overall Approach
+This project is using an Iterative Prototyping Methodology. The main deliverables are a running
+software system, namely Nepali voice assistant designed for elderly Android users which
+can be deployed locally. The major components (ASR, intent classifier, response generation,
+TTS, mobile application) will be constructed as separate prototypes, tested quantitatively and
+9
+--- PAGE 25 ---
+optimized and replaced prior to integration. An iterative approach is selected over waterfall
+since the performance of the ML components is not predictable before training. Progress will
+be monitored and decisions will be made at supervisor meetings and kept in sync with project
+objectives. A planned iterative development cycle was applied to each of the components
+of the study. The different elements of the study were iteratively designed as illustrated in
+Figure 5.1.
+Figure 5.1 Initial project design — iterative prototyping model
+Data Required
+There are two types of data for the project. For fine tuning the ASR models in Nepali language
+(pujanpaudel, amitpant7, shunyalabs, maharjanabeeral) speech data from Hugging Face and
+OpenSLR is resampled to 16kHz mono WAV and quality filtered. Second, a custom Nepali Intent
+Classification (IC) dataset with all the planned intent classes containing two or more phrases
+per class both in the formal and informal registers.
+Methods by Objective
+• ASR and Voice Interface (Objective 1): Pre-trained multilingual speech model will be
+fine-tuned on Nepali data with HuggingFace Transformers or NVIDIA NeMo. The best model
+was then used to develop a FastAPI microservice, that will be tested on a held out test set
+10
+--- PAGE 26 ---
+on multiple architectures with WER and CER. IndicBERT-v3-1b model will be used for intent
+classification, which will be fine-tuned with the custom dataset using LoRA adapter. Dart
+and the Provider pattern will be used to implement Flutter Android App.
+• Medication Reminders (Objective 2): There are two modes: normal (TTS alert with stop
+button) and voice confirmation (TTS prompt requiring spoken response). Reminders will
+utilize the local TTS of Nepali language in the native alarm APIs of Android. This will be
+tested in 40 cases, including Android Doze Mode.
+• Emergency Calling (Objective 3): Voice activation SOS with dual emergency path and fall
+detection via accelerometer offer two alternative pathways to emergency. The accuracy of
+the routeing is measured in Section 7.2.
+• Date, time, and music (Objective 4): The data for time/date comes from the backend
+handlers and a pre-computed calendar JSON file that provides Bikram Sambat date and
+tithi/festival information, while weather data is obtained from Open-MeteoAPI (Open-Meteo,
+2024). The playback of music is done using the package just_audio with a voice-keyword
+song matching.
+• User Evaluation (Objective 5): A formal study of 5+ users aged 60+ in Nepal for 5 represen-
+tative tasks: remind, time, today’s tithi, song, SOS countdown. The main criterion that will be
+used will be Task Success Rate, with structured Nepali interviews focusing on voice clarity,
+naturalness and ease of use. The ethics procedures of the BCU applies: verbal consent,
+anonymised data, there are no real emergency numbers and the sessions are less than 30
+minutes.
+5.2 Justification of Methods
+• Iterative Prototyping instead of Waterfall: Waterfall has all the decisions made beforehand,
+which is incompatible with the ML development, where the accuracy cannot be predicted
+before training. Agile Scrum was thought to be but discarded as it was designed for team
+development; continuous iterations and periodic checks with the supervisor were better
+suited for this solo job.
+• Transfer learning over training from scratch: This project is not capable of training from
+scratch since it would need millions of examples and months of compute. For low-resource
+NLP, the competitive Nepali performance of the fine-tuned multilingual pre trained models
+(NeMo Conformer, IndicBERT-v3) comes at a much lower cost.
+11
+--- PAGE 27 ---
+• LoRA over Full Fine-Tuning: IndicBERT-v3-1B requires 40+ GB VRAM to be fully fine-
+tuned, whereas the project has 8 GB VRAM. Given LoRa’s low number of parameters, it
+is possible to fine-tune the model on consumer hardware. It is chosen over adapter and
+prefix tuning for its better intent classification test results and established HuggingFace PEFT
+tooling.
+• Hybrid NLG over Pure LLM/Rule Based: Responses based on rules work well but fail
+to produce the natural Nepali required for sensitive situations. LLM responses are slow
+and costly, and hallucinate for factual queries. A hybrid: Python handlers for deterministic
+queries, LLM persona prompting for open-ended responses, and RAG for out-of-vocabulary
+queries is accurate, warm and has high coverage.
+• Microservices instead of Monolithic Backend: Running separate FastAPI services in
+isolated virtual environments will enable updating each service with minimal or no risk of
+disrupting other services, and will provide the option to scale or replace each service without
+affecting the others (Fowler and Lewis, 2014, Newman, 2015).
+• Flutter over Native Android or React Native: Native Android is deep integration with high
+costs of development, and no iOS path. React Native was turned down due to dynamic
+typing dangers and native audio capabilities are not as robust as its native counterparts. In
+Flutter, all the features are available as mature packages, and there is a single codebase in
+Flutter (Google LLC, 2018).
+• Local Network over Cloud APIs: Cloud services provide higher accuracy but are rejected
+on two points: privacy: transmitting elderly users’ voice data to foreign servers without
+meaningful informed consent is impractical; reliability: inconsistent connectivity in rural Nepal
+is not suitable to a safety critical application.
+• Formal Elderly User Study: Testing with young or adult is not an alternative to the actual de-
+mographic. There are systematic differences between elderly speech and general-population
+speech data, and safety-critical features need to be validated in the real world. Thus, the
+objective of the project is to conduct tests with 5+ participants aged ≥ 60 years in Nepal.
+12
+--- PAGE 28 ---
+6 Artefact Design
+6.1 Design Specifications
+The requirements were obtained using a structured User-Centred Design (UCD) process with
+three consultation rounds. The two elderly informants (aged 60 and 61) experienced four main
+pain points in their daily lives in round 1, an informal structured interview: missed medication,
+not being able to contact family during falls, difficulty reading small text on the phone, and lack
+of familiarity with the day of the week (Bikram Sambat) in digital codes. Paper prototypes of
+the home screen were then shown to the same set of participants in Round 2 and feedback
+confirmed that a single large button was preferred over a menu-driven interface and any spoken
+response that requires shorter than conversational time is confusing. In round 3, caregiver
+pin-protected admin panel and configurations were designed.
+ID Requirement Obj. Priority Acceptance Criterion
+FR-01 FR-02 FR-03 FR-04 The system shall convert speech to
+text with reasonable accuracy for down
+stream intent classification in Nepali
+language.
+The system shall correctly classify the
+22 Nepali spoken intents related to the
+daily life of the elderly, with a degree
+of confidence of ≥ 0.30.
+The system shall provide culturally
+relevant and linguistically accurate
+Nepali, in an elderly appropriate style.
+The system shall provide TTS gener-
+ated Nepali output re responses within
+an instant.
+1 Must WER < 30% on held-out test sam-
+ples
+1 Must Classification accuracy > 85% on
+held-out validation set
+1 Must Responses ≤ 2 sentences; warm
+persona applied consistently
+1 Must TTS audio returned within 1 sec-
+ond for typical responses
+FR-05 The system shall reliably fire voice
+commissioned medication reminders
+at the appropriate time.
+2 Must ≥ 95% of reminders fire within the
+120-second grace window
+13
+--- PAGE 29 ---
+ID Requirement Obj. Priority Acceptance Criterion
+FR-06 FR-07 The system shall have two reminder
+modes, Normal (stop button) and
+Voice Confirmation (spoken reminder
+required).
+The system shall enable hands free
+emergency dial with an audible voice
+command and auto-dial with a count-
+down.
+2 Must Both modes functional; voice con-
+firmation audio logged
+3 Must SOS countdown displayed; auto-
+dial triggers on expiry
+FR-08 When the system detects a fall through
+the device accelerometer, the device
+shall initiate a countdown for an SOS
+signal without the need for voice input.
+FR-09 The system shall be able to an-
+swer questions regarding date, time,
+weather, tithi, festival, health, news
+and music through sound.
+FR-10 The system shall support music play-
+back via voice command with out audio
+collision with TTS re sponses.
+FR-11 The system shall have the capability
+to store one time user onboarding with
+the user’s name and emergency con-
+tact number.
+3 Must Falls detected above threshold;
+cancellable countdown before
+auto-dial
+4 Must All query types handled with real-
+time data where applicable
+4 Should TTS given audio priority; music
+resumes after response
+1 Should Login screen shown once; data
+persisted in local database
+FR-12 The system will have a PIN secured
+Admin Panel for system configuration
+for a caregiver.
+1 Should Admin panel accessible only after
+correct PIN entry
+14
+--- PAGE 30 ---
+ID Requirement Obj. Priority Acceptance Criterion
+FR-13 All interactions should be recorded in
+the system with per-stage latency to a
+local database.
+1 Should Every query logged with STT,
+NLP, and TTS latency columns
+Table 6.1 Functional requirements
+ID Requirement Priority Acceptance Criterion
+NFR-01 The end to end response time should be less
+than 15 seconds in consumer hardware.
+Must Measured across 20
+representative queries; all
+within target
+NFR-02 The entire pipeline will be run with local Wi-Fi
+but no internet connection.
+Must All ASR, NLU, TTS, and
+database components run
+locally
+NFR-03 No voice data from user shall be sent to ex-
+ternal servers.
+Must Zero external API calls for
+voice or personal data
+NFR-04 Contrast within the UI will adhere to accessi-
+bility standards, WCAGAAA, that are suitable
+for elderly users.
+Must High-contrast colour
+palette; large touch
+targets; Nepali labels
+NFR-05 The presentation of TTS output shall be at
+a pace that is suitable for elderly users who
+have slower processing speeds.
+Must Speech rate and pause
+durations adjusted for
+elderly comprehension
+NFR-06 Reminders will reliably start even if the An-
+droid device goes into Doze Mode
+Must Dual-channel firing
+mechanism to overcome
+OS deferral
+Table 6.2 Non-functional requirements
+15
+--- PAGE 31 ---
+6.2 Artefact Structure, Architecture, and Framework
+6.2.1 Software Engineering and HCI Design Methodology
+The artefact is a product of two methodological frameworks. From the software engineering point
+of view, a Component Based Architecture (CBA) isolates each concern (speech recognition,
+intent classification, response generation, speech synthesis) as a separate deployable unit with
+well-defined interface. This directly supported the project’s most important architectural turn,
+where Whisper was swapped with Conformer without changing anything in the Flutter client or
+TTS service.
+The interface at the Human-Computer Interaction (HCI) level is based on accepted principles of
+elderly-friendly design. The home screen follows Fitts’s Law (Fitts, 1954, Stigall et al., 2019,
+Siek et al., 2005) by restricting the number of buttons on the home screen to just two: a large
+microphone button and an SOS button. Contrast standards are used throughout following
+WCAG AAA requirements with a colour scheme of orange on dark (World Wide Web Consortium,
+2023).This concrete accessibility parameter is summarized in Table 6.3.
+Figure 6.1 Software engineering and HCI design methodology
+16
+--- PAGE 32 ---
+Figure 6.2 Use case diagram for the Saathi voice assistant application
+Parameter Specification Rationale
+Minimum touch
+48dp Fitts’s Law; tremor accommodation for el-
+target
+derly hands
+Font scale 1.3× system default Low-vision compensation; large Devanagari
+glyphs
+Contrast ratio ≥ 7:1 (orange-on-dark) WCAGAAA; elderly retinal sensitivity decline
+Activation mode Single-tap only Eliminates swipe, long-press, and gesture
+errors
+Navigation Persistent bottom bar TTS speech rate 120–140wpm
+(LENGTH_SCALE 1.55)
+Sentence pause 280 ms (comma) – 520 ms
+(?)
+Cognitive load reduction; no nested menus
+Recommended rate for elderly listener
+comprehension (Pichora-Fuller and Souza,
+2003)
+Boundary demarcation for reduced auditory
+processing speed
+Table 6.3 Accessibility design parameter specifications
+17
+--- PAGE 33 ---
+6.2.2 Overall Architecture
+Figure 6.3 System architecture diagram
+Figure 6.4 UML activity diagram of the Saathi runtime loop and component processing
+18
+--- PAGE 34 ---
+Component Technology Port Role
+ASR Service NVIDIA NeMo
+Conformer-RNNT
+Main NLU API FastAPI + IndicBERT-
+v3-1B + LoRA + Qwen-
+3.5 9B GGUF + Qdrant
+TTS Service Sherpa-ONNX ne_NP-
+chitwan-medium
+8002 POST /transcribe — 16 kHz
+WAV in, Nepali text out
+8000 Orchestrates full pipeline:
+classification → dispatch →
+generation → action mapping
+8001 POST /generate — Nepali text
+in, elderly-paced WAV out
+In main 22-class softmax; confidence <
+0.30 → RAG fallback
+In main Real-time data fetch + elderly
+persona LLM prompt
+Intent Classifier IndicBERT-v3-1B +
+LoRA adapter v2
+Inform Handlers (18) Python
+dynamic_utils +
+Qwen-3.5 9B GGUF
+Command Handlers (3) Qwen-3.5 9B GGUF
+via llama_cpp
+RAG Fallback Qwen3-Embed 0.6B +
+Qdrant + MiniLM-L12-
+v2
+Knowledge Base CSV 2,081 rows →
+Qdrant vector index
+In main In main 2-call LLM: JSON extraction then
+Nepali confirmation
+Knowledge base retrieval +
+reranking + LLM generation
+Database SQLAlchemy ORM →
+PostgreSQL
+Flutter App Flutter/Dart + Provider
+pattern
+Local Nepali QA: health, calendar,
+emotional support, emergency
+Local 13-table schema covering full
+interaction lifecycle
+Android 7 screens, 5 background
+services
+Table 6.4 System components summary
+19
+--- PAGE 35 ---
+6.2.3 NLU Pipeline Design
+The design of NLU pipeline is shown in Figure 6.5
+Figure 6.5 UML sequence diagram of the Saathi NLU pipeline loop
+20
+--- PAGE 36 ---
+Type Count Intents Covered Approach
+Inform 18 Time, date (BS/AD),
+weather, tithi, festival, health,
+news, jokes, stories, radio,
+location, country info,
+assistant persona
+(get_assistant_info),
+greeting (handle_greeting)
+dynamic_utils() fetches real-time
+data → elderly persona LLM prompt →
+Nepali sentence (≤100 tokens, temp
+0.2)
+Command 3 set_reminder_task,
+start_call,
+sos_emergency
+2-call LLM: Call 1 extracts structured
+JSON; Call 2 generates Nepali confir-
+mation; 3-layer defensive parser
+RAG Fallback 1 handle_fallback (classifier
+confidence < 0.30)
+Query segmentation → Qdrant top-20
+→ MiniLM reranking → LLM with top-3
+context + elderly persona
+Table 6.5 Response handler types and execution strategies
+Action Code Flutter Behaviour
+play_audio Decode base64 WAV; play via audioplayers
+set_reminder Parse JSON (date, time, topic, mode); schedule via ReminderService
+make_call Resolve contact name via fuzzy match; dial via
+flutter_phone_direct_caller
+play_music Keyword match via playSongByName(); start just_audio playback
+sos_countdown Full-screen _SosCountdownDialog; auto-dial emergency contact on expiry
+show_message Display Nepali text; play TTS audio if present
+Table 6.6 Action codes and client responses
+21
+--- PAGE 37 ---
+6.2.4 ASR Service Design
+The ASR service is based on a two-stage fine-tuned NeMo Conformer-RNNT model which is
+chosen over Whisper for better conversational speech performance and parallelised low-latency
+inference. Two-stage fine-tuning — Stage 1: Encoder is frozen, and Stage 2: Full Encoder
+unfrozen — helps reduce the risk of overfitting the low-resource setting.
+Figure 6.6 ASR service design architecture
+22
+--- PAGE 38 ---
+6.2.5 TTS Service Design
+The TTS service applies custom acoustic wrapping to Sherpa-ONNX (k2-fsa, 2024) using the
+Chitwan-NP VITS model (Kim et al., 2021) with an additional acoustic wrapper for elderly-specific
+pacing, Devanagari number normalisation and engineering pauses at sentence boundaries.
+Interrogative sentences are used with pitch modulation. The length_scale of 1.55 generates an
+output in the range of 120-140 words per minute (wpm), in line with the recommendations of
+speech-rate for elderly listeners with poor auditory processing speed (Pichora-Fuller and Souza,
+2003).
+Figure 6.7 TTS service design architecture
+23
+--- PAGE 39 ---
+6.2.6 Emergency Calling and SOS System Design
+Two independent emergency pathways are found because under stressful conditions, elderly
+users in a medical emergency might not be able to communicate and articulate voice com-
+mands.
+Pathway 1 — Voice-Triggered SOS: API will return an sos_countdown action, when the
+classifier routes a query to sos_emergency or start_call. FlutterPhoneDirectCaller process the
+countdown perfectly and displays a full screen countdown overlay, which, if not canceled in 10
+seconds, automatically dials the emergency contact number, without any hands.
+Figure 6.8 Emergency calling system: voice-to-sos flow diagram
+Pathway 2 — Fall Detection Auto-Trigger: magnitude of the accelerometer R, which is dynamically calculated as:
+The FallDetectionService reads the resultant
+R= x2 + y2 + z2
+If R is > 35.0 m/s2, a sequenced wake and call pipeline is fired: WakelockPlus keeps the CPU
+from sleeping, a full screen intent notification wakes the display, a count down is triggered in
+the UI isolate by an IPC event, on expiry, dual calls are fired from Activity context via Flutter-
+PhoneDirectCaller and a fallback AndroidIntent(CALL) via the background service to ensure
+the call completes even when the UI thread is dead. The threshold of 35.0 m/s2 is below the
+reported fall floor of 38 m/s2 (Casilari et al., 2017, Hijaz et al., 2010) to allow for a safety margin
+for real world falls which could have lower peak acceleration than the laboratory drop tests (e.g.
+falls onto soft surfaces, partial catches).
+24
+--- PAGE 40 ---
+Figure 6.9 UML sequence diagram of accelerometer fall detection and emergency SOS countdown
+6.2.7 RAG Fallback Design
+The RAG fallback is used for queries not in the 22 classes trained or when the classifiers
+are not very confident in their answers (typically less than 0.30), and follows a three-stage
+process:
+• query segmentation for Nepali conjunctions for independent sub-topic retrieval;
+• dense retrieval using Qwen3-Embedding 0.6B and Qdrant (Qdrant, 2024) with top-20 candi-
+dates retrieved using bilingual composite embedding strings (NEPALI: question | ENGLISH:
+english_q | INTENT: intent) — a novel approach that benefits from English pre-training and
+maintains the Nepali semantic content of the embedding;
+• Reranking, filtering below 0.30 and top-3 injection to the Qwen-3.5 LLM call with prompt
+elderly for the personalization.
+25
+--- PAGE 41 ---
+Figure 6.10 RAG fallback pipeline architecture
+6.2.8 Knowledge Base Design
+The RAG fallback is based on a manually written bilingual CSV knowledge base, but every row
+has a Nepali question, its English translation, a Nepali answer, and a label for the domain. In
+26
+--- PAGE 42 ---
+medical rows, there is a compulsory instruction from the doctor, where the doctor will refer to the
+patient about any symptom that might suggest a serious condition.Section 6.2.8 summarises
+domain coverage.
+Domain Coverage
+Health & Medical Medication side effects, home remedies, chronic conditions, mandatory
+doctor-referral triggers
+Calendar & Festivals Bikram Sambat tithis, major Nepali festivals, auspicious days
+Emotional & Social Loneliness, family conflict, grief, spiritual comfort
+Emergency & Safety Emergency numbers, fall prevention, overdose guidance
+General Daily Living Local geography, weather interpretation, Nepali proverbs, miscellaneous
+queries
+Table 6.7 Knowledge base domain coverage
+6.2.9 Dual-Channel Reminder System Design
+Two separate firing channels ensure that reminders are sent even if Android Doze Mode is in
+effect. Channel 1 uses FlutterLocalNotificationsPlugin.zonedSchedule() with exactAllowWhileI-
+dle. A 5-second in-app polling timer with a grace window of 120 seconds is used to prevent
+Channel 2 from double-firing via a lastFiredKey map. Voice Confirmation mode causes a TTS
+confirmation prompt to be triggered and it is expected that a verbal answer be given; the answers
+are logged to CONFIRMATION_RECORDINGS.
+27
+--- PAGE 43 ---
+Figure 6.11 Dual-channel reminder system design flow
+28
+--- PAGE 44 ---
+6.2.10 Frontend State Management and Intent Orchestration
+A MultiProvider tree is used to provide 8 different domain-specific ChangeNotifier singletons. The
+AppCallbackWirer widget is used to wire typed callbacks from VoiceService to each downstream
+service: ReminderService, ContactService with fuzzy matching, MusicService, SosCountdown-
+Dialog. AudioSession will give priority to TTS over music playback.
+Figure 6.12 Flutter application architecture
+29
+--- PAGE 45 ---
+6.2.11 Security and Privacy Architecture
+All voice data is handled only on the local network and not sent to external servers (NFR-03).
+We didn’t implement TLS between services as a scope decision. The following compensation
+controls are used as substitutes.
+Layer Threat Mitigation
+Transport Unencrypted LAN traffic In this case, the isolated SSID
+(WPA2-PSK); FastAPI is bound to
+192.168.x.x without WAN route; X-
+API-Key header is shared between
+Flutter and all microservices.
+Storage Credential exposure PostgreSQL only binds to
+127.0.0.1*.env not controlled
+by version control, and stored in
+caregiver-managed device storage.
+Authentication Unauthorised admin access Scheduling: Caregiver PIN
+bcrypt-hashed with salt in
+USER_SETTINGS, all logins recorded
+in ADMIN_ACCESS_LOGS, auto-locking
+occurs after 30 s of inactivity.
+Physical Device theft The device is not synchronized with
+cloud or accessible from the care-
+giver’s device.
+Table 6.8 Security architecture: threat layer and mitigations
+The predominant risk is an intruder within the same LAN segment. This is OK in the scenario we
+want to deploy the code into a private home Wi-Fi network, but this would need to be TLS and
+mutual authentication before deploying this to an institutional or multi-household setup.
+30
+--- PAGE 46 ---
+6.2.12 Database Schema Design
+The persistence layer is based on SQLAlchemy ORM and PostgreSQL (and not SQLite as this
+could cause problems when using it concurrently with many other services), and is based on 13
+Domain Driven Design tables:
+• Identity and Configuration: USERS, USER_SETTINGS, ADMIN_ACCESS_LOGS
+• Communication Operations: CONTACTS, CALL_LOGS, SOS_EVENTS
+• Medical Reminders: REMINDERS, REMINDER_LOGS, CONFIRMATION_RECORDINGS
+• Media Tracking: MUSIC_PLAYLIST, MUSIC_PLAY_EVENTS
+• Analytical Auditing: CONVERSATION_LOGS, RAG_FEEDBACK
+Figure 6.13 Database ERD — 13-table schema with domain-driven design groupings
+31
+--- PAGE 47 ---
+7 Implementation
+7.1 Construction of the Artefact
+Implementation followed iterative prototyping across three phases. All development, training,
+and inference were performed on an Intel Core i9 14th-generation processor with an NVIDIA
+RTX 4060 GPU (8 GB VRAM).
+Figure 7.1 Iterative prototyping cycle diagram
+7.1.1 Phase 1: Research, Technology Selection, and Initial Prototyping
+Four publicly available Nepali speech datasets were tested for audio quality, transcription align-
+ment, speaker diversity and size and pujanpaudel/nepali_speech_to_text was chosen as the
+mainASR source. The benchmarking for the naturalness, Devanagari number pronunciation and
+inference speed was performed for five TTS models. As proof of concept, A five-class IndicBERT
+intent classifier was used as proof of concept to confirm the direction of the NLU.
+7.1.2 Phase 2: Core Component Development
+Automatic Speech Recognition — Whisper Experiments.
+32
+--- PAGE 48 ---
+Transcripts were unified and non-Devanagari characters were removed from four Hugging-
+Face datasets, short or overlong samples were removed, and all audio was resampled to
+16 kHz. The Whisper encoder was completely frozen, and training only the decoder with
+gradient_checkpointing, fp16 and batch size 16.
+Figure 7.2 Whisper fine-tuning: dataset preparation summary
+Figure 7.3 Whisper fine-tuning: training loss curves
+Three runs on progressively larger datasets produced no meaningful improvement, plateauing
+near 48–49% WER:
+33
+--- PAGE 49 ---
+Model Dataset WER
+Whisper Small pujanpaudel partial (500 steps) Whisper Small pujanpaudel full (500 steps) Whisper Small 4 datasets combined, 31,210 samples (1,500 steps) 49.90%
+47.73%
+48.56%
+Table 7.1 Whisper fine-tuning performance summary
+This plateau is similar to the architectural ceiling that was reported by Ghimire et al. (2024). The
+high inference latency of Whisper on the target hardware, consistently over 15 s per query for
+the RTX 4060, however, prevented real-time deployment, even with WER, and the architecture
+was ported to the NeMo Conformer Hybrid RNNT/CTC model.
+Automatic Speech Recognition — Conformer
+Data Preparation and Processing: The Conformer corpus consists of three datasets which
+are selected for complementary strengths: pujanpaudel is a verified high quality base-line with
+clean devanagari transcriptions; biplov-thapa nepali-tts-streamable is conversational audio-
+transcription pairs to broaden acoustic coverage; and Jenny038/nepali-training-data provides
+large volume diverse speaker data, which should be able to be custom FLAC error handling to
+ignore corrupted frames gracefully. All audio has been resampled to 16 kHz, mono; Clips shorter
+than 0.5 s (or longer than 15 s) were discarded; Cross-dataset deduplication was performed
+using MD5-hashing of raw audio bytes. The final corpus was divided and written into NeMo
+JSONL-manifests where pujanpaudel test was isolated as held-out evaluation corpus.
+34
+--- PAGE 50 ---
+Dataset Utterances Hours Role
+pujanpaudel 152,100 110.80 Primary baseline; test split
+isolated
+biplov-thapa 7,840 5.72 Conversational diversity
+Jenny038 6,238 5.73 Large-volume diverse speak-
+ers; FLAC workaround ap-
+plied
+Train / Val / Test 162,249 / 3,311 / 618 118.10 / 2.42 / 1.73 2% validation split; held-out
+test isolated
+Total 166,178 122.25 16 kHz mono WAV, NeMo
+JSONL manifests
+Table 7.2 Nepali speech dataset distribution for Conformer fine-tuning
+Fine-tuning:
+Figure 7.4 Conformer ASR two-stage fine-tuning pipeline
+35
+--- PAGE 51 ---
+The reason for using a runtime monkey-patch was that the multilingual base model requires a 6-
+item batch tuple, but the NeMo data loader returns a 4-item tuple. In the training step, validation
+pass, RNNT joint, and CTC decoder forward methods, the patch adds Nepali language code to
+the corresponding methods without changing the source of NeMo.
+Parameter Stage 1 Stage 2
+Encoder Frozen Unfrozen
+Learning Rate 1 × 10−4 2 × 10−5
+Warmup Steps 500 1,000
+Epochs 5 10
+Effective Batch Size 32 (4 × 8 accum) 32 (4 × 8 accum)
+Precision 16-mixed 16-mixed
+VRAM Consumption∼5–6 GB∼7–7.5 GB
+Table 7.3 Conformer two-stage fine-tuning hyperparameters
+Figure 7.5 Conformer training progress: Stage 1 decoder-only (Left) and Stage 2 full model fine-tuning
+(Right)
+Figure 7.6 ASR performance across all iterations: WER and CER progression from Whisper to
+Conformer
+Deployment The fine-tuned model was then deployed using nemo.collections.asr in fastapi.
+36
+--- PAGE 52 ---
+Intent Classification
+Data Preparation and Processing The intent dataset was manually created in Nepali lan-
+guage and multiple variants of the same intent were created for both formal and informal
+registers. The class size grew incrementally from five to 22 intents as a result of feedback
+from an older family member, family members and friends describing real-life experiences that
+were not present in the initial design. A compute_class_weight('balanced') was applied all
+along to avoid the classifier from disregarding safety-critical intents that are rare in the data, like
+sos_emergency. Section 7.1.2 shows all the configurations of classifiers that were evaluated
+prior to the selection of final architecture
+Model Intents Best Acc. Key Issue Decision
+IndicBERT + DeBERTa 5∼92.7% Reminder misclas-
+sified as time
+DeBERTa re-
+trained on new
+dataset
+DeBERTa (938 samples) 5 97.6% Too coarse for real
+tasks
+Expanded to 21 in-
+tents from elderly
+feedback
+MuRIL 21∼80% Plateaued; weak
+on safety-critical
+intents
+Replaced; class-
+weighted loss
+needed
+English-normalised classifier 4 Improved Tied to normalisa-
+tion layer; fragile
+Removed with nor-
+malisation layer
+IndicBERT-v3-1B + LoRA 21 99.35% None identified Retained; ex-
+panded to 22
+intents
+IndicBERT-v3-1B + LoRA v2 22 99.79% meta-tensor bug
+fixed (CPU→GPU
+load order)
+Current (In-Use)
+Table 7.4 Intent classifier model evolution
+37
+--- PAGE 53 ---
+Fine-tuning
+Figure 7.7 Intent classification LoRA fine-tuning pipeline (indicbert-v3-1b)
+LoRAwas applied to all four attention projections, reducing trainable parameters to approximately
+0.5% of the base model. The training pipeline is illustrated in Figure 7.7. Early stopping on
+weighted F1 yielded: Accuracy 99.79%, Weighted F1 0.9979, Macro F1 0.971.
+Figure 7.8 Intent classifier evolution — model accuracy and class expansion
+38
+--- PAGE 54 ---
+Deployment A critical implementation bug was discovered while deploying using llama.cpp:
+device_map="auto" creates meta-tensors that silently discard LoRA weights at inference, pro-
+ducing random logits with no error. For a safety-critical system, this would have been catastrophic.
+The fix loads the base model on CPU first, applies the adapter, then moves to GPU:
+1 # WRONG— meta -tensors silently discard adapter weights
+2 model = AutoModelForSequenceClassification.from_pretrained(
+3 base_model , device_map="auto"
+4 )
+5
+6 # CORRECT— load on CPU , apply adapter , then move to GPU
+7 model = AutoModelForSequenceClassification.from_pretrained(
+8 base_model , num_labels=22
+9 )
+10 model = PeftModel.from_pretrained(model , "nepali_intent_adapter_v2/")
+11 model = model.to("cuda")
+Figure 7.9 Indicbert-v3 training curves (Left) and per-class validation results (Right)
+39
+--- PAGE 55 ---
+Response Generation
+The nine NLG approaches that were tried prior to the hybrid architecture are recorded in the
+Response Generation Table 7.5. All attempts to fine-tune the generative models failed with 8
+GB VRAM, including Gemma 3 1B (Google DeepMind, 2025), which crashed with training loss
+dropping to 0.0000 at Step 1, and gradient norm becoming NaN during the training process
+— confirming that generative fine-tuning of Nepali is not possible and is ineffective in this
+case.
+Instead, quantised GGUF inference was employed with the Qwen-3.5 9B model (Qwen Team,
+Alibaba Cloud, 2025) offloading all 40 layers of the model to the RTX 4060 GPU with Q4_K_XL
+quantisation using llama.cpp, which achieved 26% reduction in latency from more than 30
+seconds to less than 15 seconds without compromising the output quality. The Q4_K_XL variant
+has been chosen for its ability to maintain higher precision in the weights of the attention layers,
+resulting in more coherent Nepali output at a reasonable VRAM consumption of∼6 GB.
+Figure 7.10 End-to-end pipeline execution trace test
+40
+--- PAGE 56 ---
+Figure 7.11 Hybrid NLG architecture
+41
+--- PAGE 57 ---
+Model Key Problem Outcome
+IndicTrans2
+(translation)
+Unnatural Nepali; context lost Replaced; translation cannot pro-
+duce contextual responses
+Nepali DistilGPT-2 Highly repetitive; meaningless out-
+put
+Replaced; low-resource LLMs with-
+out sufficient data collapse
+Qwen2.5-3B Mixed languages; very slow Replaced; quantisation alone does
+not solve language quality
+Qwen3 4B / 0.6B /
+1.5B
+Weak Nepali; slow; incomplete
+sentences
+Replaced; model size insufficient
+for low-resource Nepali generation
+Qwen3-4B-Instruct-
+fp8
+Heavy; insufficient Nepali Replaced
+RomanSetu Weak Nepali performance Replaced
+Gemma 3 1B (base) Poor quality; high CPU usage Replaced; base model not suitable
+without fine-tuning
+Gemma 3 1B
+(fine-tuned)
+Gradient collapse: loss = 0.0000,
+grad_norm = NaN from Step 1;
+model repeated input verbatim
+Critical failure. Decisive evidence
+to abandon generative fine-tuning
+entirely
+Gemma 3 4B GGUF Inconsistent Nepali Replaced; better but still unreliable
+Hybrid:
+Qwen-3.5 9B-UD
+GGUF Q4_K_XL
+None identified Current (In-Use). 18 inform han-
+dlers + LLM persona + RAG fall-
+back; response time <15s
+Table 7.5 NLG model attempts — chronological evolution
+42
+--- PAGE 58 ---
+Knowledge Base and RAG Pipeline.
+The 2081 row knowledge base has been handwritten by the project author in three stages
+(passes) supported by the findings of UCD consultation and gaps found during the prototype
+test. Medical rows contain a compulsory doctor-referral for every symptom that could lead to a
+serious condition. The domain coverage is summarised in Table 7.6, and an example of the
+structure of the CSV is provided in Figure 7.12.
+Domain Category Entries % of KB Coverage Description
+Health & Elderly Care
+498 23.9% Home remedies, symptom guidance, doctor
+Advice
+referral directives, nutrition for elderly
+Nepali Culture & Festivals 387 18.6% Dashain, Tihar, Chhath, Teej, local customs,
+ritual observances
+Bikram Sambat & Tithi 312 15.0% Lunar calendar entries, auspicious days,
+monthly tithi descriptions
+274 13.2% Loneliness, family conflict, existential
+queries, reassurance responses
+218 10.5% Geography, government, population, history
+Emotional Support &
+Companionship
+General Knowledge
+(Nepal-specific)
+Medication & Reminder
+189 9.1% Drug interaction warnings, dosage
+Guidance
+reminders, adherence tips
+Spiritual & Religious 142 6.8% Hindu prayers, pilgrimage sites, mantra
+guidance
+Miscellaneous / Edge
+61 2.9% Out-of-scope deflections, polite refusals,
+Cases
+system capability explanations
+Total 2,081 100%
+Table 7.6 Knowledge base topic distribution (2,081 Rows Total)
+43
+--- PAGE 59 ---
+Figure 7.12 Sample from the 2,081-row Knowledge Base CSV
+For semantically similar Nepali queries, bilingual composite embedding strings (NEPALI: q |
+ENGLISH: eq | INTENT: intent) have better retrieval precision. Cross-encoder reranking uses
+MiniLM-L12-v2 to narrow down the top-20 Qdrant candidates to top-3 before LLM context
+injection.
+TTS Service
+AI4Bharat Indic-TTS (broken number pronunciation) and Indic-Parler TTS (latency too high)
+were replaced by TTS Service Sherpa-ONNX along with Chitwan-NP VITS. Length scale =
+1.55 (slowing speech rate), silence at punctuation boundaries was doubled using the pause
+engineering method:
+Punctuation Mark Silence Duration (ms)
+Comma (,) 280
+Danda (।) 480
+Question Mark (?) 520
+Table 7.7 Engineered silence specifications at text boundaries
+Normalisation of text includes converting digits and times to Nepali compound words in a
+phonetically correct manner (e.g., 14:30 to चौध बजेर तीस िमनेट). It is possible to cover all the
+0-99 forms with a handcrafted lookup table which generates Nepali compounds for 0-99 that
+are correct. Chunks are cut and synthesized independently, and then connected with the cross
+fade cut to [−1, 1].
+44
+--- PAGE 60 ---
+Model Key Issue / Outcome Status
+AI4Bharat Indic-TTS VITS (AI4Bharat, 2023) In use from W8; broken
+number pronunciation
+Indic-Parler TTS (Lacombe et al., 2024) Inference latency too high
+even after GPU
+optimisation
+Sherpa-ONNX ne_NP-chitwan-medium Near-instant ONNX
+inference with elderly
+tuning
+Replaced
+Replaced
+Current (In-Use)
+Table 7.8 TTS model evaluation and selection
+7.1.3 Phase 3: Integration and Deployment
+Backend Pipeline and Microservices Integration.
+The original monolith was built with a single process and caused versioning issues with CUDA.
+These have been eliminated by three separate Virtual environments, each hosting a separate
+FastAPI service. The backend carries out a sequence of STT → NLP → TTS and stores the
+latency of each stage on each request to the database for empirical analysis.
+(a) ASR service on port 8002 (CUDA) (b) TTS service on port 8001 (CUDA)
+Figure 7.13 ASR (port 8002) and TTS (port 8001) microservices running on CUDA
+45
+--- PAGE 61 ---
+Figure 7.14 Main NLU API running on port 8000
+Application Infrastructure.
+Qwen3-Embedding 0.6B was used to batch-embed the 2,081 documents stored in the knowledge
+base, which was indexed during the server start-up. One-time onboarding leaves the user
+name and emergency contact in USERS; the caregiver admin panel, which requires a PIN to be
+verified via bcrypt, gives access to the fall detection threshold, duration of SOS and vibration
+intensity.
+46
+--- PAGE 62 ---
+Flutter Application.
+The Flutter application has a 6 state FSM (idle, recording, paused, processing, confirming, error),
+and uses a single ChangeNotifier provider to control the entire voice interaction lifecycle. The
+following tables provide a summary of each subsystem (Table 7.9), and document edge cases
+that are particularly significant for elderly users (Table 7.10).
+Subsystem Key Implementation Decision
+Voice FSM Auto-silence detection polls amplitude every 500 ms; <−45 dB for
+2 consecutive seconds triggers automatic upload
+Server Response Routing First byte inspected if Content-Type is ambiguous (0x7B = JSON);
+binary payload plays directly as TTS
+Audio Session AudioSession holds speech focus during TTS;Android ducks back-
+ground music and restores on completion
+Music Playback just_audio_background with lock-screen controls; voice keyword
+matched via fuzzy string search
+Fall Detection Foreground isolate; 20-second debounce; WakelockPlus prevents
+CPU sleep during countdown
+Dual SOS Call Primary: FlutterPhoneDirectCaller (UI context); fallback: CALL
+intent (background service context)
+Reminder Service Offline-first via SharedPreferences; server IDs replace temporary
+timestamps post-sync
+Voice Confirmation Dedicated recording pipeline uploads audio with reminder ID; result
+persisted to CONFIRMATION_RECORDINGS
+Admin Panel bcrypt PIN gate; exposes threshold, SOS duration, vibration, and
+API URL; persists to USER_SETTINGS
+Table 7.9 Flutter application subsystem summary
+47
+--- PAGE 63 ---
+Edge Case Risk Resolution
+Mic tap during TTS Isolate killed under
+memory pressure
+TTS audio captured
+as query input
+Fall detection
+ceases silently
+Back gesture during
+SOS
+Dual-channel double
+firing
+Countdown
+dismissed without
+intent
+Duplicate reminder
+alerts
+FSM blocks mic transitions in processing state;
+tap silently ignored until idle
+Registered as foreground service
+(FOREGROUND_SERVICE_HEALTH); last-resort
+priority on Android 14+
+PopScope(canPop: false) blocks back button
+and edge-swipe; only explicit Cancel button
+aborts
+_firedKeys set keyed on day_hour:minute
+enforces exactly-once delivery
+Table 7.10 Flutter edge case handling for elderly users
+(a) Main screen (idle/tap to speak) (b) Active response generation state
+Figure 7.15 Saathi core voice user interface (VUI) states
+48
+--- PAGE 64 ---
+(a) Medication reminder popup overlay (b) Active SOS countdown screen
+Figure 7.16 Saathi safety and compliance failsafe interfaces
+(a) Hardware threshold and SOS config (b) Backend API and alarm defaults
+Figure 7.17 Caregiver configuration panels. Left: fall detection threshold, SOS duration, vibration, and
+silence settings. Right: backend API URL, default reminder mode, and elderly persona name.
+49
+--- PAGE 65 ---
+7.2 Validation and Testing
+The validation is done in four successive steps. Results are reported in order, each based on
+the functional or non-functional requirements from Section 6.1.
+7.2.1 Overview and Test Strategy
+Layer Scope +ve –ve Result
+Black Box API ASR (8002), TTS (8001), NLU (8000) end-
+points
+6 2 All Pass
+Integration Full STT→NLP→TTS pipeline, CRUD chain,
+reminders, fall detection
+5 0 All Pass
+ASR Benchmarking Stage 1: held-out adult set (500 samples);
+Stage 2: FLEURS ne_np (726 samples);
+Stage 3: 147 elderly recordings
+— — §7.2.3
+UAT Field Study 7 elderly participants; 21 scenarios per partici-
+pant; 147 live recordings; post-session ques-
+tionnaire
+145 2 98.6% TSR
+Table 7.11 Validation coverage summary across all four layers
+50
+--- PAGE 66 ---
+7.2.2 System-Level Black Box and Integration Testing
+System testing was split into two most complementary tiers. On one side, black box testing
+assessed the entire Saathi system, for an end-user and without any knowledge of the internal
+working of the system. In particular, the user performed an action using the physical Android
+device that runs the Flutter application, and the result which could be seen was checked against
+the acceptance criteria.
+Integration testing ensured that the various components which had been developed separately
+were able to correctly exchange data through their defined interfaces (Flutter API, ASR NLU,
+NLU PostgreSQL, Hardware Flutter, NLU Qdrant). All test cases are provided in Table 7.12 and
+Table 7.13.
+Black Box Testing (System Level)
+ID Feature
+Under
+Test
+Input / User Action Expected System Output Pass Evi-
+dence
+TC-BB-01 App On-
+boarding
+Launch app on fresh
+install; observe first
+screen.
+TC-BB-02 Mic Acti-
+vation
+Tap the microphone
+button from the idle
+screen.
+TC-BB-03 Time
+Query
+Tap mic; speak
+“अिहले कित बजे छ?”
+Onboarding screen
+requests Name and
+Emergency Contact; home
+screen does not appear
+until setup is complete.
+UI transitions to
+“Listening…” state with
+visual indicator; activation
+beep plays.
+App processes query; TTS
+speaks current time in
+displayed on screen.
+Nepali; response text
+Fig-
+ure J.1a
+Fig-
+ure J.1b
+Fig-
+ure J.2a
+51
+--- PAGE 67 ---
+ID Feature
+Under
+Test
+TC-BB-04 Date &
+Tithi
+Query
+TC-BB-05 Medica-
+tion
+Re-
+minder
+Setup
+TC-BB-06 Music
+Playback
+TC-BB-07 Voice-
+Triggered
+SOS
+TC-BB-08 SOS
+Cancella-
+tion
+TC-BB-09 RAG
+Health
+Query
+Input / User Action Expected System Output Pass Evi-
+dence
+Tap mic; speak “आज
+कु न िमित र ितिथ छ?”
+Tap mic; speak
+“िबहान आठ बजे औषिध
+खाने याद गराइदेउ”
+App speaks today’s
+Bikram Sambat date, day
+name, and current tithi in
+Nepali.
+Reminder confirmation
+popup appears on screen;
+TTS confirms the
+scheduled time.
+Fig-
+ure J.2b
+Fig-
+ure J.10a
+Tap mic; speak “कु नै
+गाना बजाइदेउ”
+Tap mic; speak
+“मलाई गाह्रो छ, मद् दत
+चािहयो”
+App navigates to Music
+Player screen; audio
+visible.
+playback begins;
+lock-screen controls
+Screen turns red;
+10-second countdown
+begins; audio siren alert
+plays immediately.
+Countdown halts; no call is
+home screen.
+placed; app returns to idle
+Fig-
+ure J.3a
+Fig-
+ure J.3b
+While SOS
+countdown is active,
+tap “Cancel SOS”
+button.
+Tap mic; speak “मेरो
+टाउको दुख्छ, के
+गर्ने?”
+Fig-
+ure J.4a
+App returns a culturally
+grounded Nepali health
+suggestion including a
+directive.
+mandatory doctor-referral
+Fig-
+ure J.4b
+52
+--- PAGE 68 ---
+ID Feature
+Under
+Test
+Input / User Action Expected System Output Pass Evi-
+dence
+TC-BB-10 Silence /
+Timeout
+(Nega-
+tive)
+Tap mic; remain
+silent for 5 seconds.
+App gracefully exits
+listening state and returns
+to idle without crashing or
+hanging.
+Fig-
+ure J.5
+Table 7.12 System-level black box test cases (Flutter application, end-user perspective)
+Integration Testing (Component Boundaries)
+ID Compo-
+nents
+Test Scenario Expected Technical
+Outcome
+Pass Evi-
+dence
+TC-INT-01 Flutter ↔
+NLU API
+Submit voice query
+from app; observe
+FastAPI terminal.
+TC-INT-02 ASR ↔
+NLU
+Send voice query;
+monitor NLU
+terminal for
+transcription log line.
+Terminal logs POST
+/process-voice 200 OK;
+audio response received
+(<15s).
+by app within NFR-01
+NLU terminal prints [STT]
+Transcribed: <text>
+flows into NLU.
+before classification,
+confirming ASR output
+Fig-
+ure J.6
+Fig-
+ure J.7
+TC-INT-03 NLU ↔
+Post-
+greSQL
+Complete a voice
+interaction with a
+valid user_id; query
+the database.
+pgAdmin shows a new row
+in conversation_logs
+with intent_name,
+nlp_latency_ms, and
+tts_latency_ms all
+populated.
+stt_latency_ms,
+Fig-
+ure J.8
+53
+--- PAGE 69 ---
+ID Compo-
+nents
+TC-INT-04 Flutter ↔
+Re-
+minder
+API
+TC-INT-05 Android
+OS ↔
+Re-
+minder
+Service
+TC-INT-06 Ac-
+celerom-
+eter ↔
+Flutter
+SOS
+TC-INT-07 NLU ↔
+Qdrant
+RAG
+TC-INT-08 NLU ↔
+TTS
+Service
+Test Scenario Expected Technical
+Outcome
+Pass Evi-
+dence
+Set a reminder via
+voice; query
+reminders table in
+pgAdmin.
+Row appears in
+reminders with correct
+title, hour, minute, and
+user_id matching the
+spoken command.
+Fig-
+ure J.9
+Schedule a reminder
+2 minutes ahead;
+lock the phone.
+Android system notification
+fires on the lock screen;
+verified under Doze Mode.
+dual-channel backup
+(AlarmManager + polling)
+Fig-
+ure J.10a
+Drop device from
+∼0.5m onto soft
+surface with Logcat
+filter FallDetect
+active.
+Logcat shows
+FallDetected:
+peak=X m/s2; red SOS
+countdown screen
+appears on device
+immediately.
+Fig-
+ure J.3a
+Ask a health
+question; monitor
+NLU terminal during
+processing.
+Terminal prints [RAG]
+Qdrant retrieved N
+results, top score:
+X.XX, confirming vector
+search runs before LLM
+inference.
+Fig-
+ure J.11
+Complete any voice
+interaction; observe
+TTS terminal (port
+8001).
+TTS terminal logs POST
+/generate 200 OK with
+duration_ms, confirming
+synthesised to audio.
+NLU response text was
+Fig-
+ure J.12
+54
+--- PAGE 70 ---
+ID Compo-
+nents
+Test Scenario Expected Technical
+Outcome
+Pass Evi-
+dence
+TC-INT-09 Admin
+Panel ↔
+Settings
+API
+TC-INT-10 End-to-
+End
+Latency
+(NFR-01)
+Modify fall-detection
+threshold in
+Caregiver Admin
+Panel; restart app.
+Execute five
+consecutive voice
+queries; measure
+wall-clock time per
+query.
+Updated threshold persists
+in user_settings table;
+app reads and applies the
+new value on next launch.
+Fig-
+ure J.10b
+All five queries complete in
+≤15s; mean latency
+consistent with field-study
+8,107ms).
+result of 5,166 ms (P95:
+Fig-
+ure J.13
+Table 7.13 Component integration test cases (interface boundaries across the full system stack)
+7.2.3 Speech Recognition (ASR) Evaluation
+ASR was benchmarked in each of three levels of difficulty and independence, each with a different
+purpose of validation. All three results are summarized in Table 7.14 prior to a discussion of
+each one.
+Table 7.14 ASR evaluation: three-stage benchmarking summary
+Stage Corpus WER CER Purpose
+1 Held-out adult set (amitpant7, n=500) 10.10% 2.06% Clean in-domain base-
+line; FR-01 verification
+2 FLEURS ne_np test split (n=726) 30.50% 13.98% Standardised public
+benchmark; out-of-
+domain robustness
+3 Elderly field corpus (n=147) 25.1% 15.6% Real target-population ro-
+bustness under presby-
+phonic conditions
+55
+--- PAGE 71 ---
+Stage 1 — Held-Out Adult Baseline. To test FR-01 (WER < 30%) and measure the improve-
+ments over the base model, the fine-tuned Conformer was tested on 500 held-out samples from
+the amitpant7 dataset, completely removed from the training set.
+Table 7.15 Stage 1: base vs. fine-tuned Conformer on held-out adult set
+Metric Base Model Fine-Tuned Conformer Improvement
+WER 19.43% 10.10%∼48% reduction
+CER 4.64% 2.06%∼55% reduction
+These values are well above FR-01. This CER is especially important in Devanagari as word
+sense is drastically different if the minor character change occurs.
+Figure 7.18 Terminal output of held-out adult test split evaluation (500 samples)
+Stage 2 — FLEURS Public Benchmark. The results were compared to a reference, indepen-
+dently reproducible corpus, by evaluating the fine-tuned Conformer and the last checkpoint of
+Whisper on the same audio data in the test split of the FLEURS corpora (726 samples). The
+read-speech components in FLEURS are from various speakers so that they are not covered
+by the training corpus, thus providing a more difficult out-of-domain evaluation.
+Model WER CER
+Whisper Small (fine-tuned) 49.17% 17.09%
+Conformer (ours) 30.50% 13.98%
+Table 7.16 Stage 2: FLEURS ne_np Benchmark — Whisper vs. Conformer (726 samples)
+56
+--- PAGE 72 ---
+On FLEURS, the Conformer is 18.67 percentage points better than Whisper. The FLEURS
+WER of 30.50% is higher than the in-domain Stage 1 WER (10.10%), which is to be expected
+for an out-of-domain read-speech task; the direction of the results is the same in both tests,
+making the architectural advantage a true result of the test.
+Figure 7.19 Terminal output of FLEURS ne_np test split (726 samples).
+Stage 3 — Elderly Field Corpus. To test the robustness on the target population, run_validation.py
+was used with all 147 elderly recordings. All .m4a files were converted to .wav files, uploaded to
+liveASRAPI, and the transcription, intent, action, and latency recorded in results/raw_results.csv.
+57
+--- PAGE 73 ---
+Figure 7.20 Terminal output of run_validation.py running live against the 147 elderly recordings.
+The absolute increase in the elderly WER was 25.1% and CER 15.6% above the Stage 1
+adult baseline, which was in line with the WER inflation reported by Vipperla et al. (2010) to be
+within the range of 9–12% due to Presbyphonia. The extra margin on top of this range is also
+anticipated as there was no elderly Nepali speech in the training corpus, which is additional to
+the acoustic mismatch due to age related vocal changes.
+58
+--- PAGE 74 ---
+Figure 7.21 ASR WER and CER by intent category (elderly corpus, n = 147)
+Figure 7.22 WER and CER per elderly participant
+The differences in clarity of the voice, accent and ambient noise resulted in an inter-speaker
+WER of between 14.6% (Elder 3) and 37.5% (Elder 7). Even with this difference, Task Success
+Rates were still high, showing that the hybrid fallback architecture is able to reduce the ASR
+error at the routing layer.
+59
+--- PAGE 75 ---
+7.2.4 Intent Classification and Task Success Rate
+All charts were produced using python and runs metrics on the results using pandas and jiwer.
+validation/generate_charts.py which reads results/raw_results.
+Figure 7.23 Terminal output of generate_charts.py: each [N/11] line confirms one chart saved from
+the real dataset.
+Figure 7.24 Key performance indicator dashboard (n = 147 queries, 7 elderly participants)
+60
+--- PAGE 76 ---
+The most significant architectural finding: The hybrid fallback was able to absorb classification
+errors gracefully, and 145 of 147 queries yielded the correct result, with only 13 misclassifica-
+tions.
+Metric Value
+Total queries processed 147
+Intent classification accuracy 91.2%
+Task Success Rate (TSR) 98.6%
+Elderly corpus WER 25.1%
+Elderly corpus CER 15.6%
+Mean end-to-end latency 5,166ms
+Queries within NFR-01 (15s) 147/147 (100%)
+Table 7.17 System-wide aggregated performance metrics
+For the metric of Safety-critical categories (Calling & Emergency, Reminders), 100% was
+recorded for both metrics. For the two weakest categories, there are known contributors:
+Weather & Location intent accuracy (66.7%):
+Category Queries Correct Intent Successful Tasks TSR
+Assistant Persona 21 21 (100.0%) 21 100.0%
+Calling & Emergency 21 21 (100.0%) 21 100.0%
+Entertainment 21 21 (100.0%) 21 100.0%
+Reminders 21 21 (100.0%) 21 100.0%
+Time & Calendar 21 20 (95.2%) 21 100.0%
+Weather & Location 21 14 (66.7%) 21 100.0%
+Health & Knowledge 21 16 (76.2%) 19 90.5%
+Total 147 134 (91.2%) 145 98.6%
+Table 7.18 Task success rate and intent accuracy by functional category
+61
+--- PAGE 77 ---
+The LLM fallback returned the correct answer for all 7 participants and retained 100% TSR out
+of the 22 training classes, which lacked the query “What is Nepal’s population?”. Health and
+Knowledge (76.2%): five ASR distortions of the headache query mis-routed the query to the
+SOS handler, which resulted in the two ”true” task failures.
+(a) TSR by functional domain (b) Intent accuracy by category
+Figure 7.25 TSR and intent accuracy by category. six of seven categories achieved 100% TSR; health &
+knowledge scored 90.5% due to asr-induced false-positive SOS routing.
+Figure 7.26 Intent classification confusion matrix (n = 147)
+62
+--- PAGE 78 ---
+Figure 7.27 Per-query intent result matrix (1 =Correct, 0 =Wrong): errors concentrated in 3 of 21
+prompts; remaining 18 achieved 100% across all participants.
+7.2.5 System Performance and Latency (NFR-01)
+Stage Min Mean Median Max P95
+STT (Conformer) NLP (Classify + Gen) 148 ms 390 ms 334ms 6,243 ms 596 ms
+148ms 4,381 ms 4,190 ms 8,098 ms 7,267ms
+TTS (Sherpa-ONNX) 108 ms 354 ms 306ms 882 ms 693 ms
+Total 894 ms 5,166 ms 5,067 ms 11,300 ms 8,107 ms
+Table 7.19 End-to-end latency profiles by pipeline Stage (n = 147)
+147 queries finished in the 15-second NFR-01 time limit. The combined contribution of NLP
+and STT + TTS is only 15.2% of mean latency, while LLM inference is the major contributor to
+latency as 84.8%. Medication Reminders had a median Latency of 8 s (due to multi step LLM
+parsing); Emergency Calling had bi modal distribution with SOS bypassing LLM at 1 s and full
+LLM at 5 s.
+(a) Mean vs. P95 per stage; NFR-01 threshold shown (b) Latency distribution by query category
+Figure 7.28 Pipeline latency analysis. mean 5.2s and P95 8.1s both well below the 15s NFR-01 limit.
+63
+--- PAGE 79 ---
+7.2.6 RAG Fallback Quality Validation
+A set of 6 targeted prompts that spanned sensitive personal scenarios in the 22 intent classes
+were sent to test the RAG pipeline qualitatively.
+Figure 7.29 RAG response quality: semantic keyword similarity score by scenario (0–1 scale.) all six
+exceed the 0.55 baseline.
+Domain Nepali Query Assessment
+Loneliness मलाई एक् लो लाग्छ, कोही कु रा गर्ने छै न Empathetic; culturally grounded
+elder-persona framing
+Family Conflict छोराले मेरो कु रा सुन्दैन, झगडा हुन्छ Balanced advice; models patience
+Physical Health मेरो घुँडा दुख्छ, िहँड्न गाह्रो छ Home remedy + mandatory doctor
+directive
+Memory Lapse म औषिध खाएँ िक खाइनँ िबर्िसन्छु Validates condition; practical track-
+ing tips
+Existential Anxiety मृत्यु पिछ के हुन्छ, डर लाग्छ Reassuring spiritual framing;
+community-aligned
+Spiritual/Calendar आज एकादशी हो? के गर्नुपर्छ Accurate tithi parsing; Hindu calen-
+dar context
+Table 7.20 RAG fallback: qualitative evaluation across six scenario types
+64
+--- PAGE 80 ---
+All six cases had cultural support, emotional safety, and medical escalation appropriate to the
+case.
+7.2.7 Hardware Integration Testing
+(a) DB record confirming voice (b) Logcat: accelerometer breach
+Figure 7.30 Hardware integration evidence
+Android State Tests Within 5 s Within 120 s Missed
+Active (Screen On) 20 20 (100%) 20 (100%) 0
+Deep Doze Mode 20 17 (85%) 20 (100%) 0
+Total 40 37 (92.5%) 40 (100%) 0
+Table 7.21 Reminder delivery reliability under Android OS state profiles
+In Doze Mode, OS alarms were pushed back by as much as 88 seconds, and the 5-second
+polling backup was able to record all the delayed alarms within the FR-05 grace period of 120
+seconds. The peak acceleration was measured to be between 38 and 67 m/s2 from the 10
+controlled drop tests at a height of∼1.5 m, with all of these also being correctly detected. For
+walking (13 to 21 m/s2) and casual tosses (18 to 28 m/s2) there were no false positives for
+30 minutes.
+65
+--- PAGE 81 ---
+7.2.8 User Acceptance Testing — Field Study
+Participant Demographics. A total of seven older people were recruited and located in
+Kathmandu using personal and community contacts. The sessions were held at the participants’
+house in Nepali, and were limited to 30 minutes, and a caregiver was invited if requested.
+ID Age Gender Smartphone Use Prior VA Use
+U-01 68 M Calls, WhatsApp None
+U-02 72 F Calls only U-03 65 M Calls, video U-04 71 F Calls only None
+None
+None
+U-05 74 M None None
+U-06 67 F Calls, WhatsApp None
+U-07 70 M Calls only None
+Table 7.22 UAT participant demographics (n = 7)
+Ground-Truth Query Scenarios. All 21 queries in Section 7.2.8 were recorded by each partic-
+ipant for a total of 147 recordings. The questions were worded naturally and in the participants’
+own style, and the table lists sample ground-truth questions for calculating WER.
+66
+--- PAGE 82 ---
+Q# Category Nepali Query (English gloss)
+Q01 Calling & Emergency छोरालाई फोन लगाउ। (Call son)
+Q02 Q03 Calling & Emergency मेरो डाक् टरलाई कल गर। (Call doctor)
+Calling & Emergency मलाई गाह्रो भयो, एम्बुलेन्स बोलाउ। (I’m unwell, call ambulance)
+Q04 Reminders भोिल िबहान ९ बजे औषिध खाने िरमाइन्डर राख। (9 AM medicine re-
+Q05 Q06 Reminders Reminders minder)
+मलाई पानी िपउन सम्झाउ। (Remind me to drink water)
+बेलुका ५ बजे िहँड्न जाने अलार्म राख। (5 PM walking alarm)
+Q07 Q08 Time & Calendar Time & Calendar Q09 Time & Calendar अिहले कित बज्यो? (What time is it?)
+आज कु न बार हो? (What day is today?)
+आजको ितिथ के हो? (What is the tithi?)
+Q10 Q11 Q12 Weather & Location Weather & Location Weather & Location आजको मौसम कस्तो छ? (How’s the weather today?)
+भोिल पानी पर्छ िक पर्दैन? (Will it rain tomorrow?)
+नेपालको जनसंख्या कित छ? (What is Nepal’s population?)
+Q13 Q14 Entertainment नारायण गोपालको गीत बजाउ। (Play Narayan Gopal’s song)
+Entertainment मलाई एउटा रमाइलो चुट्िकला सुनाउ। (Tell me a joke)
+Q15 Entertainment आजको ताजा समाचार सुनाउ। (Today’s news)
+Q16 Health & Knowledge सुगरको िबरामीले के खानु हुँदैन? (What shouldn’t diabetics eat?)
+Q17 Health & Knowledge टाउको दुख्दा के गर्ने? (What to do for headache?)
+Q18 Health & Knowledge प्रेसर हाइ हुँदा कस्तो खाना खाने? (What to eat for high blood pres-
+sure?)
+Q19 Assistant Persona Q20 Assistant Persona Q21 Assistant Persona नमस्ते, तपाईंलाई कस्तो छ? (Namaste, how are you?)
+ितम्रो नाम के हो? (What is your name?)
+ितमीले के के गर्न सक् छौ? (What can you do?)
+Table 7.23 UAT ground-truth query scenarios (21 queries × 7 participants = 147 recordings)
+67
+--- PAGE 83 ---
+UAT Scenario Results :
+Figure 7.31 TSR per participant
+Table 7.24 UAT scenario results with FR traceability
+ID Scenario Expected Response FR TSR
+UAT-01 Medication reminder Spoken confirmation + DB record FR-05, 06 100%
+UAT-02 BS date / tithi Correct BS date in Nepali FR-04, 09 100%
+UAT-03 Play a song Correct song plays FR-10 100%
+UAT-04 Trigger SOS 10 s countdown + auto-dial FR-07 100%
+UAT-05 Health / RAG query Safe RAG response in Nepali FR-03 90.5%
+UAT-06 Call contact by name Correct contact dialled FR-07 100%
+UAT-07 Today’s weather Weather spoken in Nepali FR-09 100%
+Aggregate 98.6%
+68
+--- PAGE 84 ---
+Post-Session Questionnaire. FAll participants completed a five-item semi-structured interview
+after the task was completed in Nepali. Responses used a 3-point scale: १= गाह्रो / होइन, २=
+ठीकै / के ही हदसम्म, ३= सिजलो / हो (1 = Difficult/No, 2 = Neutral/Somewhat, 3 = Easy/Yes).
+प्रश्न (Question) U1 U2 U3 U4 U5 U6 U7 Mean
+साथीसँग बोल्न कित सिजलो लाग्यो?
+(How easy was it to speak to Saathi?)
+साथीको आवाज बुझ्न सिजलो िथयो?
+(Were the voice responses easy to understand?)
+औषिधको िरमाइन्डर सही समयमा आयो?
+(Did the reminder come at the right time?)
+SOS सुिवधा प्रयोग गर्दा सुरक् िषत महसुस भयो?
+(Did you feel safe using the SOS feature?)
+के तपाईं घरमा साथी प्रितिदन प्रयोग गर्नुहुन्थ्यो?
+(Would you use Saathi daily at home?)
+3 3 3 2 2 3 2 2.57
+3 3 3 3 3 3 3 3.00
+3 3 3 3 3 3 3 3.00
+3 3 3 3 2 3 3 2.86
+3 3 3 2 2 3 3 2.71
+Table 7.25 Post-session questionnaire results
+The mean scores for the TTS clarity were 3.00 while those for ease of speaking were the lowest
+(2.57) as the participants with no prior use of voice assistant were initially unfamiliar with the
+push-to-talk interaction.
+69
+--- PAGE 85 ---
+(a) Elderly participant during an
+active UAT session
+(b) SOS countdown screen
+(FR-07)
+Figure 7.32 Field evaluation evidence.
+ID Age Nepali Translation (English)
+U-01 68 ``यसको आवाज मेरो नाितले िबस्तारै
+बोलेजस्तै लाग्छ।''
+U-02 72 ``मैले स्क् िरन छु नु परेन, आफैँ छोरीलाई फोन
+गिरिदयो।''
+U-03 65 U-04 71 ``औषिध खाने बेला बोल्यो, मैले जवाफ िदएँ ---
+मलाई सुरक् िषत महसुस भयो।''
+``आफ् नै मान्छे ले बोलेजस्तो जवाफ िदयो।'' “The voice feels like my grandson
+speaking slowly.”
+“I didn’t need to touch the screen; it
+called my daughter.”
+“It spoke at medicine time, I answered
+— I felt safe.”
+“It answered like a real person, not a
+machine.”
+U-05 74 ``पिहलो पटक बोल्दा बुझेन, दोस्रो पटकमा
+“The first time it didn’t understand me;
+बुझ्यो।''
+the second time it did.”
+U-06 67 ``घुँडाको बारे सोध्दा डाक् टरकहाँ जाऊ पिन
+“When I asked about my knee, it told
+भन्यो।''
+me to see a doctor.”
+U-07 70 ``िबस्तारै बोल्दा बुझ्छ रहेछ।'' “It understands when I speak slowly.”
+Table 7.26 Post-session qualitative feedback (original Nepali with English translation)
+70
+--- PAGE 86 ---
+Field Evidence and Qualitative Feedback. Three recurring themes: TTS clarity and pacing
+was appreciated by all participants; hands-free calling and reminding were very valuable;
+Bikram Sambat calendar and tithi increased trust. One participant (U-05, age 74, no previous
+smartphone experience) needed a second attempt with several queries, and this was in line with
+ease-of-speaking scoring 2.57, the lowest item on the post-session questionnaire, indicative of
+the learning curve for those who were new to the PTT interaction.
+7.2.9 Objective Validation
+Table 7.27 documents that all five project goals are met, with quantitative evidence provided
+from the previous subsections.
+Table 7.27 Project objective traceability to measured outcomes
+Objective Measured Outcome Status
+1 — Nepali Voice Interface Conformer WER 10.10% (adult), 25.1% (elderly),
+30.50% (FLEURS); IndicBERT accuracy 99.79%; all
+exceed FR-01/FR-02 thresholds
+Met
+2 — Medication Reminders 100% delivery across 40 tests including Doze Mode
+(FR-05, FR-06)
+Met
+3 — Emergency Calling Voice SOS 21/21; fall detection 10/10 drops, 0 false
+positives; two independent pathways verified (FR-07,
+FR-08)
+Met
+4 — Date, Time, Music 18 inform handlers, Bikram Sambat parser, fuzzy music
+search functional; 100% TSR across Time, Calendar,
+Entertainment categories
+Met
+5 — Formal Evaluation 7 participants aged 60–74; 147 live queries; TSR 98.6%
+(95% CI: 95.6%–99.5%)
+Met
+71
+--- PAGE 87 ---
+8 Critical Evaluation
+8.1 Evaluation of the Artefact
+Saathi is the first complete, fully offline, privacy preserving Nepali voice assistant, developed and
+tested in the Nepal field. It directly tackles the lack of assistive technology for about 2.97 million
+elderly Nepali speakers, empirical evidence of the fact that maximum performance of ASRs is
+architectural rather than data-bound, and documents nine new failure modes of NLG for the
+Nepali language, which have not been reported before, and is a template for replications for
+other under-resourced Indic languages in the form of a microservices template.
+8.1.1 Performance Against Design Specifications
+All Must-Priority requirements are met or exceeded with full verification data in Section B, and
+Table B.2. The key measurements and target values are summarised in Table 8.1 and the most
+architecturally significant is the following.
+Table 8.1 Measured performance against must-priority targets
+Requirement Target Measured Met?
+FR-01 ASR WER (adult) <30% 10.10%
+FR-01 ASR WER (elderly) <30% 25.1%
+FR-01 ASR WER (FLEURS) — 30.50% (vs 49.17%) Contextual
+FR-02 Intent Accuracy >85% 91.2%
+FR-05 Reminder Delivery ≥95%/120s 100% (40/40)
+FR-08 Fall Detection Detect drops 10/10; 0 FP
+NFR-01 End-to-end Latency <15s Max 11.3s; mean 5.2 s
+NFR-02 Zero external calls 0 Verified throughout
+72
+--- PAGE 88 ---
+The most architecturally significant result is the difference between the intent accuracy (91.2%)
+and Task Success Rate (98.6%): with 145 of the 147 queries falling back to the hybrid, the hybrid
+maintained a 98.6% success rate to the intended outcome, even with 13 misclassifications. The
+reliability of the system is based on the principle of structural redundancy, not on the perfection
+of the classifiers, which played a crucial role for elderly robustness.
+8.1.2 Contextualisation of ASR Results Against Published Literature
+These three Whisper training runs are comparable to the study conducted by Rijal et al. (2024)
+on the Nepali community which reported WER to be 22–35% and Ghimire et al. (2024) who
+reported a close to 48% architectural ceiling for Whisper on the Nepali community regardless of
+the number of training data. CNN-GRU-CTC architecture gave Joshi et al. (2020) a WER of
+39.72% on the OpenSLR data.
+Benchmark scope. All systems in Table 8.2 are analyzed on the FLEURS ne_np test split (726
+read-speech samples) (Conneau et al., 2022), which is the only publicly reproducible Nepali ASR
+benchmark. Saathi’s Conformer-RNNT is a fine-tuned lightweight model ( 120 M parameters).
+None of the published works cite FLEURS ne_np results for a model of equivalent size; the
+closest similar entries are Whisper small (244 M) and Whisper base (74 M), both evaluated on
+this benchmark by Rijal et al. (2024).
+73
+--- PAGE 89 ---
+Table 8.2 Nepali ASR on FLEURS ne_np — all systems evaluated on the same public benchmark
+System Arch. Params Nepali FT? WER (%) Source
+Zero-shot (no Nepali fine-tuning)
+Whisper base (Radford et al.,
+2023)
+Enc-dec 74M No 102.4 Rijal
+Whisper small (Radford et al.,
+2023)
+Enc-dec 244M No 69.5 Rijal
+et al.
+(2024)
+et al.
+(2024)
+Fine-tuned on Nepali, evaluated on FLEURS ne_np
+Whisper base FT Enc-dec 74M Yes 70.2 Rijal
+Whisper small FT Enc-dec 244M Yes 36.2 Rijal
+Saathi Conformer-RNNT (this
+NeMo RNNT∼120 M Yes 30.50 This
+work)
+et al.
+(2024)
+et al.
+(2024)
+work
+The 25.1% elderly WER found during custom data validation (15 pp over the adult baseline) can
+be accounted for because there was no training data available for the elderly Nepali language;
+thus, the acoustic mismatch when using the elderly language change is similar to that observed
+by Vipperla et al. (2010) for well-resourced languages (9–12%). This is above Whisper by
+18.67 pp and above the only direct comparable public benchmark (FLEURS), thus confirming
+that architecture is providing a benefit, not artefacts from the data split.
+74
+--- PAGE 90 ---
+8.1.3 What Works Well
+Strength Evidence Why it matters
+Hybrid NLG architecture Elderly ASR resilience Dual-channel reminder reliabil-
+ity
+All 9 standalone models failed;
+Gemma 3 1B gradient col-
+lapse (loss 0.0000, grad_norm
+NaN)
+Elderly WER 25.1%; TSR
+98.6%; fallback resolved
+100% of OOV queries
+100% delivery; Doze deferrals
+up to 88 s absorbed by polling
+backup
+Only approach producing ac-
+curate, warm Nepali within
+8GB VRAM
+Dual emergency pathways Bilingual RAG retrieval Voice SOS 21/21; fall detec-
+tion 10/10; fully independent
+All 6 RAG scenarios scored
+>0.55 similarity
+Routing errors downstream is
+more robust than filtering up-
+stream
+Highest-impact mHealth fea-
+ture for LMIC elderly popu-
+lations (Beratarrechea et al.,
+2014)
+Covers unconscious users
+where voice-only systems fail
+Leverages English pre-
+training without losing Nepali
+semantic content
+Correct low-resource adapta-
+tion strategy for Conformer
+Conformer two-stage fine-
+Frozen encoder (Stage 1) pre-
+tuning
+vented overfitting; Stage 2
+reached 10.10% WER
+LoRA intent classification 99.79% accuracy on 22 in-
+tents; only 0.5% trainable pa-
+rameters; safety intents at
+100%
+Offline-first Flutter architecture Reminders load from
+SharedPreferences at
+startup; no server depen-
+dency
+Billion-parameter model fine-
+tuned on consumer GPU with
+no safety-intent neglect
+System remains functional
+during Wi-Fi outages
+Table 8.3 System strengths: evidence and significance
+75
+--- PAGE 91 ---
+8.1.4 Areas Falling Short and Honest Critique
+Despite meeting all quantitative requirements, four areas require critical acknowledgement.
+ASR-induced false emergency activations. All quantitative requirements are covered, but
+four areas need to be critical acknowledged. Falses alarms due to ASR. Two health-related
+inquiries were made to the SOS handler because a Devanagari transcription distortion of the
+word टाउको दुख्दा (headache) created a phonemic similarity with the emergency words. The
+error was generated at the ASR level, which means the classifier functioned properly on the
+input – it is a confirmation gate downstream and NOT retraining the classifier. Both the affected
+participants (U-04 and U-07) were visibly startled, as reported by Trajkova and Martin-Hammond
+(2020) that one minor mistake may cause VA abandonment. The 10 second countdown can
+be cancelled before the shot, making sure that the user doesn’t get an unexpected call; the
+confirmation gate is a user-experience priority.
+Missing usability metrics. Correctness measures are based on TSR and latency, not adoption.
+There are no measures of this population as the session is too long due to time to learn, error
+recovery rate and NASA-TLX cognitive load. If longitudinal sessions are planned for the future,
+there should be a structured retryobservation and verbal cognitive load scale.
+Conversational experience gap. No session memory, or 5.2-second mean latency, makes the
+interaction command and control. All seven participants praised the speech’s clarity as well as
+the capabilities of the hands-free operation, but none commented on the flow of conversation,
+which is why we can confirm that the system is not used as a companion, but as a tool. This is
+a design flaw, rather than a future feature.
+RAG quality metric. The similarity of the keywords found in 6 prompts is a very basic indicator
+of factual safety and cultural appropriateness and not medical safety. Future assessment should
+be based on the assessment by LLM as judge and/or the structured rubric of Nepali cultural
+appropriateness.
+8.1.5 Critique of Methodology and Validity
+The iterative prototyping process was successful with four of five pipeline elements redesigned
+based on quantitative evidence, which was not possible under a waterfall approach.
+76
+--- PAGE 92 ---
+Statistical interpretation. The headline result is statistically supported by a 95% Wilson interval
+of 145/147 TSR [95.6%, 99.5]. The intent accuracy 95% CI is [86.7%, 94.2%] which is fairly
+close to the lower bound of the CI, so the requirement is met, but there is some bandwidth
+Threats to validity. The number of samples (n = 7) was not large enough for firm conclusions.
+Selection of participants (urban residents of Kathmandu, presence of family members is an
+advantage over the isolated elderly in rural Kathmandu as mentioned in the problem statement
+and the results are generalised to the urban elderly with family members. However, Following
+the guidelines of Nielsen (1994), n = 7 is enough for a pilot feasibility study to identify major
+usability problems — and it did: the two false SOS alarms and the population query misrouting
+were both revealed through this group. The 147 separate spoken interactions (21 scenarios × 7
+participants) produce a Wilson 95% CI of [95.6%, 99. 5%], indicating that the TSR requirement
+is achieved even under the worst-case assumptions; large-scale validation is an area for the
+future work.
+Reproducibility. The TSR and latency results are extracted from the PostgreSQL CONVERSATION_LOGS
+with the script generate_charts.py on results/raw_results.csv which can be reproduced
+by any researcher with the 147 recordings and model checkpoint. The FLEURS WER result
+is reproducible without any doubt with the public ne_np split. The NLG evolution table (Sec-
+tion 7.1.2) contains every attempt done so far to evolve the NLG, and other members can avoid
+repeating the failed attempts.
+8.2 How Saathi Differs from Related Systems
+The comparison offers a contrast between the research systems published by ASR researchers
+(component level metrics) and deployed voice assistant applications (end to end evaluation). It
+includes both: Saathi is a full deployable application whose ASR part is compared to published
+benchmarks as well.
+8.2.1 ASR Component: Comparison with Published Nepali Speech Systems
+In Table 8.2 (Section 8.1.2) you can find the full benchmarks compared. In summary: The
+Conformer’s held-out test set WER is 18.67 percentage points lower on this project and 30.50
+percentage points lower on the benchmark FLEURS ne_np 726 split into test set. No deployment
+layer, no TTS integration and no validation with elderly users are found in all the previous Nepali
+ASR systems.
+77
+--- PAGE 93 ---
+8.2.2 Application Level: Comparison with Voice Assistant Systems
+System
+Nepali ASR
+Fully offline
+Bikram Sambat
+Fall detection
+SOS auto-dial
+Elderly validated
+Google Assistant × × × × ×
+Amazon Alexa × × × × × ×
+Apple Siri × × × × × ×
+Prior Nepali ASR
+systems
+× × × ×
+Wearable fall
+× × ×
+detectors (Casilari et al.,
+2017)
+Saathi (this work)
+Table 8.4 End-to-end application comparison: Saathi vs. related systems
+It’s important to note three differences. On another note, no old user of Nepali has ever been
+tested with a voice assistant before, which meant that, in turn, their failure modes shaped the
+design of Saathi. First, there is no previous voice assistant study undertaken with the elderly
+users from Nepali language group, while such systems studied in English language domain are
+commercial ones (Trajkova and Martin-Hammond, 2020, Pradhan et al., 2020, Abdolrahmani
+et al., 2018). Second, privacy and reliability cannot be achieved in a world without internet
+access - and users do not have the literacy required to agree to the cloud’s capture of their voice.
+Thirdly, none of the current systems meet the day-to-day cognitive need of Bikram Sambat to
+integrate tithi and festivals into their cognitive system (Pal et al., 2019).
+Comparing with present standard of care. Saathi can replace either phone alarms pro-
+grammed by family members or medication lists in paper form, or regular calls between family
+members, which are not effective methods where no family member is literate and do not
+automatically respond to falls or missed medications. Existing informal tools do not create a
+structure for voice confirmed fall detection and reminders.
+78
+--- PAGE 94 ---
+Research contributions:
+1. 1st Real World Voice Assistant for Senior citizens in Nepali language. Combining
+a culturally appropriate generation of NLG (natural language generation), the recognition
+of ASR (automatic speech recognition), fall detection, and emergency response into a
+deployable offline system tested with the target population, is something no existing system
+has implemented. This is a system level contribution and not component level.
+2. The need for a new ASR performance ceiling. Three Whisper trained systems stalled at
+48–49% WER with no factor of training amount; a switch to Conformer achieved 10.10%
+WER on the held-out set for this project and 30.50% for FLEURS, which suggests that the
+ceiling is architectural, not data-bound.
+3. Low-resource Nepali failure log. The hybrid architecture triumphed over 9 models that
+failed beforehand, it is the gradient collapse of Gemma 3 1B that minimizes the duplication
+of effort for researchers on similar languages (Google DeepMind, 2025).
+Engineering contributions:
+4. Bilingual composite RAG embedding strategy. Retrieval with Embedding “NEPALI: q |
+ENGLISH: eq | INTENT: intent” is a practical problem in low-resource RAG: the embedding
+model’s stronger pre-training on English is used, while preserving the Nepali semantics. This
+strategy can be applied in cases where the strong embedding models are mostly English
+pretrained, which is directly applicable to any language.
+5. Two way, exact once reminder delivery in Android Doze. When used together with an in-
+app polling of 5 seconds and a firedKeys deduplication map, an OS exactAllowWhileIdle
+alarm and 100% delivery under aggressive OS power management can be achieved. Dual
+channel alarm patterns are a well-known Android engineering technique but the combination
+of grace window for health context, voice confirmation mode and deduplication is documented
+here as a replicable implementation reference for mHealth reminder applications in resource
+depleted environments.
+6. Integration of Voice-SOS and accelerometer fall detection. Two fully independent
+Emergency trigger paths with a single countdown, auto-dial and logging infrastructure,
+both conscious and unconscious within a single Flutter app. The dual call mechanism
+(FlutterPhoneDirectCaller primary; CALL intent fallback) guarantees that it is completed
+even if the UI isolate is killed.
+79
+--- PAGE 95 ---
+7. Schema for Interaction logging for aging population research. The PostgreSQL schema
+documents per-stage STT/NLP/TTS latency, intent confidence, fall detection events, and
+admin access logs of the system, as a reproducible and documented data model for future
+longitudinal research (Section E).
+8.3 Impact
+8.3.1 Impact on the Target Community
+With a population of 2.97 million people (10.21% of the national population) in 2021 (38.2%
+higher than in 2011), Nepal has now started to become an ageing society by 2028 (Adhikari,
+2023). In 2023, almost one million Nepalese emigrated from the country, creating a heavy
+elderly population (Lamichhane, 2024). Older age groups are already largely excluded from
+the use of digital health tools due to their English interfaces and literacy needs (Acharya et al.,
+2023), and language barriers exacerbate exclusion for people living in rural areas (Acharya
+et al., 2023). Saathi does not need any internet connection, any reading ability and is only in
+Nepali.
+The three functional areas relate to documented unmet needs. The technical reliability required
+is implemented with the 100% delivery rate of Saathi and the medication reminders address
+a critical gap, with up to 20% improvement in adherence in LMIC settings (Beratarrechea
+et al., 2014). Fall detection and voice SOS decrease the time-to-first-contact for elderly living
+alone (Hijaz et al., 2010). Bikram Sambat, tithi, and festival integration is a cognitive and cultural
+need that Pal et al. (2019) have found to significantly enhance trust and adoption in the Global
+South, and all seven UAT participants affirmed the alignment of this need. This prototype’s
+approach to resolving the rural hardware barrier and its need for longitudinal rural validation and
+caregiver training pathways are necessary for realising impact at scale, as addressed as future
+work (Section 11).
+8.3.2 Societal and Academic Impact
+Saathi shows that it’s possible for a single researcher working on consumer hardware to build
+a fully functioning, privacy-preserving voice assistant for a low-resource language. The three
+microservice design is easily transferable to other under-resourced Indic language like Maithili,
+Newari (Sharma et al., 2025), Limbu etc. There are three artefacts with direct academic reuse
+value; the bilingual composite RAG embedding strategy (that can be used with any English
+dominant embedding model in a low-resource language), the NLG failure log (rare negative
+80
+--- PAGE 96 ---
+result documentation), and the 147 elderly Nepali audio recordings, the first known sample of
+elderly Nepali speech, and foundation for a future dedicated corpus.
+9 Conclusion
+Around 2.97 million (Adhikari, 2023) elderly Nepalis speakers do not have an assistant that
+understands their language, supports their daily lives and works offline. Youth migration has
+reduced family support (Lamichhane, 2024) and there is no existing system available that has the
+following features, which can all be deployed using a single application: Nepali ASR, knowledge
+of cultural calendar, medication reminders, emergency response and fall detection. Saathi was
+created to address this need.
+Three empirical findings emerged from the process of iterative prototyping. First, the performance
+of Nepali ASR is architectural: The WER was lowered from 48.56% to 10.10% when switching
+from Whisper to Conformer on the held-out set and 30.50% on FLEURS, with no improvement
+achieved when adding training data to Whisper. Second, reliable NLG for a low-resource
+language must be based on the hybrid architecture: no single one of the nine individual LLM
+models worked; all of the deterministic handlers, LLM persona prompting, and bilingual RAG
+models succeeded where they failed alone. Third, elderly ASR is a routing problem, as the
+elderly WER was 25.1%, but still, 98.6% Task Success Rate (95% CI: 95.6%–99.5%) was
+achieved through the use of structural fallback.
+All 5 project objectives achieved. Saathi v5.0 achieves 100% accuracy in transcribing Nepali
+with 10.10% WER, 99.79% accuracy in validating those intents, was able to deliver reminders
+100% of the time when the network was fully offline, was able to detect a fall with 100% accuracy
+with no false positive, and completed all 147 queries with less than 15 seconds latency.
+The wider impact is architectural: A full, private voice assistant for a poorly resourced language,
+developed by one researcher on consumer devices. The three microservices design, bilingual
+embedding of RAG, and a dual channel reliability model are transferable to other Indic languages.
+Besides showing the working ones, the project also precisely locates the failures nine failure
+modes in NLG, three dead ends inASR, and acoustic mismatch in the elderly that is safety-critical
+misrouting.
+81
+--- PAGE 97 ---
+10 Limitations
+The following limitations address fundamental boundaries not attempted within this project —
+scope constraints, architectural trade-offs, and structural gaps that remain open regardless
+of component performance. They are distinct from the shortfalls and methodology critiques
+addressed within the Critical Evaluation (Section 8).
+ASR and Speech
+Limitation Impact Mitigation / Residual
+No elderly Nepali training data Elderly WER 25.1% vs.
+10.10% adult; 2 false SOS
+triggers
+ASR-induced false SOS activations Closed-world intent classifier Single-turn dialogue 2 health queries routed to
+sos_emergency; users star-
+tled
+OOV queries may misroute;
+population query misclassi-
+fied for all 7 participants
+No session memory; follow-
+ups require full re-phrasing
+Hybrid fallback absorbs
+routing errors; elderly cor-
+pus is highest-priority future
+work
+10s countdown prevented
+unintended calls; confirma-
+tion gate proposed
+RAG fallback recovered all
+7; routing unreliable
+Manually curated knowledge base Push-to-talk accepted as a
+tool; companion framing un-
+realised
+Doctor-referral directives
+added as safety floor; cal-
+endar extension proposed
+Weak RAG evaluation metric 2,081 rows need periodic
+update; medical content un-
+validated; calendar limited
+to BS 2080–2083
+Keyword similarity on 6
+prompts is a poor proxy for
+factual safety
+Acknowledged as prelim-
+inary; LLM-as-judge pro-
+posed
+Table 10.1 ASR, dialouge and knowledge limitations
+82
+--- PAGE 98 ---
+Limitation Impact Mitigation / Residual
+LAN-only operation Unavailable during power
+cuts or router failure
+Accepted as privacy trade-
+off; offline-first Flutter miti-
+gates startup dependency
+RTX 4060 hardware requirement Unaffordable for rural deploy-
+ment
+CPU-only mid-range laptop
+tier identified; on-device re-
+quires model distillation
+No iOS support 18% of Nepali smartphone
+users excluded
+Android justified by 82%
+market share (StatCounter
+Global Stats, 2024); Flutter
+is cross-platform
+Weather API dependency Weather queries fail during
+internet outages
+Fallback message informs
+user; all other intents remain
+offline
+Narrow participant scope n = 7; urban Kathmandu;
+caregiver present; no rural
+or low-literacy participants
+Results scoped to urban el-
+derly with caregiver support
+Single-session evaluation Learning curve, error recov-
+ery, and cognitive load un-
+measured
+NASA-TLX verbal scale and
+retry observation proposed
+for longitudinal study
+No multilingual support Code-switched queries
+(Maithili, Newari, Tamang)
+misrecognised
+Out of scope; bilingual
+Newari/Nepali variant pro-
+posed as future work
+Table 10.2 Deployment and evaluation scope limitations
+83
+--- PAGE 99 ---
+11 Future Research Directions
+Future directions follow directly from identified gaps in this project. They are separated into
+near-term improvements (feasible within an undergraduate or Master’s follow-on) and long-term
+directions requiring dedicated resources.
+11.1 Near-Term (Feasible within 1–2 Years)
+11.1.1 Highest Priority
+Direction Follows from Approach
+Elderly Nepali speech corpus No elderly training data; 25.1%
+elderly WER; 2 false SOS trig-
+gers
+Record 20+ participants aged
+60+ across Kathmandu and ru-
+ral districts; use 147 existing
+recordings as seed; speaker-
+adaptive fine-tuning
+SOS confirmation gate 2 false activations; users star-
+tled
+Require spoken “yes” or button
+tap before countdown; voice-
+triggered path only
+Rural longitudinal field study Urban-only sample; no time-to-
+learn or error recovery data
+4–8 week deployment without
+caregiver presence; retry ob-
+servation and NASA-TLX ver-
+bal scale
+Bikram Sambat extension Calendar limited to
+BS 2080–2083; out-of-
+range lookups fail silently
+Extend JSON to
+BS 2084–2090; add graceful
+Nepali out-of-range message
+Table 11.1 Near-term future work — highest priority
+84
+--- PAGE 100 ---
+11.1.2 Medium Priority
+Direction Follows from Approach
+Out-of-scope intent class Closed-world assumption;
+population query misclassi-
+fied for all 7 participants
+Add out_of_scope class on
+diverse unmapped queries;
+or lower confidence threshold
+Weather offline fallback Open-Meteo fails during out-
+ages; queries fail silently
+Cache last-known weather
+with timestamp; surface stal-
+eness warning
+Session state memory Single-turn design blocks nat-
+ural follow-up
+Store last 2–3 intents and en-
+tities across a configurable
+time window
+RAG quality evaluation Keyword similarity is a weak
+safety proxy
+LLM-as-judge with Nepali cul-
+tural rubric; or structured ex-
+pert rating
+Knowledge base clinical review Medical content unvalidated;
+doctor-referral directives are
+heuristic
+Nepal-based GP audits all
+498 health rows for clinical ac-
+curacy
+Table 11.2 Near-term future work — medium priority
+85
+--- PAGE 101 ---
+11.2 Long-Term (Require Dedicated Resources)
+Direction Follows from Approach
+FLEURS as standard benchmark No shared benchmark with
+prior Nepali ASR work
+Reduced hardware tier RTX 4060 unaffordable for
+rural users
+On-device deployment LAN-only fails during power
+cuts
+Multilingual and code-switching Mixed-language queries
+misrecognised
+Extension to other Indic languages Same gap exists for Maithili,
+Newari, Limbu, Tamang
+speakers
+iOS deployment 18% of Nepali users ex-
+cluded
+Evaluate on FLEURS
+ne_np; release Saathi
+Conformer checkpoint
+CPU-only backend on
+16GB RAM laptop; LLM
+quantised to Q3; target
+15–25s at USD 150–200
+Conformer distillation to
+<1B parameters; sub-1B
+LLM replacement; resolve
+thermal constraints first
+Code-switching ASR on
+mixed corpora; multilingual
+LoRA adapter
+Three-microservice tem-
+plate with language-specific
+Conformer and IndicBERT
+adapter; reuse bilingual
+RAG strategy
+Flutter is cross-platform; re-
+quires Apple enrolment and
+background permission re-
+view
+Proactive health monitoring System is reactive only Aggregate accelerometer
+and reminder compliance
+data for anomaly detection;
+requires ethics review
+Table 11.3 Long-term future research directions
+86
+--- PAGE 102 ---
+References
+Abdolrahmani, A., Kuber, R. and Branham, S. M. (2018), Siri talks at you: An empirical inves-
+tigation of voice-activated personal assistant (VAPA) usage by individuals who are blind, in
+‘Proceedings of the 20th International ACM SIGACCESS Conference on Computers and
+Accessibility’, pp. 249–258.
+Acharya, T., Dhungana, G. K., Traille, K. and Dhakal, H. (2023), ‘Senior citizens in Nepal: Policy
+gaps and recommendations’, Gerontology and Geriatric Medicine 9.
+Adhikari, S. U. (2023), ‘The demographic situation of ageing population in Nepal’, Shanti Journal
+3(1–2), 79–92.
+AI4Bharat (2023), ‘Indic-TTS: Text-to-speech for indian languages’, https://github.com/
+AI4Bharat/Indic-TTS. Accessed: 2024.
+amitpant7 (2024), ‘nepali-speech-to-text [Dataset]’, Hugging Face Datasets.
+URL: https://huggingface.co/datasets/amitpant7/nepali-speech-to-text
+Antunes, T. P. C. et al. (2019), ‘Assistive technology for people with dementia: Systematic
+review’, Journal of Medical Internet Research 21(8), e13061.
+Babu, A., Wang, C., Tjandra, A., Lakhotia, K., Xu, Q., Goyal, N., Singh, K., von Platen, P.,
+Saraf, Y., Pino, J., Baevski, A., Conneau, A. and Auli, M. (2021), ‘XLS-R: Self-supervised
+cross-lingual speech representation learning at scale’, arXiv preprint arXiv:2111.09296.
+URL: https://arxiv.org/abs/2111.09296
+Baevski, A., Zhou, Y., Mohamed, A. and Auli, M. (2020), wav2vec 2.0: A framework for self-
+supervised learning of speech representations, in ‘Advances in Neural Information Processing
+Systems’, Vol. 33, pp. 12449–12460.
+URL: https://arxiv.org/abs/2006.11477
+Beratarrechea, A., Lee, A. G., Willner, J. M., Jahangir, E., Ciapponi, A. and Rubinstein, A.
+(2014), ‘The impact of mobile health interventions on chronic disease outcomes in developing
+countries: A systematic review’, Telemedicine and e-Health 20(1), 75–82.
+Casilari, E., Santoyo-Ramón, J.-A. and Cano-García, J.-M. (2017), ‘Analysis of public datasets
+for wearable fall detection systems’, Sensors 17(7), 1513.
+87
+--- PAGE 103 ---
+Chen, C., Lifset, E. T., Han, Y., Roy, A., Hogarth, M., Moore, A. A., Farcas, E. and Weibel, N.
+(2023), Screen or no screen? Lessons learnt from a real-world deployment study of using
+voice assistants with and without touchscreen for older adults, in ‘Proceedings of the 25th
+International ACM SIGACCESS Conference on Computers and Accessibility’.
+Chen, Q., Zhuo, Z. and Wang, W. (2019), ‘BERT for joint intent classification and slot filling’,
+arXiv preprint arXiv:1902.10909.
+URL: https://arxiv.org/abs/1902.10909
+Conneau, A., Ma, M., Khanuja, S., Zhang, Y., Axelrod, V., Dalmia, S., Riesa, J., Rivera, C. and
+Bapna, A. (2022), ‘FLEURS: Few-shot learning evaluation of universal representations of
+speech’, arXiv preprint arXiv:2205.12446.
+Czaja, S. J., Charness, N., Fisk,A. D., Hertzog, C., Nair, S. N., Rogers, W.A. and Sharit, J. (2006),
+‘Factors predicting the use of technology: Findings from the Center for Research and Education
+on Aging and Technology Enhancement (CREATE)’, Psychology and Aging 21(2), 333–352.
+Doddapaneni, S. et al. (2023), IndicBERT-v3: A multilingual language model for indic languages,
+Technical report, AI4Bharat.
+URL: https://github.com/AI4Bharat/IndicBERT
+Fitts, P. M. (1954), ‘The information capacity of the human motor system in controlling the
+amplitude of movement’, Journal of Experimental Psychology 47(6), 381–391.
+Fowler, M. and Lewis, J. (2014), ‘Microservices: A definition of this new architectural term’,
+https://martinfowler.com/articles/microservices.html. Accessed: 2024.
+Ghimire, R. R., Bal, B. K. and Poudyal, P. (2023), ‘Active learning approach for fine-tuning
+pre-trained ASR model for a low-resourced language: A case study of Nepali’, ICON 2023.
+URL: https://aclanthology.org/2023.icon-1.9/
+Ghimire, R. R., Bal, B. K. and Poudyal, P. (2024), ‘A comprehensive study of the current state-
+of-the-art in Nepali automatic speech recognition systems’, arXiv preprint arXiv:2402.03050.
+URL: https://arxiv.org/pdf/2402.03050
+Google DeepMind (2025), ‘Gemma 3 technical report’, https://ai.google.dev/gemma/docs/
+gemma3. Accessed: 2025.
+88
+--- PAGE 104 ---
+Google LLC (2018), ‘Flutter: UI toolkit for building natively compiled applications from a single
+codebase’, https://flutter.dev. Accessed: 2024.
+Gulati, A., Qin, J., Chiu, C.-C., Parmar, N., Zhang, Y., Yu, J., Han, W., Wang, S., Zhang, Z.,
+Wu, Y. and Pang, R. (2020), Conformer: Convolution-augmented transformer for speech
+recognition, in ‘Proceedings of Interspeech 2020’, pp. 5036–5040.
+He, P., Liu, X., Gao, J. and Chen, W. (2021), DeBERTa: Decoding-enhanced BERT with
+disentangled attention, in ‘International Conference on Learning Representations’.
+URL: https://arxiv.org/abs/2006.03654
+Hijaz, F., Afzal, N., Ahmad, T. and Hasan, O. (2010), Survey of fall detection and daily activity
+monitoring techniques, in ‘Proceedings of the 2010 International Conference on Information
+and Emerging Technologies (ICIET)’, pp. 1–6.
+Hoy, M. B. (2018), ‘Alexa, Siri, Cortana, and more: An introduction to voice assistants’, Medical
+Reference Services Quarterly 37(1), 81–88.
+Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L. and Chen, W. (2022),
+LoRA: Low-rank adaptation of large language models, in ‘International Conference on Learning
+Representations’.
+URL: https://arxiv.org/abs/2106.09685
+Jakob, D., Wilhelm, S., Gerl, A., Ahrens, D. and Wahl, F. (2025), ‘Adapting voice assistant
+technology for older adults: A comprehensive study on usability, learning patterns, and
+acceptance’, Digital 5(1), 4.
+Jha, B. (2024), ‘Exploring NLP challenges and opportunities for languages with extensive
+character sets: A case study on Nepali’.
+Joshi, P., Santy, S., Budhiraja, A., Bali, K. and Choudhury, M. (2020), The state and fate of
+linguistic diversity and inclusion in the NLP world, in ‘Proceedings of the 58th Annual Meeting
+of the Association for Computational Linguistics’, pp. 6282–6293.
+k2-fsa (2024), ‘Sherpa-ONNX: Streaming and offline ASR/TTS with ONNX runtime’, https:
+//github.com/k2-fsa/sherpa-onnx. Accessed: 2025.
+Källander, K., Tibenderana, J. K., Akpogheneta, O. J., Strachan, D. L., Hill, Z., ten Asbroek, A.
+H.A., Conteh, L., Kirkwood, B. R. and Meek, S. R. (2013), ‘Mobile health (mHealth) approaches
+89
+--- PAGE 105 ---
+and lessons for increased performance and retention of community health workers in low- and
+middle-income countries: A systematic review’, Journal of Medical Internet Research 15(1), e17.
+Khanuja, S., Bansal, D., Mehnaz, S., Khapra, M. M., Yerra, S. and Talukdar, P. (2021), ‘MuRIL:
+Multilingual representations for indian languages’, arXiv preprint arXiv:2103.10730.
+URL: https://arxiv.org/abs/2103.10730
+Kim, J., Kong, J. and Son, J. (2021), Conditional variational autoencoder with adversarial
+learning for end-to-end text-to-speech, in ‘Proceedings of the 38th International Conference
+on Machine Learning’.
+URL: https://arxiv.org/abs/2106.06103
+Lacombe, Y., Sankar, A., Thomas, S., Varadhan, P., Gandhi, S. and Khapra, M. (2024), ‘Indic
+Parler-TTS’, https://huggingface.co/ai4bharat/indic-parler-tts. Accessed: 2024.
+Lamichhane, S. (2024), ‘Qualitative study on youth out-migration and its impact on elderly
+parents’, Tri-Chandra Journal of Anthropology 1(1), 87–101.
+Lewis, P. et al. (2020), Retrieval-augmented generation for knowledge-intensive NLP tasks, in
+‘Advances in Neural Information Processing Systems’, Vol. 33, pp. 9459–9474.
+Liu, B. and Lane, I. (2016), Attention-based recurrent neural network models for joint intent
+detection and slot filling, in ‘Proceedings of Interspeech 2016’, pp. 685–689.
+maharjanabeeral (2024), ‘nepali-asr [Dataset]’, Hugging Face Datasets.
+URL: https://huggingface.co/datasets/maharjanabeeral/nepali-asr
+Marasinghe, A. (2015), ‘Assistive technologies in reducing caregiver burden among informal
+caregivers of older adults: A systematic review’, Disability and Rehabilitation: Assistive Technology
+11(5), 353–360.
+Newman, S. (2015), Building Microservices: Designing Fine-Grained Systems, O’Reilly Media.
+Nielsen, J. (1994), Usability Engineering, Morgan Kaufmann, San Francisco, CA.
+Nogueira, R. and Cho, K. (2019), ‘Passage re-ranking with BERT’, arXiv preprint arXiv:1901.04085.
+URL: https://arxiv.org/abs/1901.04085
+90
+--- PAGE 106 ---
+NVIDIA (2023), ‘Automatic speech recognition (ASR) — NVIDIA NeMo framework user
+guide’, https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/
+asr/intro.html. Accessed: 2025.
+Open-Meteo (2024), ‘Open-meteo free weather API’, https://open-meteo.com. Accessed:
+2024.
+Pal, J., Lakshmanan, M., Bhatti, Z., Chhabra, V., Joshi,A., Kumar, N. and Kameswaran, V. (2019),
+Agency in the age of intelligent machines: Uncovering gaps in AI mediated interactions, in
+‘Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems’, pp. 1–12.
+Paudel, S., Pant, A., Acharya, B., Khattri, S. and Rajbhandari, M. (2023), Large vocabulary
+continuous speech recognition for Nepali language using CNN and transformer, in ‘Proceedings
+of the 11th International Conference on Natural Language Processing (ICON 2023)’.
+URL: https://www.researchgate.net/publication/376392212
+Pichora-Fuller, M. K. and Souza, P. E. (2003), ‘Effects of aging on auditory processing of speech’,
+International Journal of Audiology 42(sup2), 2S11–2S16.
+Pradhan, A., Mehta, K. and Findlater, L. (2020), Accessibility came by accident: Use of voice-
+controlled intelligent personal assistants by people with disabilities, in ‘Proceedings of the
+2020 CHI Conference on Human Factors in Computing Systems’, pp. 1–13.
+pujanpaudel (2024), ‘nepali_speech_to_text [Dataset]’, Hugging Face Datasets.
+URL: https://huggingface.co/datasets/pujanpaudel/nepalispeechtotext
+Qdrant (2024), ‘Qdrant vector database documentation’, https://qdrant.tech/
+documentation/. Accessed: 2025.
+Qwen Team, Alibaba Cloud (2025), ‘Qwen3 technical report’, https://huggingface.co/Qwen/
+Qwen3-8B. Accessed: 2025.
+Radford, A., Kim, J. W., Xu, T., Brockman, G., McLeavey, C. and Sutskever, I. (2023), Robust
+speech recognition via large-scale weak supervision, in ‘Proceedings of the 40th Interna-
+tional Conference on Machine Learning’, Vol. 202 of Proceedings of Machine Learning Research,
+pp. 28492–28518.
+URL: https://proceedings.mlr.press/v202/radford23a.html
+91
+--- PAGE 107 ---
+Reimers, N. and Gurevych, I. (2019), Sentence-BERT: Sentence embeddings using siamese
+BERT-networks, in ‘Proceedings of the 2019 Conference on Empirical Methods in Natural
+Language Processing’.
+Rijal, S., Adhikari, S., Dahal, M., Awale, M. and Ojha, V. (2024), ‘Whisper fine-tuning on Nepali
+language’, arXiv preprint arXiv:2411.12587.
+URL: https://arxiv.org/abs/2411.12587
+Sarma, M. and Sarma, K. K. (2010), HMM-based isolated word Nepali speech recognition, in
+‘Proceedings of the National Conference on Signal Processing and Communications (NCSP)’.
+Semantic Scholar ID: 402746db4501e4b21011e378b63401157974a735. URL: https://www.se-
+manticscholar.org/paper/402746db4501e4b21011e378b63401157974a735.
+Shahi, T. B. and Sitaula, C. (2021), ‘Natural language processing for Nepali text: A review’,
+Artificial Intelligence Review 55(4), 3401–3429.
+Sharma, R. K., Shrestha, S. N., Poudel, J., Tiwari, R., Shrestha, A., Ghimire, R. R. and Bal, B. K.
+(2025), ‘Nwāchā Munā: A Devanagari speech corpus and proximal transfer benchmark for
+Nepal Bhasha ASR’.
+shunyalabs (2024), ‘nepali-speech-dataset [Dataset]’, Hugging Face Datasets.
+URL: https://huggingface.co/datasets/shunyalabs/nepali-speech-dataset
+Siek, K. A., Rogers, Y. and Connelly, K. H. (2005), Fat finger worries: How older and younger
+users physically interact with PDAs, in ‘Proceedings of INTERACT 2005’, Vol. 3585 of Lecture
+Notes in Computer Science, Springer, pp. 267–280.
+Song, Y., Yang, Y. and Cheng, P. (2022), ‘The investigation of adoption of voice-user interface
+(VUI) in smart home systems among chinese older adults’, Sensors 22(4), 1614.
+Srivastava, B. M. L., Sitaram, S., Mehta, R. K., Mohan, K. D., Matani, P., Satpal, S., Bali,
+K., Srikanth, R. and Nayak, N. (2018), Interspeech 2018 low resource automatic speech
+recognition challenge for Indian languages, in ‘Proceedings of the 6th Workshop on Spoken
+Language Technologies for Under-Resourced Languages (SLTU)’, pp. 11–14.
+URL: https://www.isca-archive.org/sltu2018/srivastava18sltu.html
+Stamate, A., Marzan, M.-D., Velciu, M., Paul, C. and Spiru, L. (2024), ‘Advancing user-centric
+design and technology adoption for aging populations: A multifaceted approach’, Frontiers in
+Public Health 12, 1469815.
+92
+--- PAGE 108 ---
+StatCounter Global Stats (2024), ‘Mobile operating system market share in nepal’, https:
+//gs.statcounter.com/os-market-share/mobile/nepal. Accessed: 2025.
+Stigall, B., Waycott, J., Baker, S. and Caine, K. (2019), Older adults’ perception and use of voice
+user interfaces: A preliminary review of the computing literature, in ‘Proceedings of the 31st
+Australian Conference on Human-Computer Interaction’.
+Trajkova, M. and Martin-Hammond, A. (2020), “Alexa is a Toy”: Exploring older adults’ reasons
+for using, limiting, and abandoning echo, in ‘Proceedings of the 2020 CHI Conference on
+Human Factors in Computing Systems’, pp. 1–13.
+Vipperla, R., Renals, S. and Frankel, J. (2010), ‘Ageing voices: The effect of changes in voice
+parameters on ASR performance’, EURASIP Journal on Audio, Speech, and Music Processing.
+Williams, R., Everson, R. and Cope, N. (2023), ‘Applicability of multilingual ASR models to
+dialectal and low-resource varieties: Lessons from Welsh and Cornish’, Speech Communication
+145, 1–12.
+World Health Organization (2025), ‘Ageing and health’, https://www.who.int/news-room/
+fact-sheets/detail/ageing-and-health. Accessed: 2025.
+World Wide Web Consortium (2023), ‘Web content accessibility guidelines (WCAG) 2.2’, https:
+//www.w3.org/TR/WCAG22/. Accessed: 2024.
+93
+--- PAGE 109 ---
+A Feasibility, Risks, and Ethical Aspects
+A.1 Revised Feasibility
+Technical Feasibility The technical aspects of the project were fully open source, so it was
+technically possible. Currently there are several major libraries that are also actively developed
+and open source: NeMo, HuggingFace Transformers, PEFT, llama-cpp-python, Qdrant, Sherpa-
+ONNX, Flutter, FastAPI and SQLAlchemy. The training was done on an NVIDIA RTX 4060
+(8 GB VRAM) with the exception of Google Colab being used for Conformer Stage 2. The
+microservices architecture resolved the CUDA dependency issues, while the hybrid GGUF
+inference reduced VRAM usage from 40+ GB to 7–8 GB of peak VRAM.
+Economic Feasibility Economic viability also was good. All the frameworks, models and
+datasets utilized in this project, such as Hugging Face speech corpora, NeMo checkpoints,
+IndicBERT-v3-1B, Qwen3 9B GGUF, Qwen3-Embedding, MiniLM-L12-v2, and Sherpa-ONNX
+VITS are open source or available for free and non-commercial research use. Of course no
+money had to be paid for services, proprietary APIs or commercial licence was required, and so
+the price of the service was £ 0.
+Operational Feasibility It is a consumer Android based system controlled by a standard
+home Wi-Fi network, running on Android 9+ consumer hardware. With Android dominating
+the smartphone market in Nepal, with the share of Android being 82% as per (StatCounter
+Global Stats, 2024), this option ensures maximum accessibility. The mature users do not need
+to go through the one-time user onboarding process, and the caregiver admin panel can be
+programmed 100% without coding.
+Time Feasibility The project was completed on time and all five project goals were accom-
+plished within the project’s 32-week timeframe. These four significant architectural adaptations –
+Whisper to Conformer, MuRIL to IndicBERT, Monolith to microservices, generative fine-tuning to
+a hybrid NLG paradigm – were rolled out with iterative prototyping without any timeline stretches.
+As scheduled, the formal user evaluation (Objective 5) was carried out in Weeks 25-27.
+94
+--- PAGE 110 ---
+A.2 Updated Risk Analysis and Mitigation
+In the course of the project, there were several events that were identified and actively resolved,
+involving medium to high risks.
+ASR Accuracy on Elderly Speech The most pronounced technical challenge was the poor
+ASR performance on elderly speech which was addressed by a two-stage Conformer fine-tuning
+approach to achieve a WER of 10.10% on all seven elderly speakers. If there are any routing
+errors left after classification, the structural hybrid fallback layer absorbs them.
+LoRA Gradient Collapse The potential impact of LoRA gradient collapse was high, although
+it was a low probability risk. The loss was computed at each step of the learning and best
+checkpoint was stored at each training step to ensure the loss of validation. It was required:
+the Gemma 3 1B model collapsed at loss: 0.0000, gradient norm: NaN and was abandoned in
+favor of IndicBERT LoRA model which was stable while training on both the runs.
+Android Doze Mode Deferral The Doze Mode deferral of scheduled reminders risk was
+deemed as a medium likelihood and high impact risk. This was solved by using 5 second polling,
+exactAllowWhileIdle alarm and a grace period of 120 seconds, where all of the 40 test reminders
+were successfully delivered on time, deferrals up to 88 seconds are transparently absorbed by
+the alarm.
+Inappropriate or Off-topic LLM Generation The temperature was lowered to 0.2 to ensure
+that the LLM’s outputs would not be overly creative and therefore likely to be inappropriate or
+off-topic, all LLM calls were capped at a maximum of 40-100 tokens, and an elderly-appropriate
+persona prompt was added to all LLM calls to ensure the content kept on topic. If the question is
+of a deterministic fact, it is directly sent to the Python handlers without involving the LLM.
+Fall Detection False Positives The countdown time for fall detection was set to 10s which
+is tunable, and the threshold of acceleration was set at default as 35.0 m/s2 to minimize false
+positive fall detection, no fall detection was inappropriately triggered during 30 min of normal
+use test.
+ML Dependency Conflicts Multiple stacks for NeMo, HuggingFace and LLM inference resulted
+in ML dependency conflicts being identified as high likelihood. All conflicts were solved by having
+three completely separated Conda environments, with 3 different FastAPI microservices.
+95
+--- PAGE 111 ---
+Elderly Participant Recruitment Elderly participants were recruited from a personal network
+in Kathmandu, and seven 60-74 year old participants were recruited, sessions being held in
+their own home and taking less than 30 minutes.
+Emergency Intent Misclassification Finally, the most important risk (emergency intent mis-
+classification) was mitigated two times with independent mitigations: the first one being a special
+dedicated button for SOS on the screen which bypasses the classifier altogether and the second
+one being the accelerometer-based fall detection which starts the SOS pathway without voice
+inputs. The model was also trained with the usage of class-weighted LoRA loss to ensure that
+the sos_emerggency intent is prioritized among other intent classes.
+A.3 Revised Ethical Considerations
+Ethical protection was put into place throughout the project.
+Informed Consent Before the evaluation session, a simple Nepali verbal explanation was
+provided, and a Nepali information sheet was handed out, and informed consent was noted using
+simple written signatures or a witnessed verbal consent (for those who had not good written
+literacy). Withdrawal at any time was not to have any effect and was specifically stated.
+Voice Data Anonymisation Data related to voices was anonymised at collection. Each
+recording was labeled with P03_S12_identity_connections [date.wav] and the label to identify
+connections were recorded in a password protected document on BCU OneDrive. All recordings
+were deleted from the personal device within 24 hours after they were uploaded and no voice
+data was ever transferred to an external server or third party system throughout the project.
+Safe SOS Testing Safety testing for SOS/fall detection was performed without harming the
+subjects. For testing SOS auto-dial it was only tested with a non-operational number, and the
+CALL_TEST_MODE was set true for the whole test, no real emergency numbers were dialled,
+and participants were informed of this before each test was conducted.
+Safe Fall Detection Testing The fall detection threshold calibration was conducted using a
+fall detector in a padded case dropped from a fixed height onto a padded mat; no humans were
+involved.
+96
+--- PAGE 112 ---
+Participant Wellbeing Wellbeing of participants was taken into account throughout the evalua-
+tion process. Tasks were delivered and prompts were given in Nepali and post session interviews
+were also held in Nepali. Sessions were no longer than 30 minutes and a caregiver/family
+member was offered the option to be present, but only 5 of seven accepted.
+Data Minimisation The use of data minimisation was done satisfactorily. There was no
+retention of interaction logs – only audio recording and anonymised task outcome logs and data
+was extracted after. This report displays only aggregated and anonymised data, such as task
+success rates, WER/CER scores and latency. The project was a research prototype, and no
+data of any participant was used in any commercial way or for third parties’ profiling.
+Regulatory Compliance As it was not making any claims and not a medical device, no NHS
+or IRB approval was required. Throughout, BCU Research Ethics Policy was followed.
+97
+--- PAGE 113 ---
+B Requirement Traceability Matrix
+Req. Component Satisfying It Verification Method
+FR-01 ASR Microservice (NeMo Conformer,
+port 8002)
+FR-02 NLU API (IndicBERT-v3-1B + LoRA, port
+8000)
+FR-03 Qwen LLM Inform Handlers with elderly
+persona prompt
+FR-04 Sherpa-ONNX ne_NP-chitwan-medium
+(port 8001)
+FR-05 set_reminder action → Flutter
+ReminderService
+FR-06 ReminderService polling +
+_VoiceConfirmationDialog
+FR-07 _SosCountdownDialog +
+flutter_phone_direct_caller
+FR-08 FallDetectionService Dart isolate (ac-
+celerometer magnitude)
+FR-09/10 18 Inform handlers + play_music →
+MusicService
+FR-11 One-time onboarding screen; USERS ta-
+ble persistence
+FR-12 bcrypt PIN gate; USER_SETTINGS +
+ADMIN_ACCESS_LOGS
+FR-13 CONVERSATION_LOGS table; per-stage la-
+tency columns
+WER on held-out set (§7.2.3)
+Classification accuracy on 147 live
+queries (§7.2.4)
+Qualitative UAT feedback; sentence-
+length spot-check (§7.2.8)
+TTS latency column in
+CONVERSATION_LOGS (§7.2.5)
+40-run delivery reliability test (§7.2.7)
+Dual-mode functional test; DB record in
+CONFIRMATION_RECORDINGS
+UAT-04 and UAT-06 (§7.2.4); 21/21 TSR
+10 drop tests; 0 false positives (§7.2.7)
+UAT-02, UAT-03, UAT-07 (§7.2.4)
+App launch sequence; USERS DB record
+verified (TC-INT-02)
+Manual test: correct PIN grants access;
+wrong PIN logged and denied
+Database query confirms STT/NLP/TTS
+columns populated per request
+Table B.1 Requirement Traceability Matrix)
+98
+--- PAGE 114 ---
+Table B.2 Requirement Traceability Matrix (Non-Functional Requirements)
+Req. Component Satisfying It Verification Method
+NFR-01 Three isolated microservices; GPU of-
+floading
+147/147 queries <15s; P95 = 8.1s
+(§7.2.5)
+NFR-02 All inference on 192.168.x.x LAN; zero
+external API calls
+Network monitor confirms no WAN traffic
+during sessions
+NFR-03 No voice data leaves LAN; ASR bound to
+127.0.0.1:8002
+Static code review; no external HTTP
+calls in source
+NFR-04 Orange-on-dark palette; 48dp targets;
+Devanagari labels
+Contrast ratio ≥7:1 verified via Colour
+Contrast Analyser tool
+NFR-05 length_scale = 1.55; engineered punc-
+tuation pauses
+Elderly participant TTS clarity ratings
+(§7.2.8); all 7 positive
+NFR-06 Dual-channel: exactAllowWhileIdle +
+5s polling
+Doze Mode: 20/20 within 120 s grace win-
+dow (§7.2.7)
+Table B.3 Requirement Traceability Matrix)
+99
+--- PAGE 115 ---
+C Project Timeline
+Figure C.1 32-Week project gantt chart
+100
+--- PAGE 116 ---
+D Conformer ASR Training Scripts
+The repository includes the complete training code under the folder: backend/asr_service/training/
+To explain the two-stage frozen/unfrozen strategy, the three scripts which required special NeMo
+engineering to be able to train are reproduced here: the multilingual batch-tuple patch (required
+to run without training crashing on Step 1), and the two-stage frozen/unfrozen strategy using
+the Stage 1 and Stage 2 configuration blocks.
+The NeMo multilingual Conformer expects a 6-item tuple (’language_ids’, but NeMo’s default
+data loader returns one with 4 items. This patch adds the Nepali language code (”ne”) to the
+training step, validation pass, Nepali language joint (RNNT) and CTC decoder forward method
+without modifying the NeMo source code.
+Listing 1 Multilingual batch-tuple patch — fine_tune_1.py
+1 def apply_multilingual_patch(model , lang_code="ne"):
+2 # A. Validation pass: inject lang_ids into 4-item batch
+3 base_val_pass = model.__class__.validation_pass
+4
+5 def patched_validation_pass(self , batch , batch_idx , dataloader_idx =0):
+6 if isinstance(batch , (list , tuple)) and len(batch) == 4:
+7 signal = batch[0]
+8 lang_ids = torch.zeros(
+9 signal.shape[0], device=signal.device , dtype=torch.long
+10 )
+11 batch = list(batch) + [None , lang_ids]
+12 return base_val_pass(self , batch , batch_idx , dataloader_idx)
+13
+14 model.validation_pass = types.MethodType(patched_validation_pass , model)
+15
+16 # B. Tokenizer: force Nepali lang tag on ids_to_text
+17 if hasattr(model , "tokenizer"):
+18 raw_ids_to_text = model.tokenizer.ids_to_text
+19 def safe_ids_to_text(tokens , *args , lang=None , **kwargs):
+20 return raw_ids_to_text(tokens , lang=lang_code , **kwargs)
+21 model.tokenizer.ids_to_text = safe_ids_to_text
+22
+23 # C. RNNT Joint: force lang_code in projection
+24 if hasattr(model , "joint"):
+25 base_joint_func = model.joint.__class__.joint_after_projection
+26 def patched_joint_after_projection(self , f, g, *args ,
+101
+--- PAGE 117 ---
+27 language_ids=None , **kwargs):
+28 return base_joint_func(self , f, g, language_ids=[lang_code])
+29 model.joint.joint_after_projection = types.MethodType(
+30 patched_joint_after_projection , model.joint)
+31
+32 # D. CTC Decoder: strip incoming lang_ids; inject fixed code
+33 if hasattr(model , "ctc_decoder"):
+34 raw_ctc_forward = model.ctc_decoder.forward
+35 def patched_ctc_forward(self , encoder_output=None , **kwargs):
+36 kwargs.pop("language_ids", None)
+37 return raw_ctc_forward(
+38 encoder_output=encoder_output ,
+39 language_ids=[lang_code], **kwargs)
+40 model.ctc_decoder.forward = types.MethodType(
+41 patched_ctc_forward , model.ctc_decoder)
+42
+43 # E. Training step: expand 4-item batch to 6-item tuple
+44 original_training_step = model.training_step
+45 def patched_training_step(self , batch , batch_idx):
+46 if len(batch) == 4:
+47 signal , signal_len , transcript , transcript_len = batch
+48 language_ids = torch.zeros_like(signal_len)
+49 batch = (signal , signal_len , transcript ,
+50 transcript_len , None , language_ids)
+51 return original_training_step(batch , batch_idx)
+52 model.training_step = types.MethodType(patched_training_step , model)
+53 print(f"Multilingual patch applied (lang={lang_code})")
+54
+D.1 Stage 1 Training Configuration (Encoder Frozen)
+Listing 2 Stage 1 hyperparameters and trainer setup — fine_tune_1.py
+1 # Hyperparameters
+2 BATCH_SIZE = 4 # per -GPU; VRAM target ~5-6 GB
+3 ACCUM_GRAD = 8 # effective batch = 4 * 8 = 32
+4 MAX_EPOCHS = 5
+5 LEARNING_RATE = 1e-4 # higher LR safe with frozen encoder
+6 WARMUP_STEPS = 500
+7
+8 # Load model and freeze encoder
+9 model = EncDecHybridRNNTCTCBPEModel.restore_from(MODEL_PATH)
+10 apply_multilingual_patch(model , lang_code="ne")
+102
+--- PAGE 118 ---
+11 model.encoder.freeze()
+12
+13 # Optimizer: AdamW + CosineAnnealing
+14 optim_cfg = OmegaConf.create({
+15 "name": "adamw"
+,
+16 "lr": LEARNING_RATE ,
+17 "betas": [0.9, 0.98],
+18 "weight_decay": 1e-3,
+19 "sched": {
+20 "name": "CosineAnnealing"
+,
+21 "warmup_steps": WARMUP_STEPS ,
+22 "min_lr": 1e-6,
+23 },
+24 })
+25 model.setup_optimization(optim_cfg)
+26
+27 # PyTorch Lightning Trainer
+28 trainer = pl.Trainer(
+29 accelerator="gpu"
+,
+30 devices=1,
+31 max_epochs=MAX_EPOCHS ,
+32 precision="16-mixed"
+,
+33 accumulate_grad_batches=ACCUM_GRAD ,
+34 gradient_clip_val=1.0,
+35 log_every_n_steps=10,
+36 val_check_interval =0.25, # validate 4x per epoch
+37 )
+38
+D.2 Stage 2 Training (Full Model Unfrozen)
+Listing 3 Stage 2 launch command — encoder unfrozen for deeper adaptation
+1 # Stage 2: load Stage 1 checkpoint , unfreeze encoder
+2 python fine_tune_2.py \
+3 --init_from_nemo_model stage1_best.nemo \
+4 --freeze_encoder false \
+5 --learning_rate 2e-5 \
+6 --max_epochs 10 \
+7 --batch_size 4 \
+8 --accum_grad 8
+9
+103
+--- PAGE 119 ---
+E Source Code Snippets
+A full project source code is included in the project repository that was submitted. These code
+units are among the six most architecturally meaningful, including one for fixing a silent meta
+tensor bug in CPU, one for implementing a bilingual composite embedding strategy, one for
+implementing a three-stage RAG delegation pipeline, one for implementing a two call LLM
+extraction pattern, one for implementing a dual call fall detection emergency mechanism, and
+one for implementing a grace window polling strategy that was able to deliver reminders to
+100% of users in Android Doze Mode.
+E.1 Intent Classifier: CPU-Load Fix for Meta-Tensor Bug
+Listing 4 core/intent_classifier.py — correct LoRA load order
+1 class IntentClassifier:
+2 def __init__(self , model_path , adapter_path=None , device=DEVICE):
+3 self.device = torch.device(
+4 f"cuda:{device}" if device >= 0 else "cpu")
+5 num_labels = len(id2label) if id2label else 22
+6
+7 # CRITICAL: load base model on CPU first.
+8 # device_map="auto" creates meta -tensors that silently discard
+9 # LoRA weights at inference --- no error message is raised.
+10 base_model = AutoModelForSequenceClassification.from_pretrained(
+11 model_path ,
+12 num_labels=num_labels ,
+13 trust_remote_code=True ,
+14 dtype=torch.bfloat16 if torch.cuda.is_available()
+15 else torch.float32 ,
+16 )
+17
+18 # Apply LoRA adapter onto real (non -meta) CPU tensors
+19 if adapter_path and os.path.exists(adapter_path):
+20 self.model = PeftModel.from_pretrained(base_model , adapter_path)
+21 else:
+22 self.model = base_model
+23
+24 # Move fully -loaded model to GPU
+25 self.model.eval()
+26 self.model.to(self.device)
+27
+104
+--- PAGE 120 ---
+28 def get_top_intent(self , text: str , threshold: float = 0.30):
+29 raw_preds = self.predict(text)
+30 sorted_preds = sorted(raw_preds , key=lambda x: x["score"],
+31 reverse=True)
+32 top_pred = sorted_preds[0]
+33 idx = int(top_pred["label"].split("
+")[1])
+_
+34 # Below confidence threshold -> route to RAG fallback (intent 19)
+35 if top_pred["score"] < threshold:
+36 return 19, top_pred["score"]
+37 return idx , top_pred["score"]
+38
+E.2 Knowledge Base: Bilingual Embedding and Qdrant Ingestion
+Listing 5 core/knowledge_base.py — bilingual embedding + Qdrant ingest
+1 def ingest_csv(self , file_path , force=False):
+2 # Hash guard: skip re-ingestion if CSV is unchanged
+3 file_hash = hashlib.md5(open(file_path , "rb").read()).hexdigest()
+4 hash_file = os.path.join(
+5 os.path.dirname(self.client._client.location), "
+.last_hash")
+6 if not force and os.path.exists(hash_file):
+7 if open(hash_file).read().strip() == file_hash:
+8 print("CSV unchanged -- skipping ingestion.
+")
+9 return
+10
+11 self.client.delete_collection(self.collection_name)
+12 self._ensure_collection()
+13 df = pd.read_csv(file_path).fillna("")
+14
+15 for _, row in df.iterrows():
+16 # Bilingual composite embedding:
+17 # leverages the model's stronger English pre -training
+18 # while preserving Nepali semantic content.
+19 content = (
+20 f"NEPALI: {row['question ']} | "
+21 f"ENGLISH: {row['english_question ']} | "
+22 f"INTENT: {row['intent ']}"
+23 )
+24 p_id = str(uuid.UUID(hashlib.md5(content.encode()).hexdigest()))
+25 vector = self.model.embed(content)
+26 points.append(PointStruct(id=p_id , vector=vector ,
+27 payload=row.to_dict()))
+105
+--- PAGE 121 ---
+28
+29 self.client.upsert(collection_name=self.collection_name , points=points)
+30 open(hash_file , "w").write(file_hash)
+31
+32 def retrieve_intelligent(self , user_query , top_k_per_intent=20,
+33 min_score =0.3):
+34 # Segment compound Nepali queries on conjunctions
+35 raw_parts = re.split(r"
+� | ��� |,|\?", user_query)
+36 query_parts = [p.strip() for p in raw_parts if len(p.strip()) > 4]
+37
+38 all_candidates , seen_ids = [], set()
+39 for part in query_parts:
+40 vec = self.model.embed(part)
+41 results = self.client.query_points(
+42 collection_name=self.collection_name ,
+43 query=vec , limit=top_k_per_intent).points
+44 for res in results:
+45 if res.id not in seen_ids:
+46 all_candidates.append(res.payload)
+47 seen_ids.add(res.id)
+48
+49 # MiniLM -L12 -v2 cross -encoder reranking
+50 pairs = [[user_query , f"Nepali: {c.get('question ')}"]
+51 for c in all_candidates]
+52 scores = self.cross_encoder.predict(pairs)
+53 ranked = [c for score , c in sorted(zip(scores , all_candidates),
+54 key=lambda x: x[0], reverse=True) if score >= min_score]
+55 return ranked
+56
+E.3 RAG Fallback Handler: Three-Stage Pipeline
+Listing 6 response_generation/fallback_intent.py — three-stage RAG fallback
+1 _PERSONA = (
+2 "
+"
+����� �� ������ ������ ����� ��������� �� ����� ��������� ����
+3 "
+������� �� ���� ���, ������ � ��������� ������ ����������
+--- "
+4 "
+"
+���� ���� ������������ �������� ���� ���� ������� ���� ���������
+5 )
+6
+7 def handle_fallback(query: str) -> dict:
+8 # Stage 1: RAG retrieval (segmentation + Qdrant + MiniLM reranking)
+9 kb = get_kb(str(EMBEDDING_MODEL))
+106
+--- PAGE 122 ---
+10 matches = kb.retrieve_intelligent(query)
+11
+12 # Stage 2: if top match maps to a known dynamic handler , delegate
+13 if matches:
+14 top_match = matches[0]
+15 func_name = top_match.get("function"
+,
+"")
+16 if func_name and func_name not in _SELF_INTENTS:
+17 final_text , dynamic_data = ResponseEngine.handle(top_match)
+18 if final_text:
+19 return {"status": "ok"
+,
+"response": final_text ,
+20 **dynamic_data}
+21
+22 # Stage 3: LLM with RAG context for open -ended / emotional queries
+23 context = "\n".join([
+24 f"- {m.get('question ','')}: {m.get('answer ','')}"
+25 for m in matches [:3]
+26 ])
+27 system = f"{_PERSONA}\n\�������n:\n{context}" if context else _PERSONA
+28
+29 raw = llm.create_chat_completion(
+30 messages=[
+31 {"role": "system"
+,
+"content": system},
+32 {"role": "user"
+,
+"content": query},
+33 ],
+34 temperature=0.2, max_tokens=100,
+35 )["choices"][0]["message"]["content"].strip()
+36
+37 return {"status": "ok"
+,
+38 "response": raw or "
+��� �������, ������� ������, ���� ������� ��
+"}
+39
+E.4 Reminder Intent: Two-Call LLM Extraction Strategy
+Listing 7 response_generation/reminder_intent.py — two-call LLM extraction
+1 # Call 1: extract date/time/topic as structured JSON (~50 tokens).
+2 # Hint tables injected so the LLM does not guess Nepali number forms.
+3 _NUMBER_HINTS = "
+�=1, �=2, ... ����=5, ��=10, ������=15, ���=20 ...
+"
+4 _TIME_HINTS = "
+���� X ���
+=X:30, ���� X=X-1:45, ��� X=X:15"
+5
+6 def handle_set_reminder_task(query: str) -> dict:
+7 raw = llm.create_chat_completion(
+8 messages=[
+107
+--- PAGE 123 ---
+9 {"role": "system"
+,
+"content": _build_system()}, # hints+date map
+10 {"role": "user"
+,
+"content": query},
+11 ],
+12 temperature=0.2,
+13 max_tokens=50, # {"status":"ok","date":"...","time":"...","topic ":"..."}
+14 )["choices"][0]["message"]["content"]
+15
+16 p = _parse(raw) # 3-layer defensive JSON parser
+17 if _needs_clarify(p):
+18 p["status"] = "clarify"
+19
+20 # Call 2: generate the response sentence only (~40 tokens)
+21 response = _build_response(query , p)
+22
+23 return {
+24 "status": p.get("status"
+,
+"clarify"),
+25 "date": p.get("date"
+,
+""),
+26 "time": p.get("time"
+,
+""),
+27 "topic": p.get("topic"
+,
+""),
+28 "response": response ,
+29 }
+30
+E.5 Fall Detection Service (Dart)
+Listing 8 Accelerometer fall detection with dual-call emergency —
+lib/services/fall_detection_service.dart
+1 // Threshold: 35.0 m/s^2 (normal walking: 13-21, measured falls: 38-67)
+2 static const double _defaultThreshold = 35.0;
+3 static const int _debounceSecs = 20; // prevent re-trigger
+4 DateTime? _lastTrigger;
+5
+6 void _startListening() {
+7 accelerometerEventStream().listen((AccelerometerEvent e) {
+8 final magnitude = sqrt(e.x*e.x + e.y*e.y + e.z*e.z);
+9 if (magnitude >= _threshold) {
+10 final now = DateTime.now();
+11 if (_lastTrigger == null ||
+12 now.difference(_lastTrigger!).inSeconds > _debounceSecs) {
+13 _lastTrigger = now;
+14 _triggerFallResponse();
+15 }
+108
+--- PAGE 124 ---
+16 }
+17 });
+18 }
+19
+20 void _triggerFallResponse() {
+21 WakelockPlus.enable(); // prevent CPU sleep
+22 FlutterBackgroundService().invoke('fall_detected_ui'); // IPC to UI
+23
+24 // Dual -call mechanism fires on countdown expiry:
+25 // Primary -- FlutterPhoneDirectCaller from Activity context
+26 FlutterPhoneDirectCaller.callNumber(emergencyNumber);
+27 // Fallback -- system CALL intent from background service context
+28 AndroidIntent(action: 'android.intent.action.CALL'
+,
+29 data: 'tel:$emergencyNumber').launch();
+30 }
+31
+E.6 Dual-Channel Reminder Polling (Dart)
+Listing 9 5-second polling backup for Android Doze Mode — lib/services/reminder_service.dart
+1 // Channel 1: OS alarm via FlutterLocalNotificationsPlugin
+2 await flutterLocalNotificationsPlugin.zonedSchedule(
+3 reminder.id,
+4 reminder.title ,
+5 reminder.body ,
+6 scheduledDate ,
+7 notificationDetails ,
+8 androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle ,
+9 );
+10
+11 // Channel 2: in-app polling backup (catches Doze Mode deferrals)
+12 Timer.periodic(const Duration(seconds: 5), (timer) {
+13 final now = DateTime.now();
+14 for (final r in _activeReminders) {
+15 final delta = now.difference(r.dueTime).inSeconds;
+16 final key = '${now.day}_${r.dueTime.hour}:${r.dueTime.minute}';
+17
+18 // Grace window: 0-120 seconds after scheduled time
+19 if (delta >= 0 && delta <= 120 && !_firedKeys.contains(key)) {
+20 _firedKeys.add(key); // prevent double -firing
+21 _fireReminder(r);
+22 }
+109
+--- PAGE 125 ---
+23 }
+24 });
+25
+110
+--- PAGE 126 ---
+F System Deployment and Setup Guide
+The minimum steps to run the Saathi backend locally on a Windows or Linux machine are given
+in this appendix. Each of the three microservices (Main/NLP, ASR, TTS) are run in different
+Python virtual environments to avoid CUDA and dependency conflicts. The project repository
+submitted contains all the source code and model checkpoint files.
+F.1 Prerequisites
+Table F.1 System prerequisites
+Component Requirement
+Python 3.10 (required for NeMo and PEFT compatibility)
+GPU NVIDIA with CUDA 12.x; minimum 8 GB VRAM recommended for LLM inference.
+CPU-only mode supported at significantly higher latency.
+Flutter SDK Version 3.x (for building the Android client)
+Android Device or emulator running Android 9.0+
+F.2 Environment Setup
+Run the following setup script from the backend/ directory once. It creates three separate venv
+environments and installs all the requirements in each environment.
+Listing 10 One-command environment setup
+1 # Windows
+2 .\environment_setup_and_run\setup_envs.bat
+3
+4 # Linux / macOS
+5 bash environment_setup_and_run/setup_envs.sh
+6
+There are three virtual_environments: virtual_environments/main (FastAPI server, NLP
+pipeline, Qdrant, LLM), virtual_environments/stt (NeMo Conformer-RNNT), and virtual_environments/tt
+(Sherpa-ONNX VITS).
+111
+--- PAGE 127 ---
+F.3 Service Launch
+Listing 11 Start all three microservices
+1 # Windows -- opens three separate terminal windows
+2 .\environment_setup_and_run\start_services.bat
+3
+4 # Linux / macOS
+5 bash environment_setup_and_run/start_services.sh
+6
+Services bind to the following ports:
+Table F.2 Microservice port bindings
+Service Port Responsibility
+Main / NLP server 0.0.0.0:8000 Intent classification, NLG, RAG fallback, database, LLM
+TTS service 0.0.0.0:8001 Sherpa-ONNX VITS synthesis; returns base64-encoded
+WAV
+STT / ASR service 0.0.0.0:8002 NeMo Conformer-RNNT transcription; accepts PCM au-
+dio
+Verify all three are running before launching the Flutter client.
+F.4 Android Client Build
+Listing 12 Build and deploy the Flutter Android APK
+1 cd frontend/
+2 flutter pub get
+3 # Set backend IP in frontend/.env: FASTAPI_URL=http://<server -ip >:8000
+4 flutter build apk --release
+5 flutter install # install on connected device
+6
+112
+--- PAGE 128 ---
+G Application User Interface Gallery
+G.1 Main Interaction Screens
+(a) Home screen (idle)
+(b) Home screen (response
+playing) (c) Music player
+Figure G.1 Main interaction screens.
+113
+--- PAGE 129 ---
+G.2 Safety and Emergency Screens
+(a) SOS confirmation dialog (b) SOS countdown (cancellable) Figure G.2 Safety and emergency screens.
+(c) Reminder alert popup
+114
+--- PAGE 130 ---
+G.3 Reminder and Contacts Management
+(a) Reminders list (b) Contacts list
+Figure G.3 Reminder and contacts management.
+115
+--- PAGE 131 ---
+G.4 Caregiver Administration Panel
+(a) Admin PIN gate (b) Safety settings Figure G.4 Caregiver administration panel.
+116
+(c) Server configuration
+--- PAGE 132 ---
+G.5 User Setup
+(a) One-time onboarding screen
+Figure G.5 Onboarding screen.
+117
+--- PAGE 133 ---
+H 22-Intent Reference Table
+The LoRA fine-tuned IndicBERT-v3-1B classifier is based on the intent taxonomy provided below.
+The submitted repository includes the complete training dataset and model checkpoint. The
+classification architecture and training method is given in Section 6.2.2.
+Table H.1 All 22 intent classes — category, handler, and example queries
+ID Intent Category Example (नेपाली) Example
+(English)
+0 get_assistant_info Assistant
+Persona
+साथी, ितमी को हौ? Who are you?
+1 get_country_info Location नेपालको जनसंख्या कित छ? What is Nepal’s
+population?
+2 get_date Time &
+आज कित गते हो? Calendar
+What is today’s
+date?
+छोरालाई फोन गर Call my son
+3 start_call Calling &
+Emergency
+4 get_day Time &
+आज कु न बार हो? What day is
+Calendar
+today?
+5 get_emergency_contactCalling &
+एम्बुलेन्सको नम्बर के हो? What is the
+Emergency
+ambulance
+number?
+6 set_reminder_task Reminders भोिल ७ बजे औषिध खान सम्झाइदेऊ Remind me to
+take medicine at
+7am
+7 get_festival_info Time &
+आज कु न चाड पर्व छ? What festival is
+Calendar
+today?
+Continued on next page...
+118
+--- PAGE 134 ---
+Table H.1 continued from previous page
+ID Intent Category Example (नेपाली) Example
+(English)
+8 get_health_tips Health &
+टाउको दुख्दा के गर्ने? What to do for a
+Knowledge
+headache?
+9 get_joke Entertainment एउटा जोक सुनाऊ Tell me a joke
+10 get_location_info Location हामी कहाँ छौं? Where are we?
+11 get_music Entertainment नारायण गोपालको गाना बजाऊ Play a Narayan
+Gopal song
+12 get_news Entertainment आजको समाचार सुनाऊ Tell me today’s
+news
+13 get_qa_info Health &
+सुगरको िबरामीले के खानु हुँदैन? Knowledge
+What can’t
+diabetics eat?
+14 get_radio Entertainment रे��� नेपाल लगाऊ Turn on Radio
+Nepal
+15 get_story Entertainment एउटा कथा सुनाऊ Tell me a story
+16 get_time Time &
+अिहले कित बज्यो? What time is it
+Calendar
+now?
+17 get_tithi Time &
+आजको ितिथ के हो? What is today’s
+Calendar
+tithi?
+18 get_weather Weather भोिल पानी पर्छ? Will it rain
+tomorrow?
+19 handle_fallback Health &
+(conf < 0.30 → RAG) Any query below
+Knowledge
+confidence
+threshold
+Continued on next page...
+119
+--- PAGE 135 ---
+Table H.1 continued from previous page
+ID Intent Category Example (नेपाली) Example
+(English)
+20 handle_greeting Assistant
+Persona
+नमस्ते साथी Namaste, Saathi
+21 sos_emergency Calling &
+Emergency
+मलाई अस्वस्थ लागेको छ, एम्बुलेन्स
+बोलाऊ
+I feel unwell, call
+an ambulance
+120
+--- PAGE 136 ---
+I UAT Evaluation Instruments
+I.1 Evaluation Scenario List
+The field evaluation used 21 ground-truth queries covering all We explored 21 queries from all 7
+functional categories: Time & Calendar, Weather, Health & Knowledge, Calling & Emergency,
+Reminders, Entertainment, Assistant Persona in the field evaluation. Each intent was presented
+orally to the participants in Nepali, such as समय सोध्नुस् (“ask for the time”) and they rephrased
+the question using their own words. Questions did not have to be read word-for-word. For each
+scenario, there is a list of typical vendor phrases, which are in Section 7.2.8 (Section 8.4). A total
+of 21 questionnaires were answered by all 7 participants and there were 147 audio recordings
+for each participant.
+I.2 Post-Session Questionnaire
+After completion of task, all the participants gave structured, five item questions, verbally, in
+Nepalese, by the researcher.
+Q# Question (नेपाली) Question (English)
+Q1 साथीसँग कु रा गर्न कित सिजलो लाग्यो? How easy was it to speak to
+Saathi?
+Q2 साथीले तपाईंको कु रा बुझ्यो? Did Saathi understand what you
+said?
+Q3 साथीको जवाफ सुन्न र बुझ्न सिजलो िथयो? Was Saathi’s voice easy to hear
+and understand?
+Q4 के तपाईं यो अरू वृद् धलाई िसफािरस गर्नुहुन्छ? Q5 के तपाईं यसलाई दैिनक जीवनमा प्रयोग गर्नुहुन्छ? Would you recommend Saathi
+to other elderly people?
+Would you use Saathi in your
+daily life?
+Table I.1 Post-session questionnaire items (administered verbally in Nepali)
+121
+--- PAGE 137 ---
+I.3 Participant Information and Consent Procedure
+The following was orally communicated to the researcher (in Nepali) prior to each session:
+1. Purpose. To try out a voice assistant developed in Nepali language for elderly people. To
+sum up: The system is not commercial but a research prototype.
+2. Data collected. Limit questions to voice (only questions and pass/fail task results recorded).
+The information collected did not include personal health information, aside from the infor-
+mation participants provided during the session.
+3. Data storage. Recordings anonymised right away using alphanumeric codes (e.g. P03_S12).
+Using a password protected mapping file on BCU OneDrive. Recordings made on personal
+devices and deleted within 24 hours of upload.
+4. Voluntary participation. No penalties for dropping out and it was voluntary.
+5. Safe testing. In SOS testing (CALL_TEST_MODE=true flag is turned on throughout the test),
+no real emergency calls would be created. There is no human detection of falls while
+parameters of thresholds are being calibrated. Verbal consent was witnessed with the family
+member, taking into consideration the different levels of literacy. A total of 5 of 7 were with a
+family member/carer. The sessions lasted for 30 minutes. There were no financial incentives
+given.
+122
+--- PAGE 138 ---
+J System Testing Evidence Gallery
+This appendix contains screenshot and log evidence collected during the System-Level Black
+Box and Integration Testing phase (refer to Section 7.2.2).
+J.1 Black Box Testing Evidence
+(a) TC-BB-01: App Onboarding (b) TC-BB-02: Mic Activation (Listening)
+123
+--- PAGE 139 ---
+(a) TC-BB-03: Time Query (b) TC-BB-04: Date & Tithi Query
+124
+--- PAGE 140 ---
+(a) TC-BB-05: Reminder Setup (b) TC-BB-07: Voice-Triggered SOS
+125
+--- PAGE 141 ---
+(a) TC-BB-08: SOS Cancellation (b) TC-BB-09: RAG Health Query
+126
+--- PAGE 142 ---
+Figure J.5 TC-BB-10: Silence / Timeout
+127
+--- PAGE 143 ---
+J.2 Integration Testing Evidence
+Figure J.6 TC-INT-01: FastAPI 200 OK
+Figure J.7 TC-INT-02: STT to NLU transcription log
+128
+--- PAGE 144 ---
+Figure J.8 TC-INT-03: Database conversation_logs populated
+Figure J.9 TC-INT-04: Database reminders row populated
+129
+--- PAGE 145 ---
+(a) TC-INT-05: Doze mode background notification (b) TC-INT-09: Admin settings loaded/persisted
+130
+--- PAGE 146 ---
+Figure J.11 TC-INT-07: Qdrant retrieval log
+Figure J.12 TC-INT-08: TTS generation log
+131
+--- PAGE 147 ---
+Figure J.13 TC-INT-10: End-to-end latency test results
+132
