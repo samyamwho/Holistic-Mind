@@ -1,0 +1,12 @@
+
+--- PAGE 1 ---
+Configured base-score contributions
+Cold start
+72% 23% 5%
+Collaboration active
+65% 20% 5% 10%
+0% 20% 40% 60% 80% 100%
+Rules R Current context C Goal/history H Peers B
+Source: recommender/app/engine.py, inspected 3 October 2026. H receives no journal text
+in current app requests. The graph shows the blend before recency, support alignment, and
+category diversity.

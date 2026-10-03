@@ -1,0 +1,9 @@
+suite,approach,precision_at_4,ndcg_at_4,negative_label_percent,explicit_exclusion_percent,fill_rate,mean_warm_latency_ms
+production,Random Baseline,0.485,0.4315,5.1667,0.0,1.0,0.01
+production,Text Similarity (onnx),0.7167,0.6602,1.6667,0.0,1.0,95.239
+production,Rules + Eligibility,0.7333,0.7244,2.5,0.0,1.0,0.22
+production,Holistic Mind Hybrid,0.775,0.7387,3.3333,0.0,1.0,79.742
+comfort,Random Baseline,0.6125,0.4925,5.3125,0.0,1.0,0.011
+comfort,Text Similarity (onnx),0.875,0.7885,0.0,0.0,1.0,62.901
+comfort,Rules + Eligibility,0.7812,0.6575,0.0,0.0,1.0,0.207
+comfort,Holistic Mind Hybrid,0.9062,0.7441,0.0,0.0,1.0,68.307

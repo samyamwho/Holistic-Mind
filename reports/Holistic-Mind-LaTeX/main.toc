@@ -1,0 +1,85 @@
+\babel@toc {english}{}\relax 
+\contentsline {section}{Abstract}{i}{Doc-Start}%
+\contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Background and motivation}{1}{subsection.2}%
+\contentsline {subsection}{\numberline {1.2}Problem statement}{1}{subsection.3}%
+\contentsline {subsection}{\numberline {1.3}Research questions}{1}{subsection.4}%
+\contentsline {subsection}{\numberline {1.4}Contribution and report structure}{2}{subsection.5}%
+\contentsline {subsection}{\numberline {1.5}Original motivation and intended users}{3}{subsection.7}%
+\contentsline {subsection}{\numberline {1.6}Project evolution across previous submissions}{3}{subsection.8}%
+\contentsline {section}{\numberline {2}Review of Existing Knowledge}{5}{section.9}%
+\contentsline {subsection}{\numberline {2.1}Content-based and collaborative recommendation}{5}{subsection.10}%
+\contentsline {subsection}{\numberline {2.2}Hybrid approaches}{5}{subsection.11}%
+\contentsline {subsection}{\numberline {2.3}Semantic representations}{5}{subsection.12}%
+\contentsline {subsection}{\numberline {2.4}Privacy and evaluation gaps}{6}{subsection.13}%
+\contentsline {subsection}{\numberline {2.5}Implications for this project}{6}{subsection.14}%
+\contentsline {subsection}{\numberline {2.6}Trauma-informed principles as design requirements}{7}{subsection.15}%
+\contentsline {subsection}{\numberline {2.7}Digital mental health evidence and its limits}{7}{subsection.16}%
+\contentsline {subsection}{\numberline {2.8}Related recommender platforms and corrected sources}{8}{subsection.17}%
+\contentsline {section}{\numberline {3}Aims, Objectives, and Scope}{10}{section.18}%
+\contentsline {subsection}{\numberline {3.1}Project aim}{10}{subsection.19}%
+\contentsline {subsection}{\numberline {3.2}Objectives and acceptance criteria}{10}{subsection.20}%
+\contentsline {subsection}{\numberline {3.3}Functional and non-functional requirements}{10}{subsection.21}%
+\contentsline {subsection}{\numberline {3.4}Scope boundaries}{11}{subsection.22}%
+\contentsline {subsection}{\numberline {3.5}Requirements and implementation traceability}{11}{subsection.23}%
+\contentsline {subsection}{\numberline {3.6}Reconciliation of original objectives}{12}{subsection.25}%
+\contentsline {section}{\numberline {4}Project Design and Methodology}{14}{section.26}%
+\contentsline {subsection}{\numberline {4.1}Development approach}{14}{subsection.27}%
+\contentsline {subsection}{\numberline {4.2}Technology selection}{14}{subsection.29}%
+\contentsline {subsection}{\numberline {4.3}Evidence and evaluation strategy}{15}{subsection.30}%
+\contentsline {subsection}{\numberline {4.4}Ethical and methodological controls}{15}{subsection.31}%
+\contentsline {subsection}{\numberline {4.5}Design Science Research framing}{16}{subsection.32}%
+\contentsline {subsection}{\numberline {4.6}User-centred design activities and boundaries}{16}{subsection.33}%
+\contentsline {subsection}{\numberline {4.7}Feasibility and resource constraints}{16}{subsection.34}%
+\contentsline {subsection}{\numberline {4.8}Risk management and ethical feasibility}{17}{subsection.35}%
+\contentsline {section}{\numberline {5}Artefact Design}{19}{section.37}%
+\contentsline {subsection}{\numberline {5.1}System architecture}{19}{subsection.38}%
+\contentsline {subsection}{\numberline {5.2}User journey and interface design}{19}{subsection.40}%
+\contentsline {subsection}{\numberline {5.3}Data model and ownership}{20}{subsection.42}%
+\contentsline {subsection}{\numberline {5.4}Recommendation pipeline}{21}{subsection.44}%
+\contentsline {subsection}{\numberline {5.5}Privacy design}{23}{subsection.46}%
+\contentsline {subsection}{\numberline {5.6}Relational modelling and consistency}{23}{subsection.47}%
+\contentsline {subsection}{\numberline {5.7}API contracts and sequence design}{24}{subsection.48}%
+\contentsline {subsection}{\numberline {5.8}Media and publication lifecycle}{25}{subsection.50}%
+\contentsline {section}{\numberline {6}Implementation}{26}{section.51}%
+\contentsline {subsection}{\numberline {6.1}Mobile application and state management}{26}{subsection.52}%
+\contentsline {subsection}{\numberline {6.2}Authentication and persistence}{28}{subsection.54}%
+\contentsline {subsection}{\numberline {6.3}Five-stage hybrid recommendation engine}{28}{subsection.55}%
+\contentsline {subsubsection}{\numberline {6.3.1}Pipeline overview and service integration}{29}{subsubsection.56}%
+\contentsline {subsubsection}{\numberline {6.3.2}Stage 1: construct and filter the eligible candidate set}{29}{subsubsection.57}%
+\contentsline {subsubsection}{\numberline {6.3.3}Stage 2: calculate structured suitability rules}{30}{subsubsection.59}%
+\contentsline {subsubsection}{\numberline {6.3.4}Stage 3: compare meaning using MiniLM embeddings}{30}{subsubsection.61}%
+\contentsline {subsubsection}{\numberline {6.3.5}Stage 4: add collaborative evidence only when sufficient history exists}{31}{subsubsection.63}%
+\contentsline {subsubsection}{\numberline {6.3.6}Stage 5: blend, rotate, diversify, explain, and persist}{32}{subsubsection.65}%
+\contentsline {subsubsection}{\numberline {6.3.7}Worked scoring example and algorithm summary}{33}{subsubsection.69}%
+\contentsline {subsection}{\numberline {6.4}Encrypted journaling}{34}{subsection.82}%
+\contentsline {subsection}{\numberline {6.5}Content administration and deployment}{34}{subsection.84}%
+\contentsline {subsection}{\numberline {6.6}Screen-by-screen implementation}{35}{subsection.86}%
+\contentsline {subsection}{\numberline {6.7}Curriculum and audio implementation}{38}{subsection.89}%
+\contentsline {subsection}{\numberline {6.8}Authentication, provider configuration, and reminders}{38}{subsection.90}%
+\contentsline {subsection}{\numberline {6.9}Journal media and atomicity}{39}{subsection.91}%
+\contentsline {subsection}{\numberline {6.10}Deployment evolution and release status}{39}{subsection.92}%
+\contentsline {section}{\numberline {7}Validation and Testing}{41}{section.94}%
+\contentsline {subsection}{\numberline {7.1}Test strategy and evidence boundaries}{41}{subsection.95}%
+\contentsline {subsection}{\numberline {7.2}Journal-free ranking benchmark}{41}{subsection.96}%
+\contentsline {subsection}{\numberline {7.3}Comfort restrictions and unresolved cases}{42}{subsection.99}%
+\contentsline {subsection}{\numberline {7.4}Documented functional checks}{44}{subsection.101}%
+\contentsline {subsection}{\numberline {7.5}Metrics, timing, and uncertainty}{44}{subsection.102}%
+\contentsline {subsection}{\numberline {7.6}Verification matrix and regression priorities}{45}{subsection.103}%
+\contentsline {subsection}{\numberline {7.7}Planned user acceptance evaluation}{46}{subsection.105}%
+\contentsline {section}{\numberline {8}Critical Evaluation, Conclusion, and Future Work}{47}{section.106}%
+\contentsline {subsection}{\numberline {8.1}Evaluation against objectives}{47}{subsection.107}%
+\contentsline {subsection}{\numberline {8.2}Threats to validity}{47}{subsection.108}%
+\contentsline {subsection}{\numberline {8.3}Usability, maintenance, and practical impact}{47}{subsection.109}%
+\contentsline {subsection}{\numberline {8.4}Comparison with the reviewed knowledge base}{48}{subsection.110}%
+\contentsline {subsection}{\numberline {8.5}Answers to research questions}{48}{subsection.111}%
+\contentsline {subsection}{\numberline {8.6}Future research and privacy work}{49}{subsection.112}%
+\contentsline {subsection}{\numberline {8.7}Reflection on development decisions}{49}{subsection.113}%
+\contentsline {subsection}{\numberline {8.8}Practical impact and commercial scope}{50}{subsection.114}%
+\contentsline {subsection}{\numberline {8.9}Prioritised completion roadmap}{50}{subsection.115}%
+\contentsline {subsection}{\numberline {8.10}Conclusion}{51}{subsection.116}%
+\contentsline {section}{References}{52}{section*.117}%
+\contentsline {section}{\numberline {A}Prior-report traceability}{54}{appendix.118}%
+\contentsline {section}{\numberline {B}Reproduction and evidence checklist}{56}{appendix.120}%
+\contentsline {section}{\numberline {C}Proposed formative user-study protocol}{57}{appendix.121}%
+\contentsline {section}{\numberline {D}Current recommendation implementation evidence}{59}{appendix.122}%

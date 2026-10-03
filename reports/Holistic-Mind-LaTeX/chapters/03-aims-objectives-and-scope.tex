@@ -1,0 +1,65 @@
+\section{Aims, Objectives, and Scope}\label{sec:chapter-3}
+
+\subsection{Project aim}
+
+Building on the original trauma-informed support aim, the aim is to design, implement, and critically evaluate a mobile application that supports voluntary self-reflection and selection of short wellness practices through an explainable recommendation workflow. The intended outcome is a functioning software artefact with persistent account-specific data, managed content, explicit restriction enforcement, and evidence that supports carefully bounded conclusions. Success therefore includes identifying unresolved failures, rather than presenting a favourable ranking score as sufficient proof of overall quality.
+
+\subsection{Objectives and acceptance criteria}
+
+Objective O1 is to implement authenticated accounts, onboarding, check-ins, history, and account-specific persistence. Acceptance requires server-owned identity and separation of private records between accounts. O2 is to implement recommendations combining structured rules and semantic matching, with a documented cold-start strategy and reasons for returned exercises. O3 is to enforce declared exclusions across recommendation stages and preserve short or empty results when suitable candidates are unavailable. O4 is to support encrypted journal storage, device-side decryption, and recovery-key verification without server access to journal content.
+
+Objective O5 is to provide administrator-managed exercises, audio, courses, modules, and related media so content changes can be made independently of a mobile release. O6 is to evaluate recommendation relevance, restriction behaviour, and documented native/\allowbreak{}backend functionality. Acceptance for O6 requires clearly identifying the dataset, baseline differences, measurement boundaries, and remaining checks. These criteria permit an honest distinction between implemented features, previously recorded passes, and capabilities that still need deployment or independent validation.
+
+\subsection{Functional and non-functional requirements}
+
+The main functional requirements follow the user journey. A user should create or access an account, complete short onboarding, record a daily state, receive suggestions, open a practice, provide feedback, and browse content independently. Journaling must allow private writing and later retrieval after unlocking the vault. The learning library should organise courses and modules separately from short exercises. Administrators should manage publication status and media references through protected operations. Profile features support account security, reminders, and access to configured policy or support links.
+
+Non-functional requirements concern understandable interaction, persistent data, privacy boundaries, maintainability, and recoverable failures. The interface should clearly show selected answers, loading states, and save errors. Backend validation should reject invalid input and prevent client-selected ownership. Content and ranking services should remain separable. Secure journal design must acknowledge key-loss consequences, and recommendation behaviour must remain inspectable when dependencies fail. No unmeasured response-time target or accessibility conformance level is asserted as achieved.
+
+\subsection{Scope boundaries}
+
+The implemented scope includes a cross-platform codebase, with documented native validation concentrated on an iOS simulator. Local services use PostgreSQL and S3-compatible object storage; deployment documentation describes cloud arrangements. The report does not establish that every described deployment path is currently operating. The recommendation benchmark uses a fixed 14-exercise catalogue and authored scenarios rather than the entire live content system. Its results therefore describe a controlled development setting.
+
+Diagnosis, crisis intervention, clinical prescribing, therapist messaging, and clinical outcome measurement are outside the evidenced scope. The system does not infer undeclared comfort restrictions from encrypted journals. Physical Android and iPhone release testing, independent security assessment, representative user acceptance research, and journal key rotation are incomplete. These boundaries limit the claims made in later chapters and provide concrete priorities for the next development phase.
+
+\subsection{Requirements and implementation traceability}
+
+The requirements below connect the original supportive purpose to observable software behaviour. Priority indicates importance to the current artefact; it does not imply that a feature has passed production acceptance. The distinction between an implemented pathway and a verified release is retained throughout the report. Requirements for a study and independent review are included because they are part of evaluating the project, even though they are not user-interface features.
+
+\begingroup
+\small\setstretch{1.08}
+\setlength{\tabcolsep}{4pt}
+\setlength{\TableInnerWidth}{\dimexpr\linewidth-24pt\relax}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.200\TableInnerWidth} >{\raggedright\arraybackslash}p{0.300\TableInnerWidth} >{\raggedright\arraybackslash}p{0.260\TableInnerWidth} >{\raggedright\arraybackslash}p{0.240\TableInnerWidth}@{}}
+\caption{Functional requirements and current evidence.}\label{tab:table-1}\\
+\toprule
+\textbf{Requirement} & \textbf{Priority} & \textbf{Implementation location} & \textbf{Evidence state} \\
+\midrule\endfirsthead
+\multicolumn{4}{l}{\textit{Table \thetable\ continued}}\\
+\toprule
+\textbf{Requirement} & \textbf{Priority} & \textbf{Implementation location} & \textbf{Evidence state} \\
+\midrule\endhead
+\midrule\multicolumn{4}{r}{\textit{Continued on next page}}\\\endfoot
+\bottomrule\endlastfoot
+FR1 Account access and isolation & Must & Auth routes and context & Source; documented API checks \\ \addlinespace[4pt]
+FR2 Onboarding and daily check-in & Must & Wellness API and Home & Source; stored choices checked \\ \addlinespace[4pt]
+FR3 Explained recommendations & Must & Node route and Python engine & Saved benchmark; live request record \\ \addlinespace[4pt]
+FR4 Explicit comfort exclusions & Must & Shared comfort policy & Regression and comfort-suite evidence \\ \addlinespace[4pt]
+FR5 Encrypted reflection and recovery & Must & Journal context and API & Native/\allowbreak{}backend checks; rollout pending \\ \addlinespace[4pt]
+FR6 Browse exercises and media & Must & Explore and exercise screens & Source; historical interface evidence \\ \addlinespace[4pt]
+FR7 Structured learning library & Should & Library screens and admin & Source; interface evidence \\ \addlinespace[4pt]
+FR8 Content publication management & Should & Admin and content routes & Source; earlier deployment record \\ \addlinespace[4pt]
+FR9 Account controls and reminders & Should & Profile and notifications & Source; release checks incomplete \\ \addlinespace[4pt]
+FR10 Representative usability study & Evaluation & Proposed study protocol & No completed study supplied \\ \addlinespace[4pt]
+\end{longtable}
+\endgroup
+
+Non-functional requirements are specified through behaviour that can be checked rather than generic promises. NFR1 requires ownership to be derived from the authenticated session. NFR2 requires new journal content to leave the device only as a validated encrypted envelope. NFR3 requires model and strategy identification so semantic and fallback runs are distinguishable. NFR4 requires readable controls, visible selected states, and recoverable failures. NFR5 requires content and ranking logic to remain maintainable through separate modules and versioned evaluation artefacts. Complete accessibility conformance and quantified uptime have not been measured.
+
+\subsection{Reconciliation of original objectives}
+
+The original project objectives included a five-state check-in, fixed breathwork and somatic content counts, a rule-based recommendation engine with preference learning, Firebase-backed access, and evaluation with at least five intended users. The final artefact preserves the purpose of these objectives while changing their implementation. A six-dimension check-in provides more structured context than a single five-state choice. The custom API and PostgreSQL replace Firebase for account and data operations. The rule-based foundation is retained within the hybrid recommendation service.
+
+Preference learning is implemented through interaction aggregation and conditional neighbour evidence, not automatic retraining of MiniLM after each practice. The final content system supports managed exercises and curriculum resources, but the earlier numerical content targets should be audited against a dated export before being marked complete. The freemium idea has not become an evidenced payment system. These are sensible scope decisions, provided the report describes them as changes rather than treating every initial objective as achieved in its original form.
+
+The user-study objective is the most significant incomplete research commitment. Earlier reports describe intended recruitment, SUS-based usability assessment, relevance ratings, and interviews. No participant-level data, completed questionnaires, consent records, interview analysis, or results accompany the current material. The dissertation therefore presents the study design as future evaluation and uses the authored benchmark for its actual ranking evidence. Appendix C provides a concrete protocol that can be used to close that gap without manufacturing a study outcome.

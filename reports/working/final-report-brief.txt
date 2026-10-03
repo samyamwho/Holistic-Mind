@@ -1,0 +1,351 @@
+
+--- PAGE 1 ---
+BCU Assessment Brief (T1)
+CMP6200 Assessment Brief
+Module Title: Individual Honours Project
+Module Code: CMP6200
+Assessment Type Level Weighting Word Count
+CWK: Final Report 6 40% 5000
+Submission Date Submission Time Module Leader
+05/05/2026 3:00 PM Gerald Feldman Final Project Report
+Assessment Brief
+Assessment Information
+Assessment
+Task (with
+genre/type)
+Final Report
+This is the culminating written output, a comprehensive document detailing the entire
+project journey. It includes a refined problem statement and literature review (i.e.,
+covered in the interim project proposal). However, the focus should be on providing
+a thorough account of the design and development of the artefact, a detailed
+description of the implementation process, and a robust critical evaluation of the
+artefact's relevance and impact within a suitable societal, industrial, or scholarly
+context.
+Assessment
+Title
+Individual Hons Project (FYP): <use your Project Title, as the assessment
+title>
+Things to
+include:
+Final Report
+- Artefact Design: this should be objective and factual (use tables, graphs, and
+figures where appropriate).
+- Implementation: This is where you explain how your artefact addresses your
+project questions. Discuss the construction of the artefact. which can include
+structuring and validating the artefact through logical consistency with
+appropriate evidence.
+- Critical Evaluation: Summarise your artefact and explain its significance. How
+does it compare with other similar work from the knowledge base you
+reviewed? What is the impact of your artefact? What are the limitations of your
+work? Restate the contribution your project has made. Include practical
+implications or suggest future research directions.
+--- PAGE 2 ---
+BCU Assessment Brief (T1)
+Completion of this assessment will address the following learning outcomes:
+Apply discipline-specific methodologies and techniques to design the artefact that addresses
+the identified problem.
+Implement the designed artefact to address the intended purpose.
+Critically evaluate the artefact's relevance and impact within a suitable societal, industry or
+scholarly context.
+Referencing Style
+- BCU Harvard
+More information on referencing is available here: https://www.bcu.ac.uk/library/services-and-
+support/referencing
+Use of Artificial Intelligence
+PROBHIBITED
+You MUST NOT use any generative Artificial Intelligence in this assessment unless specifically
+authorised for reasonable adjustments. You MAY use non-generative tools such as a spell-check,
+basic grammar check (non-generative), calculator or similar. If you have any doubts about using an
+AI tool, please consult the Student AI Guidelines or ask your tutor.
+Whilst AI tools can be helpful in assisting learning, when it comes to assessment, the Academic
+Misconduct Procedure is clear that this should be a student’s own original work and not the work of
+other people or AI tools.
+The Use of AI Tools – Student Guidelines follows the same guidelines your lecturers use. If you are
+unsure of whether AI is appropriate within your work, please read the guidelines or ask your lecturer.
+For advice and guidance around academic writing, please visit the Centre for Academic Success.
+Academic Integrity Guidance
+Academic Integrity means completing and submitting your own original work while properly
+acknowledging sources. Following academic conventions, such as referencing and citation, helps
+avoid plagiarism. The Centre for Academic Success offers resources on Moodle, workshops and 1-2-1
+support to improve skills like paraphrasing and referencing.
+Academic Misconduct
+Academic misconduct is conduct that has or may have the effect of providing you with an unfair
+advantage by relying on dishonest means to gain an advantage and which therefore compromises your
+academic integrity.
+The Academic Misconduct Procedure sets out the process we will follow and the penalties we may
+apply in cases where we believe you may have compromised your academic integrity by committing
+academic misconduct.
+Word Count
+The maximum word count for this module assessment is shown on Page 1. A +10% margin of
+tolerance is applied, beyond which nothing further will be marked. Marks cannot be awarded for any
+learning outcomes addressed outside the word count.
+--- PAGE 3 ---
+BCU Assessment Brief (T1)
+The word count refers to everything in the main body of the text (including headings, tables, citations,
+quotes, lists, etc.). Everything before (i.e., abstract, acknowledgements, contents, executive
+summaries, etc.) and after (i.e., references, bibliographies, appendices, etc.) is not included in the
+word count limit.
+Submission Information
+Present any written aspects of the assessment using font size 11 and using 1.5 spacing to allow for
+comments and annotations to be added by the markers.
+Complete the appropriate cover sheet for this assessment and append your work.
+This assessment will be marked by your supervisor, and most of the work will be marked by an
+independent second marker.
+Submit this coursework assessment task via Moodle.
+Late Submission
+Where you are required to submit an assessment by a certain deadline (for example, essays, case
+studies or physical artefacts) but you fail to meet the deadline, your mark will be reduced in
+accordance with the Late Submissions Policy. This Policy does not apply where the assessment is ‘in-
+person’, such as exams and in-class tests.
+For support on submission, please review the Submitting Your Assignment e-learning resource.
+--- PAGE 4 ---
+BCU Assessment Brief (T1)
+Final Report: Table of Assessment Criteria and Associated Grading Criteria
+Component 90-100% 80-89% 70-79% 60-69% 50-59% 40-49% 20-39% 0-19%
+Artefact Design
+30%
+Artefact is a highly
+robust, innovative, and
+meticulously detailed
+explanation of the
+design that showcases
+the technical use of
+discipline-specific
+methods or
+methodologies.
+Artefact is
+innovative, and a
+detailed
+explanation of the
+design is
+provided. There is
+clear evidence of
+employing
+discipline-specific
+methods or
+methodologies
+effectively.
+Artefact is
+robust, with a
+detailed
+explanation of
+the design,
+meets
+objectives and
+employs
+suitable
+discipline-
+specific
+methods or
+methodologies.
+The artefact is well-
+developed, and a
+design explanation
+is provided,
+indicating that it
+meets most of the
+objectives. Relevant
+discipline-specific
+methods or
+methodologies are
+used.
+A relevant artefact
+is developed,
+offering key
+components that
+meet some of the
+objectives.
+However, there is
+a limited
+explanation of the
+design, and it
+employs generic
+methods or
+methodologies.
+Artefact includes some
+of the key core
+components but does not
+provide an explanation
+of the design. The
+methods or
+methodologies used are
+unclear or incorrectly
+applied.
+An artefact is
+presented, but it
+lacks essential
+components. The
+design appears
+unorganised, and the
+methods or
+methodologies used
+are misapplied.
+An artefact is missing,
+or the one presented is
+inappropriate or
+irrelevant to the stated
+objectives. No suitable
+methods or
+methodologies were
+employed, or they are
+absent.
+Implementation
+30%
+The Implementation of
+the artefact design and
+validation/testing is
+exceptionally clear
+and comprehensive,
+making it easy to
+understand the
+methodological
+approach and methods
+followed.
+The
+implementation of
+the artefact design
+and
+validation/testing
+is complete,
+offering an
+understanding of
+the applied
+methodological
+approach and
+methods.
+The
+implementation
+of the artefact
+design and
+validation or
+testing is
+complete, and
+offers an
+understanding
+of the applied
+methodological
+approach and
+methods
+The implementation
+of the artefact
+design and
+validation/testing is
+complete, providing
+an understanding of
+the applied methods;
+however, it lacks a
+detailed explanation
+of the
+methodological
+approach.
+The
+implementation of
+the artefact design
+and
+validation/testing
+is appropriate, but
+there are gaps in
+the
+methodological
+application of the
+approach.
+The implementation of
+the artefact design is
+complete, but the
+validation or testing is
+incomplete, insufficient,
+or the methodological
+approach is flawed.
+The implementation
+of the artefact's
+design and
+validation/testing is
+incomplete, and the
+methodological
+approach and
+methods used are
+inappropriate.
+The implementation of
+the artefact's design
+and validation/testing
+is incomplete or
+absent. There are
+considerable flaws in
+the methodological
+approach and methods
+employed.
+Critical
+Evaluation
+40%
+The evaluation offers a
+deeply insightful and
+objective perspective,
+thoughtfully exploring
+the artefact's
+significance,
+influence, and future
+possibilities.
+The evaluation
+offers valuable
+insights and
+thoughtfully
+examines the
+artefact's
+relevance, impact,
+and future
+possibilities.
+The evaluation
+offers an
+objective
+examination of
+the artefact,
+highlighting its
+relevance and
+impact.
+The evaluation is
+solid, striking a
+balance between
+objectivity and a
+straightforward
+analysis of the
+artefact's
+significance and
+impact.
+The evaluation is
+presented but
+lacks a detailed
+objective
+perspective and
+analysis of its
+significance in
+relation to the
+specified problem.
+The evaluation is
+completed but flawed, as
+it is only partially
+contextualised to the
+problem. Although it
+addresses its relevance
+and impact, it remains
+incomplete and
+insufficient.
+The evaluation is
+either incomplete or
+not adequately
+contextualised to the
+specified problem.
+There is minimal
+discussion of the
+relevance and
+implications.
+The evaluation is
+either absent or too
+vague without
+sufficient detail. There
+is no discussion of its
+relevance and
+implications, or the
+discussion is
+irrelevant.
+--- PAGE 5 ---
+BCU Assessment Brief (T1)

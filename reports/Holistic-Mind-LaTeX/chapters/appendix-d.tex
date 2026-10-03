@@ -1,0 +1,19 @@
+\section{Current recommendation implementation evidence}
+\label{sec:code-evidence}
+
+This appendix identifies the source used to ground the five-stage explanation. It records inspection rather than a new runtime test. Source hashes in \path{evidence/source-manifest.json} distinguish this snapshot from later edits. The supplied benchmark JSON and summary CSV reproduce saved results rather than invented measurements.
+
+\begin{description}[style=nextline,leftmargin=0pt,labelwidth=0pt,labelsep=0pt]
+\item[Request construction and ownership]
+\path{backend/src/routes/recommendations.ts}: check-in prerequisite, published catalogue, 180-day interaction aggregation, discomfort exclusions, HMAC pseudonyms, empty journals, and transactional persistence.
+\item[Explicit comfort policy]
+\path{backend/src/data/comfortPreferences.ts}: four comfort choices shared by backend and mobile fallback.
+\item[Filtering, embeddings, scoring, and selection]
+\path{recommender/app/engine.py}: hard eligibility, six field contributions, normalised ONNX vectors, conditional neighbours, cold/warm blends, recency, category diversity, and final-slot rotation.
+\item[Mobile response and degraded operation]
+\path{src/screens/home/HomeScreen.tsx} and \path{src/services/recommendations/recommendationEngine.ts}: preserve successful empty lists, map server IDs to displayable cards, and invoke the distinct local ranker on request failure.
+\item[Metric definitions]
+\path{recommender/evaluation/metrics.py}: relevance threshold, discounted gain, negative-label violations, diversity, and coverage. Performance values in the report come from the saved journal-free and comfort suites, not from the historical journal-containing suite.
+\end{description}
+
+The figures identify their evidence type: screenshots are dated interface records, architecture and workflow diagrams are source-based explanations, and quantitative charts reproduce saved evaluation data. No participant study, current full provider-login acceptance, clinical benefit, or new deployment is inferred from these artefacts.

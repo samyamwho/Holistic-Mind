@@ -1,0 +1,102 @@
+\subsubsection{The five-stage recommendation engine}
+\label{sec:five-stages}
+
+The project's recommendation workflow has five logical stages: (1) eligibility filtering, (2) suitability rules, (3) semantic matching, (4) collaborative signals, and (5) final ranking and explanation. These stages describe responsibilities rather than five independently deployed services. The Node API constructs the request and the Python service implements filtering and ranking. Within \texttt{recommend()}, vector encoding and neighbour estimation are calculated before the per-item score loop; the stage numbering below is an explanatory decomposition of that function, not a claim about its literal line-by-line execution order. Figure~\ref{fig:recommendation-five-stages} connects these responsibilities to the feedback loop.
+
+\subsubsection{Stage 1: construct and filter the eligible candidate set}
+\label{sec:stage-one}
+
+The authenticated API loads the latest check-in, onboarding support goal, published recommendation-enabled exercises, behavioural aggregates, discomfort exclusions, and recent recommendation identifiers. A missing check-in produces an HTTP~409 response; an empty published catalogue produces HTTP~503. The API does not accept a client-supplied account identifier as authority for accessing private context. It converts identifiers to HMAC-SHA256 pseudonyms before the Python request. The current request explicitly contains \texttt{journal\_texts: []}; neither journal plaintext nor journal embeddings are uploaded for ranking.
+
+The check-in supplies six dimensions: state, body, energy, stress, focus, and support. Optional comfort choices are mapped through a shared policy. Self-touch avoidance excludes the butterfly hug and self-containment hold; breath-hold avoidance excludes box breathing and candidates marked as requiring holds; head/eye scanning avoidance excludes orienting; inward body-scan avoidance excludes body scanning. These restrictions belong to the latest check-in. Separately, exercises previously reported as uncomfortable are excluded through account-specific feedback records.
+
+Python's \texttt{eligible\_candidates()} deduplicates IDs, removes the explicit exclusion set, and applies \texttt{contraindication\_reasons()}. Signals are normalised before comparison with metadata. The existing high-activation policy removes breath-hold exercises when the reported state is anxious or overwhelmed, or stress is very stressed. These are implemented suitability policies, whose completeness depends on the declared inputs and content metadata. They are not an automated clinical assessment.
+
+Let $E$ be the published candidate set, $X_u$ the explicit and discomfort-derived exclusions, and $Q(e,u)$ the implemented metadata/high-activation rejection predicate. The eligible set is
+\begin{equation}
+ E_u = \{e\in E: e\notin X_u \text{ and } \neg Q(e,u)\}.
+ \label{eq:eligibility}
+\end{equation}
+Only $E_u$ proceeds to scoring and fresh-item selection. An exercise cannot regain eligibility through a high embedding score, a positive peer rating, or a need to fill four slots. If $E_u$ is empty, the engine returns an empty list with \texttt{no-candidates}. This is a valid policy outcome rather than an instruction to relax restrictions.
+
+\subsubsection{Stage 2: calculate structured suitability rules}
+\label{sec:stage-two}
+
+\texttt{\_rule\_evaluation()} compares normalised check-in answers with an exercise's recommendation tags, support goals, and intended states. The field contributions are support~0.34, state~0.22, body~0.12, energy~0.10, stress~0.10, and focus~0.08. They sum to~0.96; they are not a probability distribution. Additional adjustments consider activation level and physical intensity. For example, a down-regulating exercise receives~0.12 for a calm-down support match and~0.10 for an anxious/overwhelmed state. Up-regulating activities receive~0.14 for an energy support match. High-intensity activity is penalised by~0.38 for tired/drained energy; moderate intensity is penalised by~0.10 in that condition. The resulting rule score is clipped to $[0,1]$.
+
+Writing $m_j(e,u)$ for a metadata match in field $j$, $w_j$ for its contribution, and $\Delta(e,u)$ for the implemented adjustments gives
+\begin{equation}
+ R(e,u)=\operatorname{clip}_{[0,1]}\!\left(\sum_j w_jm_j(e,u)+\Delta(e,u)\right).
+ \label{eq:rule-score}
+\end{equation}
+Hard eligibility and soft ranking adjustments have distinct purposes. A metadata contraindication causes removal in Stage~1; a moderate-intensity penalty can instead reorder otherwise eligible items. The returned matched fields also support explanation text. These transparent heuristics are defensible as inspectable implementation choices, but the present benchmark does not independently validate every weight or suitability interpretation.
+
+\subsubsection{Stage 3: compare meaning using MiniLM embeddings}
+\label{sec:stage-three}
+
+The engine constructs three kinds of document: the current check-in context, the goal/history context, and one description per eligible exercise. Exercise descriptions concatenate title, category, description, recommendation tags, support goals, intended states, activation level, and intensity. The current context uses labelled check-in answers. Although the Python schema retains a history-document function for older evaluation fixtures, the current application supplies no journals; the live history component uses the onboarding goal when present.
+
+The pretrained \texttt{all-MiniLM-L6-v2} tokenizer truncates inputs at 256 tokens. ONNX Runtime executes the model on the CPU. When inference returns token-level vectors, attention-mask-weighted mean pooling excludes padding; sentence-level outputs are used directly. Embeddings are converted to NumPy arrays, checked for expected shape, and normalised. Current-context similarity $C$ and goal/history similarity $H$ use the clipped cosine comparison
+\begin{equation}
+ C(e,u)=\operatorname{clip}_{[0,1]}\!\left(\frac{\mathbf v_e\cdot\mathbf v_c}{\|\mathbf v_e\|\,\|\mathbf v_c\|}\right),\qquad
+ H(e,u)=\operatorname{clip}_{[0,1]}\!\left(\frac{\mathbf v_e\cdot\mathbf v_h}{\|\mathbf v_e\|\,\|\mathbf v_h\|}\right).
+ \label{eq:semantic-score}
+\end{equation}
+If the goal/history document is empty, the code still encodes that document; it does not explicitly disable the five-percent history term. This is a concrete implementation limitation worth considering in a future ablation. The model is pretrained rather than trained or fine-tuned on the project's users. It measures descriptive similarity and does not generate therapeutic advice.
+
+If model loading or inference fails, production Python can use deterministic, 384-dimensional hashed token counts. SHA256 assigns tokens to dimensions, after which vectors are normalised. This lexical fallback is labelled in the model backend and logs the error class without user text. Strict ONNX evaluation disables fallback, so a failed model cannot silently produce a benchmark described as semantic inference. The separate mobile fallback is another algorithm and should not inherit the measured accuracy of the Python ranker.
+
+\subsubsection{Stage 4: add collaborative evidence only when sufficient history exists}
+\label{sec:stage-four}
+
+The API maps exercise events to bounded preference values: opened~0.15, started~0.35, completed~0.80, saved~0.70, repeated~1.00, and abandoned~$-0.40$. Explicit feedback takes precedence within its own record: uncomfortable maps to~$-1.00$; worse to~$-0.75$; better to~$1.00$; otherwise helpfulness $h\in\{0,1,2,3\}$ maps to $h/1.5-1$. The backend averages combined feedback/event observations per user and exercise over 180 days, clips to $[-1,1]$, and retrieves at most 10,000 aggregate rows. The feedback and event records can therefore counterbalance one another. An uncomfortable exercise nevertheless remains an explicit exclusion for that account, regardless of its averaged value.
+
+User--user cosine similarity is calculated only over jointly interacted exercise IDs. A qualifying neighbour must have at least two common items and positive cosine similarity. At least two qualifying neighbours activate collaboration under the defaults. For an eligible exercise, the component is
+\begin{equation}
+ B(e,u)=\frac{1}{2}\left(1+\frac{\sum_{v\in N_u(e)}\operatorname{sim}(u,v)r_{v,e}}{\sum_{v\in N_u(e)}\operatorname{sim}(u,v)}\right),
+ \label{eq:collaborative-score}
+\end{equation}
+where $N_u(e)$ contains qualifying neighbours with an observation for $e$. A missing collaborative estimate defaults to~0.5 when collaboration is active. Without enough neighbours, the collaborative contribution is disabled and the returned strategy is \texttt{content-based-cold-start}. This allows a new user to receive suggestions from current context and content metadata.
+
+Feedback changes future inputs; it does not retrain MiniLM after every event. Moreover, a completion event can reflect persistence rather than helpfulness, and two positive-similarity neighbours provide limited evidence. The current saved benchmark has no interaction histories and therefore tests the cold-start path, not the accuracy or fairness of collaborative recommendations.
+
+\subsubsection{Stage 5: blend, rotate, diversify, explain, and persist}
+\label{sec:stage-five}
+
+The base blend switches according to collaborative availability:
+\begin{align}
+ S_{\mathrm{cold}}(e,u)&=0.72R+0.23C+0.05H,\label{eq:cold-start}\\
+ S_{\mathrm{warm}}(e,u)&=0.65R+0.20C+0.05H+0.10B.\label{eq:warm-start}
+\end{align}
+Figure~\ref{fig:recommendation-weights} shows both modes. An earlier diagram's single 65/25/10 split combines current and goal/history similarity and describes only the collaboration-active blend. It does not represent cold-start weights. The revised account separates both semantic terms and both modes.
+
+@figure|recommendation-weights|Implemented score-component weights in cold start and collaboration-active mode. These are configured ranking contributions, not measured causal importance or success probabilities.|6.5
+
+The API supplies up to 24 recent item impressions from a 14-day window, excluding requests tied to the same latest check-in. Python approximates request age by each item's index divided by the requested list size. Each impression contributes $0.18\times0.72^a$, with accumulated penalty capped at~0.42. The preselection score is $\max(0,S-P_{\mathrm{recency}})$. This provides gentle rotation, although reconstructing age from item order is approximate when historical lists are shorter than four.
+
+Candidate ordering begins with descending score and exercise-ID tie breaking. If at least four eligible items align with the primary support goal, selection restricts to that pool; otherwise the full eligible set remains available. If enough candidates have recency penalties below $0.9\times0.42$, that less-exposed pool is preferred. Greedy selection then maximises the stored score minus~0.08 for each already selected item in the same category. Category diversity therefore affects positions, but the stored score does not include this per-selection diversity subtraction.
+
+If a complete selected set would repeat the most recent set, only the final slot may be replaced with an unseen, eligible, support-aligned item. That item is marked as exploration. No separate minimum semantic-similarity threshold is enforced in this substitution, so its appropriateness still needs longitudinal evaluation. Normal results contain up to four exercises, score components, reasons, and the exploration flag. Reasons follow deterministic matched-field templates; they explain a declared match and do not provide a complete attribution of every score contribution.
+
+The Node API saves the request, context flags, ordered items, and impression events within a database transaction. Ownership checks govern subsequent feedback. The Home screen maps returned IDs to mobile-renderable exercises and ignores unmapped IDs, another reason fewer than four cards can appear. A successful empty response is preserved. A request failure activates the local TypeScript ranker, which shares comfort filtering but does not receive the server's full persistent discomfort, collaborative, or recency history.
+
+\subsubsection{Worked scoring example and algorithm summary}
+\label{sec:worked-recommendation}
+
+Consider an illustrative eligible grounding exercise with $R=0.80$, $C=0.60$, and $H=0.40$. Its cold-start base score is $0.72(0.80)+0.23(0.60)+0.05(0.40)=0.734$. One newest-request impression subtracts~0.18, producing~0.554. If a category peer has already been selected, its selection utility becomes~0.474 after the diversity deduction, while the recorded score remains~0.554. These inputs are deliberately illustrative and are not a measured user case. If the same exercise were explicitly excluded in Stage~1, none of these calculations could return it.
+
+\begin{lstlisting}[caption={Five-stage algorithm summary. Operational logging and ownership checks occur in the API around this ranker.},label={lst:five-stage-algorithm}]
+1  context <- authenticated check-in, goal, catalogue, activity
+2  eligible <- deduplicate and apply all known exclusions
+3  if eligible is empty: return an empty result
+4  R <- structured suitability for each eligible exercise
+5  C, H <- semantic similarities; journals remain absent
+6  B, active <- positive neighbours with sufficient overlap
+7  S <- cold blend, or warm blend when active
+8  subtract recency; prefer support-aligned eligible options
+9  greedily diversify; conditionally replace only final slot
+10 return up to four items with reasons and components
+11 persist request/items/impressions; accept owned feedback
+\end{lstlisting}
+
+The explanation is grounded in \path{backend/src/routes/recommendations.ts}, \path{backend/src/data/comfortPreferences.ts}, \path{recommender/app/engine.py}, \path{src/services/recommendations/recommendationEngine.ts}, and \path{src/screens/home/HomeScreen.tsx}, inspected on 3 October 2026. Equations~\ref{eq:eligibility}--\ref{eq:warm-start} express implemented operations; future weight tuning, independent content review, and collaborative evaluation remain research tasks.

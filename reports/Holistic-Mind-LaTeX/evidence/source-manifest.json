@@ -1,0 +1,54 @@
+{
+  "inspection_date": "2026-10-03",
+  "purpose": "Identify the source inspected for this report; hashes do not imply new runtime testing.",
+  "files": [
+    {
+      "path": "recommender/app/engine.py",
+      "sha256": "7a8db742c12dddb75a34cf545d045fa74d8f84fca209ce610e06d14338f7a519"
+    },
+    {
+      "path": "recommender/app/schemas.py",
+      "sha256": "13e8c5950a0112c7a38cef80fcdc2ffb751075731126f737b6d4908a2051aeb0"
+    },
+    {
+      "path": "backend/src/routes/recommendations.ts",
+      "sha256": "653cb418b740c0baac19380a4aa8a048b0a398bbfaf72cfe6a4950b980b01814"
+    },
+    {
+      "path": "backend/src/data/comfortPreferences.ts",
+      "sha256": "2ee1d1155d7f0935d95b7a96ba06cca4e3a8a251264a7f63caa452d6b9ac7f5a"
+    },
+    {
+      "path": "backend/src/recommender.ts",
+      "sha256": "56bfc97d274b6d55c4e54fc6fbf3e07fb59ee9275fcb86a842383ba4788ffd33"
+    },
+    {
+      "path": "src/services/recommendations/recommendationEngine.ts",
+      "sha256": "f4dca7be86c7d495145638dde8e4829afe32dde7673f5ce4f047b38c2eec6d93"
+    },
+    {
+      "path": "src/screens/home/HomeScreen.tsx",
+      "sha256": "456711f458a82643a127aaa4dce4a91ef086e7ed2a9d6a427390b48ac1d826b9"
+    },
+    {
+      "path": "src/services/journal/journalCrypto.ts",
+      "sha256": "226a157787476ecb592e0e4fa1ea8c3b137dc9da750ac34c1a73d0556a18f142"
+    },
+    {
+      "path": "backend/src/routes/journal.ts",
+      "sha256": "8f921e0ba90f9ca1c7e6bb819cc47b3c47a59d842ef4f4b833fd3d8a0460a742"
+    },
+    {
+      "path": "recommender/evaluation/metrics.py",
+      "sha256": "8fc2cf805389b4e33ed79e92b900a5d25da8cbd2d334e0bacede1c4c65fbe1aa"
+    },
+    {
+      "path": "recommender/evaluation/evaluation_results_production_onnx.json",
+      "sha256": "28d5114fa72280855f59bec68c5c73bbb89c54adfe83420777478bb053b70240"
+    },
+    {
+      "path": "recommender/evaluation/evaluation_results_comfort_onnx.json",
+      "sha256": "cdf37a70eda12a2969a83dc044898f7bb806447895a0b1d4392d750a8df1df65"
+    }
+  ]
+}

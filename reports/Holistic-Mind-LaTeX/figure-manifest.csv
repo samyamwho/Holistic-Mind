@@ -1,0 +1,17 @@
+figure_number,label,file
+1,fig:welcome,figures/welcome.png
+2,fig:timeline,figures/timeline.png
+3,fig:architecture,figures/architecture.png
+4,fig:journey,figures/journey.png
+5,fig:data,figures/data.png
+6,fig:recommendation-five-stages,figures/recommendation-five-stages.pdf
+7,fig:sequence,figures/sequence.png
+8,fig:library,figures/library.png
+9,fig:recommendation-weights,figures/recommendation-weights.pdf
+10,fig:privacy,figures/privacy.png
+11,fig:content,figures/content.png
+12,fig:home_explore,figures/home_explore.png
+13,fig:history_profile,figures/history_profile.png
+14,fig:evolution,figures/evolution.png
+15,fig:productionchart,figures/productionchart.png
+16,fig:comfortchart,figures/comfortchart.png
